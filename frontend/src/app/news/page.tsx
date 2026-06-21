@@ -1,25 +1,19 @@
 ﻿import type { Metadata } from "next";
-import { PublicPageLayout } from "@/components/layout/public-page-layout";
-import { EmptyState } from "@/components/page/empty-state";
-import { PageHero } from "@/components/page/page-hero";
-import { PageSection } from "@/components/page/page-section";
+import { PublicContentPage } from "@/components/content/public-content-page";
 
 export const metadata: Metadata = {
-  title: "اخبار و اطلاعیه‌ها | مدرسه بعثت",
+  title: "اخبار | مدرسه بعثت",
 };
 
 export default function NewsPage() {
   return (
-    <PublicPageLayout>
-      <PageHero
-        eyebrow="اخبار"
-        title="اخبار و اطلاعیه‌ها"
-        description="خبرها و اطلاعیه‌های مدرسه بعثت در این صفحه منتشر می‌شوند."
-      />
-
-      <PageSection>
-        <EmptyState title="خبری برای نمایش ثبت نشده است." />
-      </PageSection>
-    </PublicPageLayout>
+    <PublicContentPage
+      active="news"
+      eyebrow="اخبار"
+      title="اخبار مدرسه بعثت"
+      description="خبرهای مدرسه بعثت پس از ثبت و انتشار، در این صفحه نمایش داده می‌شوند."
+      emptyTitle="خبری برای نمایش ثبت نشده است."
+      emptyDescription="پس از انتشار خبرهای مدرسه، موارد منتشرشده در این صفحه نمایش داده می‌شوند."
+    />
   );
 }

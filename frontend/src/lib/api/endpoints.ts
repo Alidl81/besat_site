@@ -9,6 +9,7 @@
   units: "/api/units/",
   departments: "/api/departments/",
   news: "/api/news/",
+  announcements: "/api/announcements/",
   gallery: "/api/gallery/",
   achievements: "/api/achievements/",
 
@@ -26,3 +27,4 @@
   messages: "/api/messages/",
   registrationRequests: "/api/registration-requests/",
 } as const;
+

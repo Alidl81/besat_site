@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.serializers import AbsoluteMediaURLMixin
@@ -24,9 +25,11 @@ class SchoolUnitListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerialize
         )
         read_only_fields = fields
 
+        @extend_schema_field(serializers.URLField(allow_null=True))
         def get_cover_image(self, obj):
             return self.build_absolute_media_url(obj.cover_image)
         
+        @extend_schema_field(serializers.URLField(allow_null=True))
         def get_icon(self, obj):
             sheared_unit_icon = self.context.get("shared_unit_icon")
             return self.build_absolute_media_url(sheared_unit_icon)

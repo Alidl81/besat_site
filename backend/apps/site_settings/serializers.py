@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.serializers import AbsoluteMediaURLMixin
@@ -38,12 +39,15 @@ class SiteSettingsSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer)
         )
         read_only_fields = fields
 
+    @extend_schema_field(serializers.URLField(allow_null=True))
     def get_logo(self, obj):
         return self.build_absolute_media_url(obj.logo)
     
+    @extend_schema_field(serializers.URLField(allow_null=True))
     def get_favicon(self, obj):
         return self.build_absolute_media_url(obj.favicon)
     
+    @extend_schema_field(serializers.URLField(allow_null=True))
     def get_hero_image(self, obj):
         return self.build_absolute_media_url(obj.hero_image)
     

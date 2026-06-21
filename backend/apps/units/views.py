@@ -20,13 +20,17 @@ from .serializers import SchoolUnitDetialSerializer, SchoolUnitListSerializer
     )
 )
 class SchoolUnitViewSet(ReadOnlyModelViewSet):
+    queryset = SchoolUnit.objects.none()
     permission_classes = [AllowAny]
     lookup_field = "slug"
-    lookup_url_kwarg = "sluh"
+    lookup_url_kwarg = "slug"
     pagination_class = None
 
     def get_queryset(self):
-        return SchoolUnit.objects.active().order_by("order", "id")
+        if getattr(self, "swagger_fake_view", False):
+            return SchoolUnit.objects.none()
+        
+        return SchoolUnit.objects.filter(is_active=True).order_by("order", "id")
     
     def get_serializer_class(self):
         if self.action == "retrieve":
@@ -39,3 +43,5 @@ class SchoolUnitViewSet(ReadOnlyModelViewSet):
 
         site_settings = SiteSettings.objects.get_active()
         context["shared_unit_icon"] = site_settings.logo if site_settings else None
+        
+        return context

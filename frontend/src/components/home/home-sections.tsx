@@ -1,5 +1,6 @@
 ﻿import Link from "next/link";
 import { Container } from "@/components/shared/container";
+import { Reveal } from "@/components/shared/reveal";
 import { SectionHeader } from "@/components/shared/section-header";
 
 const sections = [
@@ -29,25 +30,29 @@ export function HomeSections() {
   return (
     <section className="py-16">
       <Container>
-        <SectionHeader
-          eyebrow="بخش‌های سایت"
-          title="مسیرهای اصلی دسترسی"
-          description="بخش‌های اصلی وب‌سایت برای دسترسی ساده‌تر خانواده‌ها، دانش‌آموزان و مخاطبان مدرسه طراحی شده‌اند."
-        />
+        <Reveal>
+          <SectionHeader
+            eyebrow="بخش‌های سایت"
+            title="مسیرهای اصلی دسترسی"
+            description="بخش‌های اصلی وب‌سایت برای دسترسی ساده‌تر خانواده‌ها، دانش‌آموزان و مخاطبان مدرسه طراحی شده‌اند."
+          />
+        </Reveal>
 
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-          {sections.map((section) => (
-            <article key={section.title} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-950">{section.title}</h3>
+          {sections.map((section, index) => (
+            <Reveal key={section.title} delay={index * 80}>
+              <article className="h-full rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+                <h3 className="text-lg font-bold text-slate-950">{section.title}</h3>
 
-              <p className="mt-4 min-h-20 text-sm leading-7 text-slate-600">
-                {section.description}
-              </p>
+                <p className="mt-4 min-h-20 text-sm leading-7 text-slate-600">
+                  {section.description}
+                </p>
 
-              <Link href={section.href} className="mt-6 inline-flex text-sm font-bold text-emerald-700">
-                مشاهده
-              </Link>
-            </article>
+                <Link href={section.href} className="mt-6 inline-flex text-sm font-bold text-emerald-700">
+                  مشاهده
+                </Link>
+              </article>
+            </Reveal>
           ))}
         </div>
       </Container>

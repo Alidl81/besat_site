@@ -11,7 +11,7 @@ class DepartmentQuerrySet(models.QuerySet):
     
 class DepartmentManager(models.Manager):
     def get_queryset(self):
-        return DepartmentQuerySet(self.model, using=self._db)
+        return DepartmentQuerrySet(self.model, using=self._db)
 
     def active(self):
         return self.get_queryset().active()

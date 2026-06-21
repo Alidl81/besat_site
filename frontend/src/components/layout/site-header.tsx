@@ -9,7 +9,8 @@ const navItems = [
   { label: "درباره ما", href: "/about" },
   { label: "واحدها", href: "/units" },
   { label: "دپارتمان‌ها", href: "/departments" },
-  { label: "اخبار و اطلاعیه‌ها", href: "/news" },
+  { label: "اخبار", href: "/news" },
+  { label: "اطلاعیه‌ها", href: "/announcements" },
   { label: "گالری", href: "/gallery" },
   { label: "تماس با ما", href: "/contact" },
 ];
@@ -166,3 +167,4 @@ export function SiteHeader() {
     </header>
   );
 }
+

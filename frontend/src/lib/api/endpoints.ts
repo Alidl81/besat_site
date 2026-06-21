@@ -5,6 +5,7 @@
 
   siteSettings: "/api/site-settings/",
   home: "/api/home/",
+  about: "/api/about/",
 
   units: "/api/units/",
   departments: "/api/departments/",
@@ -27,4 +28,5 @@
   messages: "/api/messages/",
   registrationRequests: "/api/registration-requests/",
 } as const;
+
 

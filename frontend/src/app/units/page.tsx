@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 };
 
 const unitLinks = [
-  { title: "واحدهای آموزشی", href: "/units" },
   { title: "دپارتمان‌ها", href: "/departments" },
-  { title: "برنامه‌ها و فعالیت‌ها", href: "/news" },
+  { title: "اخبار و اطلاعیه‌ها", href: "/news" },
+  { title: "پیش‌ثبت‌نام", href: "/registration" },
 ];
 
 export default function UnitsPage() {
@@ -20,7 +20,7 @@ export default function UnitsPage() {
       <PageHero
         eyebrow="واحدها"
         title="واحدهای آموزشی"
-        description="در این بخش، مسیرهای مرتبط با واحدهای آموزشی و بخش‌های مختلف مدرسه نمایش داده می‌شود."
+        description="دسترسی به بخش‌های مرتبط با آموزش، اطلاع‌رسانی و ثبت درخواست."
       />
 
       <PageSection>
@@ -32,7 +32,7 @@ export default function UnitsPage() {
               className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50"
             >
               <h2 className="text-lg font-bold text-slate-950">{item.title}</h2>
-              <p className="mt-4 text-sm leading-8 text-slate-600">مشاهده جزئیات</p>
+              <p className="mt-4 text-sm leading-8 text-slate-600">مشاهده</p>
             </Link>
           ))}
         </div>

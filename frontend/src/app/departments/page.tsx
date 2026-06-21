@@ -5,20 +5,20 @@ import { PageHero } from "@/components/page/page-hero";
 import { PageSection } from "@/components/page/page-section";
 
 export const metadata: Metadata = {
-  title: "گالری تصاویر | مدرسه بعثت",
+  title: "دپارتمان‌ها | مدرسه بعثت",
 };
 
-export default function GalleryPage() {
+export default function DepartmentsPage() {
   return (
     <PublicPageLayout>
       <PageHero
-        eyebrow="گالری"
-        title="گالری تصاویر"
-        description="تصاویر برنامه‌ها، رویدادها و فضای مدرسه در این بخش نمایش داده می‌شوند."
+        eyebrow="دپارتمان‌ها"
+        title="دپارتمان‌های آموزشی"
+        description="دپارتمان‌های آموزشی مدرسه بعثت در این بخش معرفی می‌شوند."
       />
 
       <PageSection>
-        <EmptyState title="تصویری برای نمایش ثبت نشده است." />
+        <EmptyState title="دپارتمانی برای نمایش ثبت نشده است." />
       </PageSection>
     </PublicPageLayout>
   );

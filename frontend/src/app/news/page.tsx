@@ -1,5 +1,6 @@
 ﻿import type { Metadata } from "next";
 import { PublicPageLayout } from "@/components/layout/public-page-layout";
+import { EmptyState } from "@/components/page/empty-state";
 import { PageHero } from "@/components/page/page-hero";
 import { PageSection } from "@/components/page/page-section";
 
@@ -13,16 +14,11 @@ export default function NewsPage() {
       <PageHero
         eyebrow="اخبار"
         title="اخبار و اطلاعیه‌ها"
-        description="در این صفحه، خبرها و اطلاعیه‌های مدرسه بعثت نمایش داده می‌شود."
+        description="خبرها و اطلاعیه‌های مدرسه بعثت در این صفحه منتشر می‌شوند."
       />
 
       <PageSection>
-        <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center">
-          <h2 className="text-xl font-bold text-slate-950">اخبار مدرسه</h2>
-          <p className="mt-4 leading-8 text-slate-600">
-            در حال حاضر خبری برای نمایش وجود ندارد.
-          </p>
-        </div>
+        <EmptyState title="خبری برای نمایش ثبت نشده است." />
       </PageSection>
     </PublicPageLayout>
   );

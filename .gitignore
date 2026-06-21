@@ -1,3 +1,55 @@
 # Local backups
 _backups/
-backend/venv
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django / Python cache inside backend
+backend/**/__pycache__/
+backend/**/*.py[cod]
+
+# Virtual environment
+backend/venv/
+backend/env/
+backend/.venv/
+venv/
+env/
+.venv/
+
+# Environment files
+backend/.env
+backend/.env.*
+!backend/.env.example
+.env
+.env.*
+!.env.example
+
+# SQLite database
+backend/db.sqlite3
+backend/db.sqlite3-journal
+*.sqlite3
+
+# Logs
+*.log
+
+# Django collected static / uploaded media
+backend/staticfiles/
+backend/media/
+
+# Test / lint / type-check cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db

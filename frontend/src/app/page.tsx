@@ -1,6 +1,6 @@
-﻿import { ContentRulesSection } from "@/components/home/content-rules-section";
-import { HeroSection } from "@/components/home/hero-section";
-import { VerifiedSectionsPreview } from "@/components/home/verified-sections-preview";
+﻿import { HomeContactBanner } from "@/components/home/home-contact-banner";
+import { HomeHero } from "@/components/home/home-hero";
+import { HomeSections } from "@/components/home/home-sections";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 
@@ -9,9 +9,9 @@ export default function Home() {
     <>
       <SiteHeader />
       <main>
-        <HeroSection />
-        <VerifiedSectionsPreview />
-        <ContentRulesSection />
+        <HomeHero />
+        <HomeSections />
+        <HomeContactBanner />
       </main>
       <SiteFooter />
     </>

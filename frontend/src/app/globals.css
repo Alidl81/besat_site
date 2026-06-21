@@ -74,3 +74,94 @@ button {
   background: #d1fae5;
   color: #064e3b;
 }
+
+/* BESAT_CUSTOM_UI_START */
+.besat-navy-button {
+  background: #0f2f4a;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 30px rgba(15, 47, 74, 0.22);
+}
+
+.besat-navy-button,
+.besat-navy-button span,
+.besat-navy-button svg {
+  color: #ffffff !important;
+}
+
+.besat-navy-button:hover {
+  background: #143d5f;
+  color: #ffffff !important;
+  box-shadow: 0 18px 36px rgba(15, 47, 74, 0.28);
+}
+
+.besat-nav-link {
+  position: relative;
+  color: #334155;
+  transition:
+    color 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.besat-nav-link::after {
+  content: "";
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: 0.35rem;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(22, 163, 106, 0), #16a36a, rgba(22, 163, 106, 0));
+  transform: scaleX(0);
+  transform-origin: center;
+  opacity: 0;
+  transition:
+    transform 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.besat-nav-link:hover {
+  color: #047857;
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.besat-nav-link:hover::after {
+  transform: scaleX(1);
+  opacity: 1;
+}
+
+.besat-mobile-link {
+  position: relative;
+  color: #334155;
+  transition:
+    color 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding-right 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.besat-mobile-link::before {
+  content: "";
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  width: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: #16a36a;
+  transform: translateY(-50%);
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.besat-mobile-link:hover {
+  color: #047857;
+  background: #ecfdf5;
+  padding-right: 2rem;
+}
+
+.besat-mobile-link:hover::before {
+  width: 0.75rem;
+}
+/* BESAT_CUSTOM_UI_END */
+

@@ -23,6 +23,8 @@ html {
 
 body {
   margin: 0;
+  direction: rtl;
+  text-align: right;
   background: var(--color-bg);
   color: var(--color-text);
   font-family:
@@ -44,4 +46,20 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+input,
+textarea,
+select {
+  direction: rtl;
+  text-align: right;
+}
+
+button {
+  cursor: pointer;
+}
+
+::selection {
+  background: #d1fae5;
+  color: #064e3b;
 }

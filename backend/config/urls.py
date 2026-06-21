@@ -2,7 +2,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
-from drf_spectacular.views import SpectacularAPIViewm ,SpectacularSwaggerView
+from drf_spectacular.views import SpectacularAPIView ,SpectacularSwaggerView
 
 
 admin.site.site_header = "پنل مدیریت سایت"
@@ -12,7 +12,7 @@ admin.site.index_title = "داشبورد مدیریت"
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
-    path("api/schema/", SpectacularAPIViewm.as_view(), name="schema"),
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",
         SpectacularSwaggerView.as_view(url_name="schema"),

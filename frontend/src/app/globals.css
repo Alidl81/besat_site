@@ -1,5 +1,21 @@
 ﻿@import "tailwindcss";
 
+@font-face {
+  font-family: "Estedad";
+  src: url("/fonts/Estedad.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("/fonts/Vazirmatn.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --color-primary: #0f2f4a;
   --color-primary-soft: #e8f0f7;
@@ -10,6 +26,7 @@
   --color-border: #e5e7eb;
   --color-text: #0f172a;
   --color-muted: #64748b;
+  --font-main: "Estedad", "Vazirmatn", "Segoe UI", Tahoma, Arial, sans-serif;
 }
 
 * {
@@ -27,13 +44,7 @@ body {
   text-align: right;
   background: var(--color-bg);
   color: var(--color-text);
-  font-family:
-    "Vazirmatn",
-    "IRANSans",
-    "Segoe UI",
-    Tahoma,
-    Arial,
-    sans-serif;
+  font-family: var(--font-main);
 }
 
 a {

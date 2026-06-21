@@ -24,14 +24,14 @@ class SiteSettingsAdmin(admin.ModelAdmin):
     )
     readonly_fields = (
         "created_at",
-        "uploaded_at",
+        "updated_at",
     )
 
-    fields = (
+    fieldsets = (
         (
             "اطلاعات اصلی",
             {
-                "fileds": (
+                "fields": (
                     "is_active",
                     "school_name",
                     "short_name",
@@ -43,7 +43,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         (
             "رسانه ها",
             {
-                "fileds": (
+                "fields": (
                     "logo",
                     "favicon",
                     "hero_image",
@@ -53,7 +53,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         (
             "بخش hero صفحه اصلی",
             {
-                "fileds": (
+                "fields": (
                     "hero_title",
                     "hero_subtitle",
                 )

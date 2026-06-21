@@ -3,6 +3,7 @@ _backups/
 
 # Python cache
 __pycache__/
+migrations/
 *.py[cod]
 *$py.class
 

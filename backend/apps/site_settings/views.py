@@ -17,7 +17,7 @@ class SiteSettingsAPIView(APIView):
     def get(self, request):
         site_settings = SiteSettings.objects.get_active()
 
-        if site_settings in None:
+        if site_settings is None:
             return Response(SiteSettingsSerializer.empty_payload())
         
         serializer = self.serializer_calss(

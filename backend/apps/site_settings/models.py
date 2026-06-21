@@ -38,6 +38,11 @@ class SiteSettings(TimeStampedModel):
         blank=True,
         verbose_name="شعار",
     )
+    intro_text = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name="متن معرفی",
+    )
     logo = models.ImageField(
         upload_to="site/settings/logo/",
         null=True,

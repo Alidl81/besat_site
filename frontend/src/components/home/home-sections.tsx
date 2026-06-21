@@ -30,7 +30,7 @@ export function HomeSections() {
   return (
     <section className="py-16">
       <Container>
-        <Reveal>
+        <Reveal mode="lazy" reserveClassName="min-h-36">
           <SectionHeader
             eyebrow="بخش‌های سایت"
             title="مسیرهای اصلی دسترسی"
@@ -40,8 +40,13 @@ export function HomeSections() {
 
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
           {sections.map((section, index) => (
-            <Reveal key={section.title} delay={index * 80}>
-              <article className="h-full rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+            <Reveal
+              key={section.title}
+              mode="lazy"
+              delay={index * 80}
+              reserveClassName="min-h-56"
+            >
+              <article className="h-full rounded-3xl border border-slate-200 bg-white p-6 text-right shadow-sm transition hover:-translate-y-1 hover:shadow-md">
                 <h3 className="text-lg font-bold text-slate-950">{section.title}</h3>
 
                 <p className="mt-4 min-h-20 text-sm leading-7 text-slate-600">

@@ -6,8 +6,8 @@ export function HomeContactBanner() {
   return (
     <section className="pb-16">
       <Container>
-        <Reveal>
-          <div className="rounded-[2rem] bg-[#0f2f4a] p-8 text-white md:p-10">
+        <Reveal mode="lazy" reserveClassName="min-h-48">
+          <div className="rounded-[2rem] bg-[#0f2f4a] p-8 text-right text-white md:p-10">
             <div className="grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
               <div>
                 <p className="mb-3 text-sm font-bold text-emerald-200">ارتباط با مدرسه</p>

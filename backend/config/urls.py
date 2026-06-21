@@ -12,6 +12,8 @@ admin.site.index_title = "داشبورد مدیریت"
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
+    path("api/", include("apps.core.urls")),
+    path("api/", include("apps.site_settings.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",

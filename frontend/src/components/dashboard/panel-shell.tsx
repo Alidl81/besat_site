@@ -93,6 +93,9 @@ function PanelSidebar({ data, activeKey }: { data: PanelData; activeKey: string 
 }
 
 function PanelTopBar({ data, activeKey }: { data: PanelData; activeKey: string }) {
+  const profileHref =
+    data.menu.find((item) => item.key === "profile")?.href ?? data.menu[0]?.href ?? "/";
+
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="flex h-20 items-center gap-4 px-4 sm:px-6 lg:px-8">
@@ -100,13 +103,13 @@ function PanelTopBar({ data, activeKey }: { data: PanelData; activeKey: string }
           <PanelMenu data={data} activeKey={activeKey} />
         </div>
 
-        <div className="hidden items-center gap-4 xl:flex">
+        <Link href={profileHref} className="hidden items-center gap-4 rounded-2xl px-2 py-1 transition hover:bg-slate-50 xl:flex">
           <UserAvatar />
           <div>
             <p className="text-sm font-black text-[#062452]">{data.roleTitle}</p>
             <p className="mt-1 text-xs font-bold text-slate-500">پنل مدرسه</p>
           </div>
-        </div>
+        </Link>
 
         <div className="hidden h-9 w-px bg-slate-200 lg:block" />
 
@@ -121,14 +124,14 @@ function PanelTopBar({ data, activeKey }: { data: PanelData; activeKey: string }
           <span className="text-sm font-bold text-slate-400">جستجو در پنل...</span>
         </div>
 
-        <div className="mr-auto flex items-center gap-3 xl:hidden">
+        <Link href={profileHref} className="mr-auto flex items-center gap-3 rounded-2xl px-2 py-1 transition hover:bg-slate-50 xl:hidden">
           <div className="text-left">
             <p className="text-sm font-black text-[#062452]">حساب کاربری</p>
             <p className="mt-1 text-xs font-bold text-slate-500">{data.roleTitle}</p>
           </div>
 
           <UserAvatar />
-        </div>
+        </Link>
       </div>
     </header>
   );
@@ -318,6 +321,8 @@ export function PanelShell({ data, activeKey = "overview" }: PanelShellProps) {
     </main>
   );
 }
+
+
 
 
 

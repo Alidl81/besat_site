@@ -1,51 +1,51 @@
-﻿const DEFAULT_API_BASE_URL = "http://localhost:8000";
-
-export const apiBaseUrl =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? DEFAULT_API_BASE_URL;
-
-type ApiRequestOptions = RequestInit & {
+﻿export type ApiRequestOptions = RequestInit & {
   token?: string;
+  next?: {
+    revalidate?: number;
+    tags?: string[];
+  };
 };
 
-export class ApiError extends Error {
-  status: number;
-  body: unknown;
-
-  constructor(message: string, status: number, body: unknown) {
-    super(message);
-    this.name = "ApiError";
-    this.status = status;
-    this.body = body;
-  }
+function getApiBaseUrl() {
+  return process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000/api";
 }
 
-export async function apiRequest<TResponse>(
-  path: string,
+function normalizeEndpoint(endpoint: string) {
+  if (endpoint.startsWith("http://") || endpoint.startsWith("https://")) {
+    return endpoint;
+  }
+
+  const baseUrl = getApiBaseUrl().replace(/\/$/, "");
+  const cleanEndpoint = endpoint.replace(/^\//, "");
+
+  return `${baseUrl}/${cleanEndpoint}`;
+}
+
+export async function apiRequest<T>(
+  endpoint: string,
   options: ApiRequestOptions = {},
-): Promise<TResponse> {
-  const headers = new Headers(options.headers);
+): Promise<T> {
+  const { token, headers, ...requestOptions } = options;
 
-  headers.set("Accept", "application/json");
+  const requestHeaders: HeadersInit = {
+    Accept: "application/json",
+    ...(requestOptions.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...headers,
+  };
 
-  if (!(options.body instanceof FormData)) {
-    headers.set("Content-Type", "application/json");
-  }
-
-  if (options.token) {
-    headers.set("Authorization", `Bearer ${options.token}`);
-  }
-
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    ...options,
-    headers,
+  const response = await fetch(normalizeEndpoint(endpoint), {
+    ...requestOptions,
+    headers: requestHeaders,
   });
 
-  const text = await response.text();
-  const body = text ? JSON.parse(text) : null;
-
   if (!response.ok) {
-    throw new ApiError("درخواست با خطا روبه‌رو شد.", response.status, body);
+    throw new Error("درخواست ناموفق بود.");
   }
 
-  return body as TResponse;
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json() as Promise<T>;
 }

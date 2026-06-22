@@ -8,8 +8,7 @@ from .views import NewdCategoryListAPIView, NewsViewSet
 app_name = "news"
 
 router = DefaultRouter()
-router.register("news"m NewsViewSet, basename="news")
-
+router.register("news", NewsViewSet, basename="news")
 urlpatterns = [
     path(
         "news/category",

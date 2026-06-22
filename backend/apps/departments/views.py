@@ -1,4 +1,5 @@
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
+from rest_framework import filters
 from rest_framework.permissions import AllowAny
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
@@ -6,11 +7,24 @@ from .models import Department
 from .serializers import DepartmentDetailSerializer, DepartmentListSerializer
 
 
-
 @extend_schema_view(
     list=extend_schema(
         tags=["Departments"],
         summary="List active departments",
+        parameters=[
+            OpenApiParameter(
+                name="search",
+                description="Search in title, slug, short description, and description.",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="ordering",
+                description="Allowed: order, -order, title, -title, id, -id.",
+                required=False,
+                type=str,
+            ),
+        ],
     ),
     retrieve=extend_schema(
         tags=["Departments"],
@@ -23,6 +37,26 @@ class DepartmentViewSet(ReadOnlyModelViewSet):
     lookup_field = "slug"
     lookup_url_kwarg = "slug"
     pagination_class = None
+
+    filter_backends = (
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    )
+    search_fields = (
+        "title",
+        "slug",
+        "short_description",
+        "description",
+    )
+    ordering_fields = (
+        "order",
+        "title",
+        "id",
+    )
+    ordering = (
+        "order",
+        "id",
+    )
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):

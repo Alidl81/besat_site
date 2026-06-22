@@ -22,7 +22,7 @@ export function HomeContactBanner() {
               <div className="flex flex-wrap gap-3 md:justify-end">
                 <Link
                   href="/registration"
-                  className="rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-white transition hover:bg-emerald-600"
+                  className="rounded-xl besat-green-button bg-emerald-500 px-6 py-3 text-sm font-bold text-white transition hover:bg-emerald-600"
                 >
                   ثبت‌نام آنلاین
                 </Link>
@@ -41,3 +41,4 @@ export function HomeContactBanner() {
     </section>
   );
 }
+

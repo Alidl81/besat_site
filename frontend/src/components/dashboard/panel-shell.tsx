@@ -1,4 +1,5 @@
 ﻿import Link from "next/link";
+import { BesatLogoMark } from "@/components/shared/besat-logo";
 import { PanelMenu } from "@/components/dashboard/panel-menu";
 import type { PanelData, PanelSectionKey } from "@/components/dashboard/panel-data";
 
@@ -308,4 +309,10 @@ export function PanelShell({ data, activeKey = "overview" }: PanelShellProps) {
     </main>
   );
 }
+
+
+
+
+
+
 

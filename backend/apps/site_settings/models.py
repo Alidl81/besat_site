@@ -207,8 +207,8 @@ class SiteSettings(TimeStampedModel):
     def save(self, *args, **kwargs):
         self.full_clean(validate_unique=False, validate_constraints=False)
 
-        with transaction.atomic:
-            SiteSettings.objects.filter(is_active=True).exclude(pk=self).update(
+        with transaction.atomic():
+            SiteSettings.objects.filter(is_active=True).exclude(pk=self.pk).update(
                 is_active=False
             )
         super().save(*args, **kwargs)

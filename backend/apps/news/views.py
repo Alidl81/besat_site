@@ -13,6 +13,8 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
+from rest_framework.authentication import SessionAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from .models import News, NewsCategory
 from .permissions import HasNewsCMSPermission
@@ -236,6 +238,7 @@ class CMSNewsCategoryViewSet(ModelViewSet):
     permission_classes = [HasNewsCMSPermission]
     permission_model = NewsCategory
     lookup_value_regex = r"\d+"
+    authentication_classes = (JWTAuthentication, SessionAuthentication)
 
     filter_backends = (
         filters.SearchFilter,
@@ -292,6 +295,8 @@ class CMSNewsViewSet(ModelViewSet):
     permission_classes = [HasNewsCMSPermission]
     permission_model = News
     lookup_value_regex = r"\d+"
+    authentication_classes = (JWTAuthentication, SessionAuthentication)
+    
     parser_classes = (
         JSONParser,
         FormParser,

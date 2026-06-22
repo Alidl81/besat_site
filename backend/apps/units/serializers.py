@@ -35,5 +35,5 @@ class SchoolUnitListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerialize
             return self.build_absolute_media_url(sheared_unit_icon)
         
 
-class SchoolUnitDetialSerializer(SchoolUnitListSerializer):
+class SchoolUnitDetailSerializer(SchoolUnitListSerializer):
     pass

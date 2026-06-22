@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import timedelta
 
 import environ
 
@@ -50,6 +51,7 @@ THIRD_PARTY_APPS = [
     "rest_framework",
     "django_filters",
     "drf_spectacular",
+    "rest_framework_simplejwt.token_blacklist",
 ]
 
 LOCAL_APPS = [
@@ -63,6 +65,7 @@ LOCAL_APPS = [
     "apps.contact",
     "apps.registration",
     "apps.staff",
+    "apps.accounts",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

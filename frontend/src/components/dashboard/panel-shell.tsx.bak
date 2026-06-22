@@ -1,7 +1,6 @@
 ﻿import Link from "next/link";
 import { BesatLogoMark } from "@/components/shared/besat-logo";
 import { PanelMenu } from "@/components/dashboard/panel-menu";
-import { PanelProfileContent } from "@/components/dashboard/panel-profile-content";
 import type { PanelData, PanelSectionKey } from "@/components/dashboard/panel-data";
 
 type PanelShellProps = {
@@ -20,16 +19,6 @@ function EmptyState({ text }: { text: string }) {
   );
 }
 
-function UserAvatar({ className = "" }: { className?: string }) {
-  return (
-    <div
-      className={`flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-[#062452] shadow-sm ${className}`}
-    >
-      <span className="text-lg leading-none">👤</span>
-    </div>
-  );
-}
-
 function PanelSidebar({ data, activeKey }: { data: PanelData; activeKey: string }) {
   return (
     <aside className="hidden xl:block">
@@ -40,7 +29,9 @@ function PanelSidebar({ data, activeKey }: { data: PanelData; activeKey: string 
             <p className="mt-1 text-xs font-bold text-white/65">سیستم مدیریت مدرسه</p>
           </div>
 
-          <BesatLogoMark size="sm" className="!h-14 !w-14" />
+          <div className="flex size-14 items-center justify-center rounded-[1.4rem] bg-white text-2xl font-black text-[#062452] shadow-xl">
+            ب
+          </div>
         </div>
 
         <div className="mb-4 shrink-0 rounded-[1.4rem] border border-white/10 bg-white/10 p-3">
@@ -101,7 +92,9 @@ function PanelTopBar({ data, activeKey }: { data: PanelData; activeKey: string }
         </div>
 
         <div className="hidden items-center gap-4 xl:flex">
-          <UserAvatar />
+          <div className="flex size-12 items-center justify-center rounded-full bg-slate-100 text-lg font-black text-[#062452]">
+            ب
+          </div>
           <div>
             <p className="text-sm font-black text-[#062452]">{data.roleTitle}</p>
             <p className="mt-1 text-xs font-bold text-slate-500">پنل مدرسه</p>
@@ -127,7 +120,9 @@ function PanelTopBar({ data, activeKey }: { data: PanelData; activeKey: string }
             <p className="mt-1 text-xs font-bold text-slate-500">{data.roleTitle}</p>
           </div>
 
-          <UserAvatar />
+          <div className="flex size-12 items-center justify-center rounded-full bg-slate-100 text-lg font-black text-[#062452]">
+            ب
+          </div>
         </div>
       </div>
     </header>
@@ -273,10 +268,6 @@ function OverviewContent({ data }: { data: PanelData }) {
 function SectionContent({ data, activeKey }: { data: PanelData; activeKey: string }) {
   const activeItem = data.menu.find((item) => item.key === activeKey) ?? data.menu[0];
 
-  if (activeKey === "profile") {
-    return <PanelProfileContent roleTitle={data.roleTitle} />;
-  }
-
   return (
     <section className="mt-5 rounded-[1.6rem] border border-slate-200 bg-white p-5 text-right shadow-sm">
       <div className="mb-5 flex items-center justify-between gap-4">
@@ -318,10 +309,6 @@ export function PanelShell({ data, activeKey = "overview" }: PanelShellProps) {
     </main>
   );
 }
-
-
-
-
 
 
 

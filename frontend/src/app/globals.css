@@ -341,3 +341,31 @@ button[class*="bg-[#062452]"] span {
 }
 /* BESAT_PANEL_SCROLL_END */
 
+/* BESAT_BUTTON_COLOR_FIX_START */
+.besat-navy-button,
+.besat-navy-button *,
+a.besat-navy-button,
+a.besat-navy-button *,
+button.besat-navy-button,
+button.besat-navy-button * {
+  color: #ffffff !important;
+}
+
+.besat-green-button,
+.besat-green-button *,
+a.besat-green-button,
+a.besat-green-button *,
+button.besat-green-button,
+button.besat-green-button * {
+  color: #ffffff !important;
+}
+
+.besat-navy-button:hover,
+.besat-navy-button:hover *,
+.besat-green-button:hover,
+.besat-green-button:hover * {
+  color: #ffffff !important;
+}
+/* BESAT_BUTTON_COLOR_FIX_END */
+
+

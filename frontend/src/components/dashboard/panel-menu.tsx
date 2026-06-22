@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { BesatLogoMark } from "@/components/shared/besat-logo";
 import { useEffect, useState } from "react";
 import type { PanelData } from "@/components/dashboard/panel-data";
 
@@ -67,7 +68,7 @@ export function PanelMenu({ data, activeKey }: PanelMenuProps) {
           type="button"
           aria-label="بستن منو"
           onClick={() => setIsOpen(false)}
-          className="absolute inset-0 z-0 bg-slate-950/35 backdrop-blur-sm"
+          className="fixed inset-0 z-0 h-dvh w-screen bg-slate-950/35 backdrop-blur-sm"
         />
 
         <aside
@@ -146,3 +147,9 @@ export function PanelMenu({ data, activeKey }: PanelMenuProps) {
     </>
   );
 }
+
+
+
+
+
+

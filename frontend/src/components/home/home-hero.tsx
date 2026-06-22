@@ -34,7 +34,7 @@ export function HomeHero() {
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
                   href="/about"
-                  className="rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-white transition hover:bg-emerald-600"
+                  className="rounded-xl besat-green-button bg-emerald-500 px-6 py-3 text-sm font-bold text-white transition hover:bg-emerald-600"
                 >
                   بیشتر درباره ما
                 </Link>
@@ -84,3 +84,4 @@ export function HomeHero() {
     </section>
   );
 }
+

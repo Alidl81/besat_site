@@ -40,6 +40,15 @@ export type NewsItem = {
   published_at?: string | null;
 };
 
+export type AnnouncementItem = {
+  id: number;
+  title: string;
+  slug: string;
+  summary?: string | null;
+  content?: string | null;
+  published_at?: string | null;
+};
+
 export type PaginatedResponse<T> = {
   count: number;
   next: string | null;
@@ -92,5 +101,17 @@ export function getNewsBySlug(slug: string) {
 export function getNewsCategories() {
   return apiRequest<NewsCategory[] | PaginatedResponse<NewsCategory>>("news/categories/", {
     next: { revalidate: 300 },
+  });
+}
+
+export function getAnnouncements() {
+  return apiRequest<AnnouncementItem[] | PaginatedResponse<AnnouncementItem>>("announcements/", {
+    next: { revalidate: 120 },
+  });
+}
+
+export function getAnnouncementBySlug(slug: string) {
+  return apiRequest<AnnouncementItem>(`announcements/${slug}/`, {
+    next: { revalidate: 120 },
   });
 }

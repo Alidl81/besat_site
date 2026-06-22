@@ -3,7 +3,7 @@ from html import unescape
 from django.core.exceptions import ValidationError
 from django.utils.html import strip_tags
 
-ALLOWED_EDIROT_BLOCK_TYPES = {
+ALLOWED_EDITOR_BLOCK_TYPES = {
     "paragraph",
     "header",
     "list",

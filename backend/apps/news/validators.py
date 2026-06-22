@@ -18,7 +18,7 @@ ALLOWED_NEWS_IMAGE_EXTENSIONS = {
 
 MAX_NEWS_IMAGE_SIZE = 5 * 1024 * 1024 # 5 MB
 
-def validae_news_image_file(file):
+def validate_news_image_file(file):
     if not file:
         return
     

@@ -16,7 +16,7 @@ from .utils import (
     extract_editorjs_plain_text,
     validate_editorjs_content,
 )
-from .validators import validae_news_image_file
+from .validators import validate_news_image_file
 
 
 
@@ -137,7 +137,7 @@ class News(TimeStampedModel):
     )
     cover_image = models.ImageField(
         upload_to=news_cover_upload_to,
-        validators=[validae_news_image_file],
+        validators=[validate_news_image_file],
         null=True,
         blank=True,
         verbose_name="تصویر کاور",

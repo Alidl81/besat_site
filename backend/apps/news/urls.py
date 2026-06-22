@@ -1,20 +1,25 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .views import NewdCategoryListAPIView, NewsViewSet
-
+from .views import CMSNewsCategoryViewSet, CMSNewsViewSet, NewsCategoryListAPIView, NewsViewSet
 
 
 app_name = "news"
 
-router = DefaultRouter()
-router.register("news", NewsViewSet, basename="news")
+public_router = DefaultRouter()
+public_router.register("news", NewsViewSet, basename="news")
+
+cms_router = DefaultRouter()
+cms_router.register("cms/news/categories", CMSNewsCategoryViewSet, basename="cms-news-category")
+cms_router.register("cms/news", CMSNewsViewSet, basename="cms-news")
+
 urlpatterns = [
     path(
-        "news/category",
-        NewdCategoryListAPIView.as_view(),
+        "news/categories/",
+        NewsCategoryListAPIView.as_view(),
         name="news-category-list",
     ),
 ]
 
-urlpatterns += router.urls
+urlpatterns += public_router.urls
+urlpatterns += cms_router.urls

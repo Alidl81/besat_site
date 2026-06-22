@@ -1,10 +1,36 @@
+from pathlib import Path
+from uuid import uuid4
+
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 from django.utils.text import slugify
 
 from apps.core.models import ActiveModel, OrderedModel, TimeStampedModel
 from apps.core.utils import normalize_text
 
+
+from .utils import (
+    default_news_content_json,
+    extract_editorjs_plain_text,
+    validate_editorjs_content,
+)
+from .validators import validae_news_image_file
+
+
+
+def news_cover_upload_to(instance, filename):
+    today = timezone.localdate()
+    extention = Path(filename).suffix.lower()
+
+    return f"news/cover/{today:&Y/%m}/{uuid4().hex}{extention}"
+
+def news_content_image_upload_to(instance, filename):
+    today = timezone.localdate()
+    extention = Path(filename).suffix.lower()
+
+    return f"news/cover/{today:&Y/%m}/{uuid4().hex}{extention}"
 
 
 class NewsCategory(ActiveModel, OrderedModel):
@@ -37,6 +63,13 @@ class NewsCategory(ActiveModel, OrderedModel):
 
         self.title = normalize_text(self.title)
         self.slug = normalize_text(self.slug)
+
+        if not self.title:
+            raise ValidationError(
+                {
+                    "title": "عنوان دسته‌بندی الزامی است.",
+                }
+            )
 
     def save(self, *args, **kwargs):
         self.full_clean(validate_unique=False, validate_constraints=False)
@@ -71,6 +104,12 @@ class NewsCategory(ActiveModel, OrderedModel):
     
 
 class News(TimeStampedModel):
+    class Status(models.TextChoices):
+        DRAFT = "draft", "پیش‌نویس"
+        REVIEW = "review", "در انتظار بررسی"
+        PUBLISHED = "published", "منتشر شده"
+        ARCHIVED = "archived", "آرشیو شده"
+
     title = models.CharField(
         max_length=255,
         verbose_name="عنوان خبر",
@@ -91,21 +130,37 @@ class News(TimeStampedModel):
         related_name="news_items",
         verbose_name="دسته‌بندی",
     )
-    summery = models.TextField(
+    summary = models.TextField(
         null=True,
         blank=True,
         verbose_name="خلاصه خبر",
     )
-    content = models.TextField(
-        null=True,
-        blank=True,
-        verbose_name="متن کامل خبر",
-    )
     cover_image = models.ImageField(
-        upload_to="news/covers/",
+        upload_to=news_cover_upload_to,
+        validators=[validae_news_image_file],
         null=True,
         blank=True,
         verbose_name="تصویر کاور",
+    )
+    content_json = models.JSONField(
+        default=default_news_content_json,
+        blank=True,
+        verbose_name="محتوای ساختاریافته",
+        help_text="خروجی JSON ادیتور خبر. برای نمایش در فرانت استفاده می‌شود.",
+    )
+    content_text = models.TextField(
+        null=True,
+        blank=True,
+        editable=False,
+        db_index=True,
+        verbose_name="متن ساده برای جستجو",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        db_index=True,
+        verbose_name="وضعیت",
     )
     published_at = models.DateField(
         null=True,
@@ -114,15 +169,26 @@ class News(TimeStampedModel):
         verbose_name="تاریخ انتشار",
         help_text="باید تاریخ واقعی انتشار باشد. اگر خبر منتشر نشده، خالی بگذارید.",
     )
-    is_published = models.BooleanField(
-        default=False,
-        db_index=True,
-        verbose_name="منتشر شده؟",
-    )
     is_featured = models.BooleanField(
         default=False,
         db_index=True,
         verbose_name="خبر ویژه؟",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_news_items",
+        verbose_name="ایجادکننده",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_news_items",
+        verbose_name="آخرین ویرایش‌کننده",
     )
 
     class Meta:
@@ -130,13 +196,17 @@ class News(TimeStampedModel):
         verbose_name_plural = "اخبار و اطلاعیه‌ها"
         ordering = ("-published_at", "-id")
         indexes = [
-            models.Index(fields=("is_published", "published_at")),
+            models.Index(fields=("status", "published_at")),
             models.Index(fields=("is_featured", "published_at")),
-            models.Index(fields=("category", "is_published")),
+            models.Index(fields=("category", "status")),
         ]
 
     def __str__(self):
         return self.title
+
+    @property
+    def is_published(self) -> bool:
+        return self.status == self.Status.PUBLISHED
 
     def clean(self):
         super().clean()
@@ -144,29 +214,26 @@ class News(TimeStampedModel):
         self.title = normalize_text(self.title)
         self.slug = normalize_text(self.slug)
 
-        nullable_text_fields = (
-            "summary",
-            "content",
-        )
+        if isinstance(self.summary, str):
+            self.summary = normalize_text(self.summary) or None
 
-        for field_name in nullable_text_fields:
-            value = getattr(self, field_name)
-
-            if isinstance(value, str):
-                value = normalize_text(value)
-                setattr(self, field_name, value or None)
+        self.content_json = validate_editorjs_content(self.content_json)
+        self.content_text = extract_editorjs_plain_text(self.content_json) or None
 
         errors = {}
 
-        if self.is_published:
+        if not self.title:
+            errors["title"] = "عنوان خبر الزامی است."
+
+        if self.status == self.Status.PUBLISHED:
             if not self.published_at:
                 errors["published_at"] = "برای انتشار خبر، تاریخ انتشار الزامی است."
 
             if not self.summary:
                 errors["summary"] = "برای انتشار خبر، خلاصه خبر الزامی است."
 
-            if not self.content:
-                errors["content"] = "برای انتشار خبر، متن کامل خبر الزامی است."
+            if not self.content_text:
+                errors["content_json"] = "برای انتشار خبر، متن خبر الزامی است."
 
             if self.category and not self.category.is_active:
                 errors["category"] = "خبر منتشرشده نباید در دسته‌بندی غیرفعال باشد."
@@ -203,3 +270,58 @@ class News(TimeStampedModel):
             counter += 1
 
         return slug
+    
+
+class NewsMedia(models.Model):
+    news = models.ForeignKey(
+        News,
+        on_delete=models.CASCADE,
+        related_name="media_items",
+        verbose_name="خبر",
+    )
+    image = models.ImageField(
+        upload_to=news_content_image_upload_to,
+        validators=[validate_news_image_file],
+        verbose_name="تصویر",
+    )
+    alt_text = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name="متن جایگزین",
+    )
+    caption = models.CharField(
+        max_length=500,
+        null=True,
+        blank=True,
+        verbose_name="کپشن",
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="uploaded_news_media",
+        verbose_name="آپلودکننده",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="تاریخ آپلود",
+    )
+
+    class Meta:
+        verbose_name = "رسانه خبر"
+        verbose_name_plural = "رسانه‌های خبر"
+        ordering = ("-created_at", "-id")
+
+    def __str__(self):
+        return self.caption or self.alt_text or f"تصویر خبر #{self.pk}"
+
+    def clean(self):
+        super().clean()
+
+        if isinstance(self.alt_text, str):
+            self.alt_text = normalize_text(self.alt_text) or None
+
+        if isinstance(self.caption, str):
+            self.caption = normalize_text(self.caption) or None

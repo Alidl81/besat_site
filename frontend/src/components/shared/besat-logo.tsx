@@ -8,7 +8,7 @@ const sizeClasses = {
   sm: "h-18 w-18",
   md: "h-20 w-20",
   lg: "h-22 w-22",
-  xl: "h-23 w-23",
+  xl: "h-25 w-25",
 };
 
 export function BesatLogoMark({

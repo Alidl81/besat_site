@@ -1,6 +1,7 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
+import { updateProfile } from "@/lib/profile/profile-service";
 
 type PanelProfileContentProps = {
   roleTitle: string;
@@ -8,6 +9,8 @@ type PanelProfileContentProps = {
 
 export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
   const [avatarPreview, setAvatarPreview] = useState<string>("");
+  const [selectedAvatar, setSelectedAvatar] = useState<File | undefined>();
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -16,6 +19,26 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
       }
     };
   }, [avatarPreview]);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+
+    setIsSaving(true);
+
+    try {
+      await updateProfile({
+        fullName: String(formData.get("fullName") ?? ""),
+        phone: String(formData.get("phone") ?? ""),
+        email: String(formData.get("email") ?? ""),
+        description: String(formData.get("description") ?? ""),
+        avatar: selectedAvatar,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   return (
     <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-7">
@@ -70,6 +93,7 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
                   URL.revokeObjectURL(avatarPreview);
                 }
 
+                setSelectedAvatar(file);
                 setAvatarPreview(URL.createObjectURL(file));
               }}
             />
@@ -77,7 +101,7 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
         </div>
       </div>
 
-      <form className="mt-6 grid gap-5 md:grid-cols-2">
+      <form onSubmit={handleSubmit} className="mt-6 grid gap-5 md:grid-cols-2">
         <label className="block text-right">
           <span className="mb-2 block text-sm font-black text-[#062452]">
             نام و نام خانوادگی
@@ -141,13 +165,15 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
 
         <div className="flex justify-end md:col-span-2">
           <button
-            type="button"
-            className="besat-navy-button inline-flex h-[3.25rem] items-center justify-center rounded-2xl bg-[#12395b] px-7 text-sm font-black transition hover:bg-[#0d2f4d]"
+            type="submit"
+            disabled={isSaving}
+            className="besat-navy-button inline-flex h-[3.25rem] items-center justify-center rounded-2xl bg-[#12395b] px-7 text-sm font-black transition hover:bg-[#0d2f4d] disabled:cursor-not-allowed disabled:opacity-70"
           >
-            ذخیره تغییرات
+            {isSaving ? "در حال ذخیره" : "ذخیره تغییرات"}
           </button>
         </div>
       </form>
     </section>
   );
 }
+

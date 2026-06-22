@@ -243,4 +243,101 @@ button[class*="bg-[#062452]"] span {
 }
 /* BESAT_CUSTOM_UI_END */
 
+/* BESAT_DASHBOARD_UI_START */
+.dashboard-quick-link {
+  background: #ffffff !important;
+  color: #062452 !important;
+  box-shadow: 0 16px 30px rgba(2, 12, 27, 0.12);
+}
+
+.dashboard-quick-link,
+.dashboard-quick-link span,
+.dashboard-quick-link svg {
+  color: #062452 !important;
+}
+
+.dashboard-quick-link:hover {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+  transform: translateY(-2px);
+}
+
+.dashboard-quick-link:hover span,
+.dashboard-quick-link:hover svg {
+  color: #047857 !important;
+}
+
+.dashboard-sidebar-text,
+.dashboard-sidebar-text span,
+.dashboard-sidebar-text svg {
+  color: #ffffff !important;
+}
+/* BESAT_DASHBOARD_UI_END */
+
+/* BESAT_DASHBOARD_IMAGE_UI_START */
+.besat-panel-sidebar-link,
+.besat-panel-sidebar-link span,
+.besat-panel-sidebar-link svg {
+  color: #ffffff !important;
+}
+
+.besat-panel-sidebar-link-active,
+.besat-panel-sidebar-link-active span,
+.besat-panel-sidebar-link-active svg {
+  color: #ffffff !important;
+}
+
+.besat-panel-white-link {
+  background: #ffffff !important;
+  color: #062452 !important;
+}
+
+.besat-panel-white-link,
+.besat-panel-white-link span,
+.besat-panel-white-link svg {
+  color: #062452 !important;
+}
+
+.besat-panel-white-link:hover {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+}
+
+.besat-panel-white-link:hover span,
+.besat-panel-white-link:hover svg {
+  color: #047857 !important;
+}
+
+.besat-panel-soft-link,
+.besat-panel-soft-link span,
+.besat-panel-soft-link svg {
+  color: #062452 !important;
+}
+
+.besat-panel-soft-link:hover,
+.besat-panel-soft-link:hover span,
+.besat-panel-soft-link:hover svg {
+  color: #047857 !important;
+}
+/* BESAT_DASHBOARD_IMAGE_UI_END */
+
+/* BESAT_PANEL_SCROLL_START */
+.besat-panel-menu-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.besat-panel-menu-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+}
+
+.besat-panel-menu-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+}
+
+.besat-panel-menu-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.36);
+}
+/* BESAT_PANEL_SCROLL_END */
 

@@ -61,6 +61,24 @@ class NewsCategoryListAPIView(ListAPIView):
                 type=int,
             ),
             OpenApiParameter(
+                name="scope",
+                description="Filter by scope. Accepted values: school, unit.",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="unit_id",
+                description="Required when scope=unit.",
+                required=False,
+                type=int,
+            ),
+            OpenApiParameter(
+                name="status",
+                description="Public API only returns published content. Accepted value: published.",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
                 name="category",
                 description="Filter news by category slug.",
                 required=False,
@@ -107,6 +125,7 @@ class NewsViewSet(ReadOnlyModelViewSet):
         "summary",
         "content_text",
         "category__title",
+        "unit__title",
     )
     ordering_fields = (
         "published_at",
@@ -124,8 +143,9 @@ class NewsViewSet(ReadOnlyModelViewSet):
         today = timezone.localdate()
 
         queryset = (
-            News.objects.select_related("category")
+            News.objects.select_related("category", "unit")
             .filter(
+                is_active=True,
                 status=News.Status.PUBLISHED,
                 published_at__isnull=False,
                 published_at__lte=today,
@@ -133,8 +153,31 @@ class NewsViewSet(ReadOnlyModelViewSet):
             .filter(
                 Q(category__isnull=True) | Q(category__is_active=True)
             )
+            .filter(
+                Q(unit__isnull=True) | Q(unit__is_active=True)
+            )
             .order_by("-published_at", "-id")
         )
+
+        status_param = self.request.query_params.get("status")
+
+        if status_param and status_param != News.Status.PUBLISHED:
+            return News.objects.none()
+
+        scope = self.request.query_params.get("scope")
+        unit_id = self.request.query_params.get("unit_id")
+
+        if scope == News.Scope.SCHOOL:
+            queryset = queryset.filter(scope=News.Scope.SCHOOL, unit__isnull=True)
+
+        elif scope == News.Scope.UNIT:
+            if not unit_id:
+                return News.objects.none()
+
+            queryset = queryset.filter(scope=News.Scope.UNIT, unit_id=unit_id)
+
+        elif unit_id:
+            queryset = queryset.filter(scope=News.Scope.UNIT, unit_id=unit_id)
 
         category_slug = self.request.query_params.get("category")
 
@@ -265,6 +308,7 @@ class CMSNewsViewSet(ModelViewSet):
         "summary",
         "content_text",
         "category__title",
+        "unit__title",
     )
     ordering_fields = (
         "published_at",
@@ -272,6 +316,7 @@ class CMSNewsViewSet(ModelViewSet):
         "updated_at",
         "title",
         "status",
+        "scope",
     )
     ordering = (
         "-updated_at",
@@ -285,8 +330,10 @@ class CMSNewsViewSet(ModelViewSet):
         queryset = (
             News.objects.select_related(
                 "category",
+                "unit",
                 "created_by",
                 "updated_by",
+                "published_by",
             )
             .prefetch_related("media_items")
             .order_by("-updated_at", "-id")
@@ -296,6 +343,16 @@ class CMSNewsViewSet(ModelViewSet):
 
         if status_param:
             queryset = queryset.filter(status=status_param)
+
+        scope = self.request.query_params.get("scope")
+
+        if scope:
+            queryset = queryset.filter(scope=scope)
+
+        unit_id = self.request.query_params.get("unit_id")
+
+        if unit_id:
+            queryset = queryset.filter(unit_id=unit_id)
 
         category_id = self.request.query_params.get("category")
 
@@ -317,15 +374,32 @@ class CMSNewsViewSet(ModelViewSet):
         return CMSNewsDetailSerializer
 
     def perform_create(self, serializer):
+        status_value = serializer.validated_data.get("status", News.Status.DRAFT)
+        published_by = None
+
+        if status_value == News.Status.PUBLISHED:
+            published_by = self.request.user
+
         serializer.save(
             created_by=self.request.user,
             updated_by=self.request.user,
+            published_by=published_by,
         )
 
     def perform_update(self, serializer):
-        serializer.save(
-            updated_by=self.request.user,
+        status_value = serializer.validated_data.get(
+            "status",
+            serializer.instance.status,
         )
+
+        extra_fields = {
+            "updated_by": self.request.user,
+        }
+
+        if status_value == News.Status.PUBLISHED and serializer.instance.published_by_id is None:
+            extra_fields["published_by"] = self.request.user
+
+        serializer.save(**extra_fields)
 
     @extend_schema(
         tags=["CMS - News"],

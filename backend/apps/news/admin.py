@@ -66,17 +66,24 @@ class NewsAdmin(admin.ModelAdmin):
     list_display = (
         "title",
         "category",
+        "scope",
+        "unit",
         "status",
         "published_at",
+        "is_active",
         "is_featured",
         "updated_at",
     )
     list_editable = (
         "status",
+        "is_active",
         "is_featured",
     )
     list_filter = (
+        "scope",
+        "unit",
         "status",
+        "is_active",
         "is_featured",
         "category",
         "published_at",
@@ -87,16 +94,19 @@ class NewsAdmin(admin.ModelAdmin):
         "summary",
         "content_text",
         "category__title",
+        "unit__title",
     )
     readonly_fields = (
         "content_text",
         "created_by",
         "updated_by",
+        "published_by",
         "created_at",
         "updated_at",
     )
     autocomplete_fields = (
         "category",
+        "unit",
     )
     date_hierarchy = "published_at"
     save_on_top = True
@@ -109,10 +119,24 @@ class NewsAdmin(admin.ModelAdmin):
             "اطلاعات اصلی",
             {
                 "fields": (
+                    "is_active",
                     "title",
                     "slug",
                     "category",
                     "summary",
+                ),
+            },
+        ),
+        (
+            "محدوده انتشار",
+            {
+                "description": (
+                    "اگر خبر عمومی مدرسه است scope را school بگذارید و unit را خالی بگذارید. "
+                    "اگر خبر مربوط به یک واحد است scope را unit بگذارید و unit را انتخاب کنید."
+                ),
+                "fields": (
+                    "scope",
+                    "unit",
                 ),
             },
         ),
@@ -158,6 +182,7 @@ class NewsAdmin(admin.ModelAdmin):
                 "fields": (
                     "created_by",
                     "updated_by",
+                    "published_by",
                 ),
             },
         ),
@@ -176,7 +201,7 @@ class NewsAdmin(admin.ModelAdmin):
         return (
             super()
             .get_queryset(request)
-            .select_related("category", "created_by", "updated_by")
+            .select_related("category", "unit", "created_by", "updated_by", "published_by")
         )
 
     def save_model(self, request, obj, form, change):
@@ -184,6 +209,9 @@ class NewsAdmin(admin.ModelAdmin):
             obj.created_by = request.user
 
         obj.updated_by = request.user
+
+        if obj.status == News.Status.PUBLISHED and obj.published_by_id is None:
+            obj.published_by = request.user
 
         super().save_model(request, obj, form, change)
 

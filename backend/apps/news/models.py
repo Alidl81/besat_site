@@ -10,7 +10,6 @@ from django.utils.text import slugify
 from apps.core.models import ActiveModel, OrderedModel, TimeStampedModel
 from apps.core.utils import normalize_text
 
-
 from .utils import (
     default_news_content_json,
     extract_editorjs_plain_text,
@@ -19,24 +18,24 @@ from .utils import (
 from .validators import validate_news_image_file
 
 
-
 def news_cover_upload_to(instance, filename):
     today = timezone.localdate()
-    extention = Path(filename).suffix.lower()
+    extension = Path(filename).suffix.lower()
 
-    return f"news/cover/{today:&Y/%m}/{uuid4().hex}{extention}"
+    return f"news/covers/{today:%Y/%m}/{uuid4().hex}{extension}"
+
 
 def news_content_image_upload_to(instance, filename):
     today = timezone.localdate()
-    extention = Path(filename).suffix.lower()
+    extension = Path(filename).suffix.lower()
 
-    return f"news/cover/{today:&Y/%m}/{uuid4().hex}{extention}"
+    return f"news/content/{today:%Y/%m}/{uuid4().hex}{extension}"
 
 
 class NewsCategory(ActiveModel, OrderedModel):
     title = models.CharField(
         max_length=255,
-        verbose_name="عنوان دسته بندی",
+        verbose_name="عنوان دسته‌بندی",
     )
     slug = models.SlugField(
         max_length=255,
@@ -44,12 +43,12 @@ class NewsCategory(ActiveModel, OrderedModel):
         allow_unicode=True,
         blank=True,
         verbose_name="اسلاگ",
-        help_text="برای فیلتر کردن خبرها استفاده میشود. اگر خالی بماند، از عنوان ساخته میشود.",
+        help_text="برای فیلتر کردن خبرها استفاده می‌شود. اگر خالی بماند، از عنوان ساخته می‌شود.",
     )
 
     class Meta:
-        verbose_name = "دسته بندی خبر"
-        verbose_name_plural = "دسته بندی های خبر"
+        verbose_name = "دسته‌بندی خبر"
+        verbose_name_plural = "دسته‌بندی‌های خبر"
         ordering = ("order", "id")
         indexes = [
             models.Index(fields=("is_active", "order")),
@@ -90,7 +89,6 @@ class NewsCategory(ActiveModel, OrderedModel):
         slug = base_slug
         counter = 2
 
-
         queryset = NewsCategory.objects.all()
 
         if self.pk:
@@ -99,15 +97,21 @@ class NewsCategory(ActiveModel, OrderedModel):
         while queryset.filter(slug=slug).exists():
             slug = f"{base_slug}-{counter}"
             counter += 1
-        
-        return slug
-    
 
-class News(TimeStampedModel):
+        return slug
+
+
+class News(TimeStampedModel, ActiveModel):
+    class Scope(models.TextChoices):
+        SCHOOL = "school", "کل مدرسه"
+        UNIT = "unit", "واحد آموزشی"
+
     class Status(models.TextChoices):
         DRAFT = "draft", "پیش‌نویس"
-        REVIEW = "review", "در انتظار بررسی"
+        WAITING_REVIEW = "waiting_review", "در انتظار بررسی"
+        APPROVED = "approved", "تأیید شده"
         PUBLISHED = "published", "منتشر شده"
+        REJECTED = "rejected", "رد شده"
         ARCHIVED = "archived", "آرشیو شده"
 
     title = models.CharField(
@@ -129,6 +133,22 @@ class News(TimeStampedModel):
         blank=True,
         related_name="news_items",
         verbose_name="دسته‌بندی",
+    )
+    scope = models.CharField(
+        max_length=20,
+        choices=Scope.choices,
+        default=Scope.SCHOOL,
+        db_index=True,
+        verbose_name="محدوده انتشار",
+    )
+    unit = models.ForeignKey(
+        "units.SchoolUnit",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="news_items",
+        verbose_name="واحد آموزشی",
+        help_text="فقط وقتی scope برابر unit است باید مقدار داشته باشد.",
     )
     summary = models.TextField(
         null=True,
@@ -156,7 +176,7 @@ class News(TimeStampedModel):
         verbose_name="متن ساده برای جستجو",
     )
     status = models.CharField(
-        max_length=20,
+        max_length=30,
         choices=Status.choices,
         default=Status.DRAFT,
         db_index=True,
@@ -167,7 +187,7 @@ class News(TimeStampedModel):
         blank=True,
         db_index=True,
         verbose_name="تاریخ انتشار",
-        help_text="باید تاریخ واقعی انتشار باشد. اگر خبر منتشر نشده، خالی بگذارید.",
+        help_text="برای نمایش عمومی خبر، تاریخ انتشار باید واقعی و امروز یا قبل‌تر باشد.",
     )
     is_featured = models.BooleanField(
         default=False,
@@ -190,6 +210,14 @@ class News(TimeStampedModel):
         related_name="updated_news_items",
         verbose_name="آخرین ویرایش‌کننده",
     )
+    published_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="published_news_items",
+        verbose_name="منتشرکننده",
+    )
 
     class Meta:
         verbose_name = "خبر"
@@ -197,8 +225,11 @@ class News(TimeStampedModel):
         ordering = ("-published_at", "-id")
         indexes = [
             models.Index(fields=("status", "published_at")),
+            models.Index(fields=("scope", "status")),
+            models.Index(fields=("unit", "status")),
             models.Index(fields=("is_featured", "published_at")),
             models.Index(fields=("category", "status")),
+            models.Index(fields=("is_active", "status")),
         ]
 
     def __str__(self):
@@ -225,6 +256,12 @@ class News(TimeStampedModel):
         if not self.title:
             errors["title"] = "عنوان خبر الزامی است."
 
+        if self.scope == self.Scope.SCHOOL and self.unit_id is not None:
+            errors["unit"] = "برای محتوای عمومی مدرسه، واحد آموزشی باید خالی باشد."
+
+        if self.scope == self.Scope.UNIT and self.unit_id is None:
+            errors["unit"] = "برای محتوای وابسته به واحد، انتخاب واحد آموزشی الزامی است."
+
         if self.status == self.Status.PUBLISHED:
             if not self.published_at:
                 errors["published_at"] = "برای انتشار خبر، تاریخ انتشار الزامی است."
@@ -237,6 +274,9 @@ class News(TimeStampedModel):
 
             if self.category and not self.category.is_active:
                 errors["category"] = "خبر منتشرشده نباید در دسته‌بندی غیرفعال باشد."
+
+            if self.unit and not self.unit.is_active:
+                errors["unit"] = "خبر منتشرشده نباید به واحد غیرفعال وصل باشد."
 
         if errors:
             raise ValidationError(errors)
@@ -270,7 +310,7 @@ class News(TimeStampedModel):
             counter += 1
 
         return slug
-    
+
 
 class NewsMedia(models.Model):
     news = models.ForeignKey(

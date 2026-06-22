@@ -4,6 +4,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.serializers import AbsoluteMediaURLMixin
+from apps.units.models import SchoolUnit
 
 from .models import News, NewsCategory, NewsMedia
 from .utils import extract_editorjs_plain_text, validate_editorjs_content
@@ -24,6 +25,17 @@ def validate_image_or_error(value):
         raise_drf_validation_error(exc)
 
     return value
+
+
+class UnitBriefSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchoolUnit
+        fields = (
+            "id",
+            "title",
+            "slug",
+        )
+        read_only_fields = fields
 
 
 class NewsCategoryBriefSerializer(serializers.ModelSerializer):
@@ -50,6 +62,7 @@ class NewsCategoryListSerializer(serializers.ModelSerializer):
 class NewsListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
     cover_image = serializers.SerializerMethodField()
     category = NewsCategoryBriefSerializer(read_only=True)
+    unit = UnitBriefSerializer(read_only=True)
     is_published = serializers.SerializerMethodField()
 
     class Meta:
@@ -62,6 +75,9 @@ class NewsListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
             "cover_image",
             "published_at",
             "category",
+            "scope",
+            "unit",
+            "status",
             "is_featured",
             "is_published",
         )
@@ -87,6 +103,9 @@ class NewsDetailSerializer(NewsListSerializer):
             "cover_image",
             "published_at",
             "category",
+            "scope",
+            "unit",
+            "status",
             "is_featured",
             "is_published",
         )
@@ -132,8 +151,10 @@ class NewsMediaSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
 class CMSNewsListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
     cover_image = serializers.SerializerMethodField()
     category = NewsCategoryBriefSerializer(read_only=True)
+    unit = UnitBriefSerializer(read_only=True)
     created_by = serializers.StringRelatedField(read_only=True)
     updated_by = serializers.StringRelatedField(read_only=True)
+    published_by = serializers.StringRelatedField(read_only=True)
 
     class Meta:
         model = News
@@ -144,11 +165,15 @@ class CMSNewsListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
             "category",
             "summary",
             "cover_image",
+            "scope",
+            "unit",
             "status",
             "published_at",
             "is_featured",
+            "is_active",
             "created_by",
             "updated_by",
+            "published_by",
             "created_at",
             "updated_at",
         )
@@ -172,11 +197,15 @@ class CMSNewsDetailSerializer(CMSNewsListSerializer):
             "cover_image",
             "content_json",
             "content_text",
+            "scope",
+            "unit",
             "status",
             "published_at",
             "is_featured",
+            "is_active",
             "created_by",
             "updated_by",
+            "published_by",
             "created_at",
             "updated_at",
             "media_items",
@@ -187,6 +216,11 @@ class CMSNewsDetailSerializer(CMSNewsListSerializer):
 class CMSNewsWriteSerializer(serializers.ModelSerializer):
     category = serializers.PrimaryKeyRelatedField(
         queryset=NewsCategory.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    unit = serializers.PrimaryKeyRelatedField(
+        queryset=SchoolUnit.objects.all(),
         required=False,
         allow_null=True,
     )
@@ -209,11 +243,15 @@ class CMSNewsWriteSerializer(serializers.ModelSerializer):
             "cover_image",
             "content_json",
             "content_text",
+            "scope",
+            "unit",
             "status",
             "published_at",
             "is_featured",
+            "is_active",
             "created_by",
             "updated_by",
+            "published_by",
             "created_at",
             "updated_at",
         )
@@ -222,6 +260,7 @@ class CMSNewsWriteSerializer(serializers.ModelSerializer):
             "content_text",
             "created_by",
             "updated_by",
+            "published_by",
             "created_at",
             "updated_at",
         )
@@ -241,6 +280,14 @@ class CMSNewsWriteSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         instance = self.instance
 
+        scope = attrs.get(
+            "scope",
+            instance.scope if instance else News.Scope.SCHOOL,
+        )
+        unit = attrs.get(
+            "unit",
+            instance.unit if instance else None,
+        )
         status = attrs.get(
             "status",
             instance.status if instance else News.Status.DRAFT,
@@ -272,9 +319,15 @@ class CMSNewsWriteSerializer(serializers.ModelSerializer):
 
         content_text = extract_editorjs_plain_text(content_json)
 
-        if status == News.Status.PUBLISHED:
-            errors = {}
+        errors = {}
 
+        if scope == News.Scope.SCHOOL and unit is not None:
+            errors["unit"] = "برای محتوای عمومی مدرسه، واحد آموزشی باید خالی باشد."
+
+        if scope == News.Scope.UNIT and unit is None:
+            errors["unit"] = "برای محتوای وابسته به واحد، انتخاب واحد آموزشی الزامی است."
+
+        if status == News.Status.PUBLISHED:
             if not published_at:
                 errors["published_at"] = "برای انتشار خبر، تاریخ انتشار الزامی است."
 
@@ -287,8 +340,11 @@ class CMSNewsWriteSerializer(serializers.ModelSerializer):
             if category and not category.is_active:
                 errors["category"] = "خبر منتشرشده نباید در دسته‌بندی غیرفعال باشد."
 
-            if errors:
-                raise serializers.ValidationError(errors)
+            if unit and not unit.is_active:
+                errors["unit"] = "خبر منتشرشده نباید به واحد غیرفعال وصل باشد."
+
+        if errors:
+            raise serializers.ValidationError(errors)
 
         attrs["content_json"] = content_json
 

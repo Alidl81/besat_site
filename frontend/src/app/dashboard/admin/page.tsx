@@ -1,10 +1,5 @@
-﻿import type { Metadata } from "next";
-import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+﻿import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "پنل مدیر کل | مدرسه بعثت",
-};
-
-export default function AdminDashboardPage() {
-  return <DashboardShell panel="admin" />;
+export default function RedirectPage() {
+  redirect("/admin");
 }

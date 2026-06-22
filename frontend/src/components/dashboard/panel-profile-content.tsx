@@ -12,6 +12,8 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
   const [selectedAvatar, setSelectedAvatar] = useState<File | undefined>();
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [profileMessage, setProfileMessage] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
 
   useEffect(() => {
     return () => {
@@ -36,6 +38,8 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
         description: String(formData.get("description") ?? ""),
         avatar: selectedAvatar,
       });
+
+      setProfileMessage("درخواست ذخیره ثبت شد.");
     } finally {
       setIsSaving(false);
     }
@@ -54,6 +58,8 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
         newPassword: String(formData.get("newPassword") ?? ""),
         confirmPassword: String(formData.get("confirmPassword") ?? ""),
       });
+
+      setPasswordMessage("درخواست تغییر رمز ثبت شد.");
     } finally {
       setIsChangingPassword(false);
     }
@@ -183,6 +189,12 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
             />
           </label>
 
+          {profileMessage && (
+            <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-right text-sm font-black text-emerald-700 md:col-span-2">
+              {profileMessage}
+            </p>
+          )}
+
           <div className="flex justify-end md:col-span-2">
             <button
               type="submit"
@@ -237,6 +249,12 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
             />
           </label>
 
+          {passwordMessage && (
+            <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-right text-sm font-black text-emerald-700 md:col-span-3">
+              {passwordMessage}
+            </p>
+          )}
+
           <div className="flex justify-end md:col-span-3">
             <button
               type="submit"
@@ -251,3 +269,4 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
     </div>
   );
 }
+

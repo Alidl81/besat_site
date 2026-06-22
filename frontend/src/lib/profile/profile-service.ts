@@ -6,26 +6,19 @@
   avatar?: File;
 };
 
-export type ProfileResponse = {
-  fullName: string;
-  phone: string;
-  email: string;
-  description: string;
-  avatarUrl: string | null;
+export type ChangePasswordFormValues = {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
 };
 
 export async function updateProfile(values: ProfileFormValues) {
-  const formData = new FormData();
+  return {
+    ok: true,
+  };
+}
 
-  formData.append("fullName", values.fullName);
-  formData.append("phone", values.phone);
-  formData.append("email", values.email);
-  formData.append("description", values.description);
-
-  if (values.avatar) {
-    formData.append("avatar", values.avatar);
-  }
-
+export async function changePassword(values: ChangePasswordFormValues) {
   return {
     ok: true,
   };

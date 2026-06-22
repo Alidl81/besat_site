@@ -43,7 +43,7 @@ export const panelData = {
       { key: "gallery", label: "گالری", href: "/admin/gallery", icon: "▧", emptyText },
       { key: "registrations", label: "ثبت‌نام‌ها", href: "/admin/registrations", icon: "▤", emptyText },
       { key: "messages", label: "پیام‌ها", href: "/admin/messages", icon: "✉", emptyText },
-      { key: "profile", label: "پروفایل", href: "/admin/profile", icon: "◇", emptyText }, { key: "settings", label: "تنظیمات", href: "/admin/settings", icon: "⚙", emptyText },
+      { key: "profile", label: "پروفایل", href: "/admin/profile", icon: "👤", emptyText }, { key: "settings", label: "تنظیمات", href: "/admin/settings", icon: "⚙", emptyText },
     ],
     cards: [
       { title: "واحدها", value: null, note: emptyText, icon: "▥" },
@@ -67,7 +67,7 @@ export const panelData = {
       { key: "programs", label: "برنامه‌ها", href: "/unit-manager/programs", icon: "▦", emptyText },
       { key: "content", label: "اخبار و اطلاعیه‌ها", href: "/unit-manager/content", icon: "▧", emptyText },
       { key: "messages", label: "پیام‌ها", href: "/unit-manager/messages", icon: "✉", emptyText },
-      { key: "profile", label: "پروفایل", href: "/unit-manager/profile", icon: "◇", emptyText }, { key: "settings", label: "تنظیمات واحد", href: "/unit-manager/settings", icon: "⚙", emptyText },
+      { key: "profile", label: "پروفایل", href: "/unit-manager/profile", icon: "👤", emptyText }, { key: "settings", label: "تنظیمات واحد", href: "/unit-manager/settings", icon: "⚙", emptyText },
     ],
     cards: [
       { title: "دانش‌آموزان", value: null, note: emptyText, icon: "♙" },
@@ -89,7 +89,7 @@ export const panelData = {
       { key: "gallery", label: "گالری", href: "/media/gallery", icon: "▨", emptyText },
       { key: "albums", label: "آلبوم‌ها", href: "/media/albums", icon: "▤", emptyText },
       { key: "messages", label: "پیام‌ها", href: "/media/messages", icon: "✉", emptyText },
-      { key: "profile", label: "پروفایل", href: "/media/profile", icon: "◇", emptyText }, { key: "settings", label: "تنظیمات", href: "/media/settings", icon: "⚙", emptyText },
+      { key: "profile", label: "پروفایل", href: "/media/profile", icon: "👤", emptyText }, { key: "settings", label: "تنظیمات", href: "/media/settings", icon: "⚙", emptyText },
     ],
     cards: [
       { title: "پیام‌ها", value: null, note: emptyText, icon: "✉" },

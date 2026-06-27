@@ -128,7 +128,7 @@ export function SiteHeader() {
               <LogoBlock />
             </div>
 
-            <nav className="min-w-0 flex-1 px-4">
+            <nav className="min-w-0 flex-1">
               <div className="mx-auto flex w-fit max-w-full items-center justify-center gap-4 overflow-hidden rounded-full border border-slate-200 bg-white px-10 py-3.5 shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
                 {navItems.map((item) => {
                   const isActive =

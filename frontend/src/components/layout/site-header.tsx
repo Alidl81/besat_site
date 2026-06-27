@@ -9,12 +9,12 @@ import { BesatLogoMark } from "@/components/shared/besat-logo";
 import { SiteAuthActions } from "@/components/auth/site-auth-actions";
 const navItems = [
   { label: "خانه", href: "/" },
-  { label: "درباره ما", href: "/about" },
   { label: "واحدها", href: "/units" },
   { label: "دپارتمان‌ها", href: "/departments" },
   { label: "اخبار", href: "/news" },
   { label: "اطلاعیه‌ها", href: "/announcements" },
   { label: "گالری", href: "/gallery" },
+  { label: "درباره ما", href: "/about" },
   { label: "تماس با ما", href: "/contact" },
 ];
 
@@ -158,12 +158,7 @@ export function SiteHeader() {
 
               <SiteAuthActions />
 
-              <Link
-                href="/contact"
-                className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-full border border-slate-200 bg-white px-4 text-sm font-black text-[#062452] transition duration-500 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
-              >
-                تماس سریع
-              </Link>
+              
             </div>
           </div>
 
@@ -248,13 +243,7 @@ export function SiteHeader() {
 
               <SiteAuthActions />
 
-              <Link
-                href="/contact"
-                onClick={() => setIsOpen(false)}
-                className="flex h-14 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-[#062452] transition duration-500 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
-              >
-                تماس سریع
-              </Link>
+             
             </div>
           </nav>
         </aside>

@@ -17,6 +17,7 @@ urlpatterns = [
     path("api/", include("apps.units.urls")),
     path("api/", include("apps.departments.urls")),
     path("api/", include("apps.news.urls")),
+    path("api/", include("apps.accounts.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",
@@ -26,4 +27,4 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, decument_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

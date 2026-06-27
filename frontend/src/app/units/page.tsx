@@ -1,38 +1,72 @@
 ﻿import type { Metadata } from "next";
 import { PublicPageLayout } from "@/components/layout/public-page-layout";
-import { Container } from "@/components/shared/container";
-import { UnitsGrid } from "@/components/units/units-grid";
-import type { UnitSummary } from "@/components/units/unit-card";
+import { EmptyState } from "@/components/page/empty-state";
+import { PageHero } from "@/components/page/page-hero";
+import {
+  getUnits,
+  type PaginatedResponse,
+  type SchoolUnit,
+} from "@/lib/api/public-api";
 
 export const metadata: Metadata = {
-  title: "واحدهای آموزشی | مدرسه بعثت",
+  title: "واحدها | مدرسه بعثت",
 };
 
-const units: UnitSummary[] = [];
+function normalizeUnitsResponse(
+  response: SchoolUnit[] | PaginatedResponse<SchoolUnit>,
+): SchoolUnit[] {
+  if (Array.isArray(response)) {
+    return response;
+  }
 
-export default function UnitsPage() {
+  return response.results;
+}
+
+async function loadUnits() {
+  try {
+    const response = await getUnits();
+    return normalizeUnitsResponse(response);
+  } catch {
+    return [];
+  }
+}
+
+export default async function UnitsPage() {
+  const units = await loadUnits();
+
   return (
     <PublicPageLayout>
-      <section className="relative overflow-hidden border-b border-slate-200 bg-white">
-        <Container className="py-14 md:py-20">
-          <div className="max-w-3xl text-right">
-            <p className="mb-4 text-sm font-black text-emerald-700">واحدها</p>
+      <PageHero
+        eyebrow="واحدها"
+        title="واحدهای مدرسه بعثت"
+        description="واحدهای آموزشی مدرسه در این بخش نمایش داده می‌شود."
+      />
 
-            <h1 className="text-3xl font-black leading-[1.4] tracking-tight text-[#0f2f4a] md:text-5xl">
-              واحدهای آموزشی مدرسه بعثت
-            </h1>
+      <section className="bg-[#f8fafc] py-14">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          {units.length === 0 ? (
+            <EmptyState title="موردی برای نمایش وجود ندارد." />
+          ) : (
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {units.map((unit) => (
+                <article
+                  key={unit.id}
+                  className="rounded-[1.75rem] border border-slate-200 bg-white p-5 text-right shadow-[0_16px_45px_rgba(15,23,42,0.06)]"
+                >
+                  <h2 className="text-lg font-black leading-8 text-[#062452]">
+                    {unit.title}
+                  </h2>
 
-            <p className="mt-5 text-base leading-9 text-slate-600 md:text-lg">
-              فهرست واحدهای آموزشی مدرسه بعثت در این صفحه نمایش داده می‌شود.
-            </p>
-          </div>
-        </Container>
-      </section>
-
-      <section className="bg-slate-50 py-14 md:py-16">
-        <Container>
-          <UnitsGrid units={units} />
-        </Container>
+                  {unit.description ? (
+                    <p className="mt-3 text-sm font-bold leading-7 text-slate-600">
+                      {unit.description}
+                    </p>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
     </PublicPageLayout>
   );

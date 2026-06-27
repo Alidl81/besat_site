@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Container } from "@/components/shared/container";
 import { BesatLogoMark } from "@/components/shared/besat-logo";
 
+import { SiteAuthActions } from "@/components/auth/site-auth-actions";
 const navItems = [
   { label: "خانه", href: "/" },
   { label: "درباره ما", href: "/about" },
@@ -155,12 +156,7 @@ export function SiteHeader() {
                 پیش‌ثبت‌نام آنلاین
               </Link>
 
-              <Link
-                href="/login"
-                className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-4 text-sm font-black text-[#062452] transition duration-500 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
-              >
-                ورود
-              </Link>
+              <SiteAuthActions />
 
               <Link
                 href="/contact"
@@ -250,13 +246,7 @@ export function SiteHeader() {
                 پیش‌ثبت‌نام آنلاین
               </Link>
 
-              <Link
-                href="/login"
-                onClick={() => setIsOpen(false)}
-                className="flex h-14 w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-5 text-sm font-black text-[#062452] transition duration-500 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
-              >
-                ورود
-              </Link>
+              <SiteAuthActions />
 
               <Link
                 href="/contact"

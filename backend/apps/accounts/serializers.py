@@ -3,6 +3,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+from django.contrib.auth.password_validation import validate_password   
 
 from apps.core.serializers import AbsoluteMediaURLMixin
 
@@ -169,7 +170,54 @@ class AvatarUploadSerializer(serializers.Serializer):
 
         return profile
 
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+    )
+    new_password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+    )
+    new_password_confirm = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+    )
 
+    def validate_current_password(self, value):
+        user = self.context["request"].user
+
+        if not user.check_password(value):
+            raise serializers.ValidationError("رمز عبور فعلی نادرست است.")
+        
+        return value
+    
+    def validate(self, attrs):
+        user = self.context["request"].user
+        new_password = attrs.get("new_password")
+        new_password_confirm = attrs.get("new_password_confirm")
+
+        if new_password != new_password_confirm:
+            raise serializers.ValidationError(
+                {
+                    "new_password_confirm": "تکرار رمز عبور جدید با رمز عبور جدید یکسان نیست.",
+                }
+            )
+        
+        try:
+            validate_password(new_password, user=user)
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
+            
+        return attrs
+
+    def save(self, **kwargs):
+        user = self.context["request"].user
+        user.set_password(self.validated_data["new_password"])
+        user.save(update_fields=["password"])
+
+        return user
+    
 class UserUnitSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     title = serializers.CharField()

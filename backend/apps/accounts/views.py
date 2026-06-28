@@ -20,6 +20,7 @@ from .serializers import (
     ProfileSerializer,
     UserPermissionsSerializer,
     UserUnitSerializer,
+    ChangePasswordSerializer,
 )
 
 
@@ -199,3 +200,26 @@ class MeUnitsAPIView(APIView):
         payload = get_user_units_payload(request.user)
 
         return Response(payload)
+    
+
+class ChangePasswordAPIView(APIView):
+    permission_classes = [IsAuthenticatedAndActiveProfile]
+    serializer_class = ChangePasswordSerializer
+
+    @extend_schema(
+        tags=["Me"],
+        summary="Change current user password",
+        request=ChangePasswordSerializer,
+        responses={204: None},
+    )
+    def post(self, request):
+        serializer = self.serializer_class(
+            data=request.data,
+            context={
+                "request": request,
+            },
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

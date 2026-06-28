@@ -9,6 +9,7 @@ from .views import (
     MeProfileAvatarAPIView,
     MeUnitsAPIView,
     RefreshTokenAPIView,
+    ChangePasswordAPIView,
 )
 
 
@@ -26,4 +27,5 @@ urlpatterns = [
     path("me/profile/avatar/", MeProfileAvatarAPIView.as_view(), name="me-profile-avatar"),
     path("me/permissions/", MePermissionsAPIView.as_view(), name="me-permissions"),
     path("me/units/", MeUnitsAPIView.as_view(), name="me-units"),
+    path("me/change-password/", ChangePasswordAPIView.as_view(), name="me-change-password"),
 ]

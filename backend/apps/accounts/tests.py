@@ -238,6 +238,93 @@ class AccountsAuthTests(TestCase):
         self.assertTrue(response.data["permissions"]["can_publish_content"])
 
 
+    def test_change_password_successfully(self):
+        data = self.login()
+
+        response = self.client.post(
+            "/api/me/change-password/",
+            {
+                "current_password": "password123",
+                "new_password": "newStrongPassword123!",
+                "new_password_confirm": "newStrongPassword123!",
+            },
+            HTTP_AUTHORIZATION=f"Bearer {data['access']}",
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 204)
+
+        old_login_response = self.client.post(
+            "/api/auth/login/",
+            {
+                "username": "manager",
+                "password": "password123",
+            },
+            format="json",
+        )
+
+        self.assertEqual(old_login_response.status_code, 401)
+
+        new_login_response = self.client.post(
+            "/api/auth/login/",
+            {
+                "username": "manager",
+                "password": "newStrongPassword123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(new_login_response.status_code, 200)
+        self.assertIn("access", new_login_response.data)
+
+    def test_change_password_rejects_wrong_current_password(self):
+        data = self.login()
+
+        response = self.client.post(
+            "/api/me/change-password/",
+            {
+                "current_password": "wrong-password",
+                "new_password": "newStrongPassword123!",
+                "new_password_confirm": "newStrongPassword123!",
+            },
+            HTTP_AUTHORIZATION=f"Bearer {data['access']}",
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("current_password", response.data)
+
+    def test_change_password_rejects_password_confirmation_mismatch(self):
+        data = self.login()
+
+        response = self.client.post(
+            "/api/me/change-password/",
+            {
+                "current_password": "password123",
+                "new_password": "newStrongPassword123!",
+                "new_password_confirm": "anotherStrongPassword123!",
+            },
+            HTTP_AUTHORIZATION=f"Bearer {data['access']}",
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("new_password_confirm", response.data)
+
+    def test_change_password_requires_authentication(self):
+        response = self.client.post(
+            "/api/me/change-password/",
+            {
+                "current_password": "password123",
+                "new_password": "newStrongPassword123!",
+                "new_password_confirm": "newStrongPassword123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 401)
+
+
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class UserUnitsTests(TestCase):
     @classmethod

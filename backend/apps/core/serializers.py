@@ -18,4 +18,4 @@ class AbsoluteMediaURLMixin:
         if request is None:
             return url
         
-        return request.build_absolute_url(url)
+        return request.build_absolute_uri(url)

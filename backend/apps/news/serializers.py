@@ -364,3 +364,9 @@ class NewsMediaUploadSerializer(serializers.ModelSerializer):
 
     def validate_image(self, value):
         return validate_image_or_error(value)
+    
+class NewsWorkflowActionSerializer(serializers.Serializer):
+    published_at = serializers.DateField(
+        required=False,
+        allow_null=True,
+    )

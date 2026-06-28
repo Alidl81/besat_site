@@ -1,62 +1,219 @@
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 
-from .models import News
+from apps.accounts.models import UserProfile, UserUnitMembership
+from apps.accounts.selectors import get_or_create_user_profile
+
+from .models import News, NewsCategory
+
+
+def user_has_active_profile(user) -> bool:
+    if not user or not user.is_authenticated:
+        return False
+
+    if not user.is_active:
+        return False
+
+    profile = get_or_create_user_profile(user)
+
+    return profile.is_active
+
+
+def get_user_role(user) -> str | None:
+    if not user_has_active_profile(user):
+        return None
+
+    profile = get_or_create_user_profile(user)
+
+    return profile.role
+
+
+def is_general_manager(user) -> bool:
+    if not user_has_active_profile(user):
+        return False
+
+    if user.is_superuser:
+        return True
+
+    profile = get_or_create_user_profile(user)
+
+    return profile.role == UserProfile.Role.GENERAL_MANAGER
+
+
+def is_unit_manager(user) -> bool:
+    if is_general_manager(user):
+        return False
+
+    return get_user_role(user) == UserProfile.Role.UNIT_MANAGER
+
+
+def is_unit_media(user) -> bool:
+    if is_general_manager(user):
+        return False
+
+    return get_user_role(user) == UserProfile.Role.UNIT_MEDIA
+
+
+def is_parent(user) -> bool:
+    if is_general_manager(user):
+        return False
+
+    return get_user_role(user) == UserProfile.Role.PARENT
+
+
+def get_accessible_unit_ids(user, allowed_roles: tuple[str, ...] | None = None) -> list[int]:
+    if not user_has_active_profile(user):
+        return []
+
+    if is_general_manager(user):
+        return []
+
+    queryset = UserUnitMembership.objects.filter(
+        user=user,
+        is_active=True,
+        unit__is_active=True,
+    )
+
+    if allowed_roles:
+        queryset = queryset.filter(role__in=allowed_roles)
+
+    return list(queryset.values_list("unit_id", flat=True))
+
+
+def user_can_access_news_object(user, news: News) -> bool:
+    if is_general_manager(user):
+        return True
+
+    if is_parent(user):
+        return False
+
+    if news.scope != News.Scope.UNIT or news.unit_id is None:
+        return False
+
+    accessible_unit_ids = get_accessible_unit_ids(user)
+
+    return news.unit_id in accessible_unit_ids
+
+
+def user_can_write_news_object(user, news: News) -> bool:
+    if is_general_manager(user):
+        return True
+
+    if not is_unit_manager(user):
+        return False
+
+    if news.scope != News.Scope.UNIT or news.unit_id is None:
+        return False
+
+    accessible_unit_ids = get_accessible_unit_ids(
+        user,
+        allowed_roles=(
+            UserUnitMembership.UnitRole.UNIT_MANAGER,
+        ),
+    )
+
+    return news.unit_id in accessible_unit_ids
+
+
+def user_can_upload_news_media(user, news: News) -> bool:
+    if is_general_manager(user):
+        return True
+
+    if news.scope != News.Scope.UNIT or news.unit_id is None:
+        return False
+
+    if is_unit_manager(user):
+        allowed_roles = (
+            UserUnitMembership.UnitRole.UNIT_MANAGER,
+        )
+
+    elif is_unit_media(user):
+        allowed_roles = (
+            UserUnitMembership.UnitRole.UNIT_MEDIA,
+        )
+
+    else:
+        return False
+
+    accessible_unit_ids = get_accessible_unit_ids(
+        user,
+        allowed_roles=allowed_roles,
+    )
+
+    return news.unit_id in accessible_unit_ids
+
+
+class HasNewsCategoryCMSPermission(BasePermission):
+    def has_permission(self, request, view) -> bool:
+        if not user_has_active_profile(request.user):
+            return False
+
+        if is_general_manager(request.user):
+            return True
+
+        if is_parent(request.user):
+            return False
+
+        if request.method in SAFE_METHODS:
+            return is_unit_manager(request.user) or is_unit_media(request.user)
+
+        return False
 
 
 class HasNewsCMSPermission(BasePermission):
-    """
-    Permission for the custom news CMS endpoints.
-
-    Required Django permissions:
-    - news.view_news
-    - news.add_news
-    - news.change_news
-    - news.delete_news
-
-    Superuser always has access.
-    """
-
     def has_permission(self, request, view) -> bool:
-        user = request.user
-
-        if not user or not user.is_authenticated:
+        if not user_has_active_profile(request.user):
             return False
 
-        if user.is_superuser:
+        if is_general_manager(request.user):
             return True
 
-        model = getattr(view, "permission_model", News)
-        app_label = model._meta.app_label
-        model_name = model._meta.model_name
-
-        if getattr(view, "action", None) == "upload_image":
-            required_permission = f"{app_label}.change_{model_name}"
-            return user.has_perm(required_permission)
-
-        permission_codename = self._get_permission_codename(request.method)
-
-        if permission_codename is None:
+        if is_parent(request.user):
             return False
 
-        required_permission = f"{app_label}.{permission_codename}_{model_name}"
+        action = getattr(view, "action", None)
 
-        return user.has_perm(required_permission)
+        if action == "upload_image":
+            return is_unit_manager(request.user) or is_unit_media(request.user)
+
+        if action in (
+            "submit_review",
+            "approve",
+            "reject",
+            "archive",
+            "restore",
+        ):
+            return is_unit_manager(request.user)
+
+        if action == "publish":
+            return False
+
+        if request.method in SAFE_METHODS:
+            return is_unit_manager(request.user) or is_unit_media(request.user)
+
+        if request.method == "POST":
+            return is_unit_manager(request.user)
+
+        if request.method in ("PUT", "PATCH", "DELETE"):
+            return is_unit_manager(request.user)
+
+        return False
 
     def has_object_permission(self, request, view, obj) -> bool:
-        return self.has_permission(request, view)
+        if isinstance(obj, NewsCategory):
+            return HasNewsCategoryCMSPermission().has_permission(request, view)
 
-    @staticmethod
-    def _get_permission_codename(method: str) -> str | None:
-        if method == "GET":
-            return "view"
+        if not isinstance(obj, News):
+            return False
 
-        if method == "POST":
-            return "add"
+        if is_general_manager(request.user):
+            return True
 
-        if method in ("PUT", "PATCH"):
-            return "change"
+        action = getattr(view, "action", None)
 
-        if method == "DELETE":
-            return "delete"
+        if action == "upload_image":
+            return user_can_upload_news_media(request.user, obj)
 
-        return None
+        if request.method in SAFE_METHODS:
+            return user_can_access_news_object(request.user, obj)
+
+        return user_can_write_news_object(request.user, obj)

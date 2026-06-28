@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 
 from apps.units.models import SchoolUnit
 
-from .models import UserProfile, UserUnitMembership
+from apps.accounts.models import UserProfile, UserUnitMembership
 
 
 User = get_user_model()

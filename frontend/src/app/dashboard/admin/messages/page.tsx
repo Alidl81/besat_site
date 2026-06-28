@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function DashboardPage() {
-  return <DashboardShell data={dashboardPages.admin} activeKey="messages" />;
+  return <DashboardShell panel="admin" data={dashboardPages.admin} activeKey="messages" />;
 }

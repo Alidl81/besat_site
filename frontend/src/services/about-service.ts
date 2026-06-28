@@ -7,5 +7,6 @@ export type AboutInfo = {
 };
 
 export function getAboutInfo() {
-  return apiRequest<AboutInfo>("/api/about/");
+  return apiRequest<AboutInfo>(apiEndpoints.about);
 }
+

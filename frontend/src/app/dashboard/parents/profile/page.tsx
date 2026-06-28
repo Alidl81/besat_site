@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function DashboardPage() {
-  return <DashboardShell data={dashboardPages.parents} activeKey="profile" />;
+  return <DashboardShell panel="parents" data={dashboardPages.parents} activeKey="profile" />;
 }

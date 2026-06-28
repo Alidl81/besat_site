@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { logoutAccount } from "@/lib/api/account-api";
+import { isApiMode } from "@/lib/data/repository";
 import {
   clearBesatSession,
   getBesatSessionDisplayName,
@@ -14,6 +16,7 @@ export function SiteAuthActions() {
   const router = useRouter();
   const pathname = usePathname();
   const [session, setSession] = useState<BesatSession | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     function syncSession() {
@@ -31,21 +34,34 @@ export function SiteAuthActions() {
     };
   }, []);
 
-  function handleLogout() {
-    clearBesatSession();
-    setSession(null);
+  async function handleLogout() {
+    if (!session || isLoggingOut) return;
+    setIsLoggingOut(true);
 
-    if (
+    try {
+      if (isApiMode()) {
+        await logoutAccount(session.accessToken, { refresh: session.refreshToken });
+      }
+    } catch {
+      // اگر API خطا داد، باز هم session را پاک می‌کنیم
+    } finally {
+      clearBesatSession();
+      setSession(null);
+      setIsLoggingOut(false);
+    }
+
+    const isDashboardPath =
+      pathname.startsWith("/dashboard") ||
       pathname.startsWith("/admin") ||
       pathname.startsWith("/unit-manager") ||
       pathname.startsWith("/media") ||
-      pathname.startsWith("/parents")
-    ) {
-      router.push("/");
-      return;
-    }
+      pathname.startsWith("/parents");
 
-    router.refresh();
+    if (isDashboardPath) {
+      router.push("/");
+    } else {
+      router.refresh();
+    }
   }
 
   if (!session) {
@@ -84,9 +100,10 @@ export function SiteAuthActions() {
       <button
         type="button"
         onClick={handleLogout}
-        className="inline-flex h-14 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-[#062452] transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 lg:h-11 lg:w-auto"
+        disabled={isLoggingOut}
+        className="inline-flex h-14 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-[#062452] transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60 lg:h-11 lg:w-auto"
       >
-        خروج
+        {isLoggingOut ? "در حال خروج" : "خروج"}
       </button>
     </div>
   );

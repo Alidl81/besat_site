@@ -1,32 +1,34 @@
 ﻿export const apiEndpoints = {
-  me: "/api/me/",
-  myPermissions: "/api/me/permissions/",
-  myUnits: "/api/me/units/",
-
-  siteSettings: "/api/site-settings/",
-  home: "/api/home/",
-  about: "/api/about/",
-
-  units: "/api/units/",
-  departments: "/api/departments/",
-  news: "/api/news/",
-  announcements: "/api/announcements/",
-  gallery: "/api/gallery/",
-  achievements: "/api/achievements/",
-
-  contact: "/api/contact/",
-  registration: "/api/registration/",
-
+  me: "me/",
+  myPermissions: "me/permissions/",
+  myUnits: "me/units/",
+  siteSettings: "site-settings/",
+  home: "home/",
+  about: "about/",
+  units: "units/",
+  departments: "departments/",
+  news: "news/",
+  announcements: "announcements/",
+  gallery: "gallery/",
+  achievements: "achievements/",
+  contact: "contact/",
+  registration: "registration/",
   dashboard: {
-    generalManager: "/api/dashboard/general-manager/",
-    unitManager: "/api/dashboard/unit-manager/",
-    media: "/api/dashboard/media/",
-    parents: "/api/dashboard/parents/",
+    generalManager: "dashboard/general-manager/",
+    unitManager: "dashboard/unit-manager/",
+    media: "dashboard/media/",
+    parents: "dashboard/parents/",
   },
-
-  content: "/api/content/",
-  messages: "/api/messages/",
-  registrationRequests: "/api/registration-requests/",
+  content: "content/",
+  messages: "messages/",
+  registrationRequests: "registration-requests/",
+  auth: {
+    login: "auth/login/",
+    refresh: "auth/refresh/",
+    logout: "auth/logout/",
+    changePassword: "me/change-password/",
+  },
+  cms: {
+    homeSlides: "cms/home-slides/",
+  },
 } as const;
-
-

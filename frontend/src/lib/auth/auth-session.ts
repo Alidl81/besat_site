@@ -1,10 +1,13 @@
-﻿export type BesatSession = {
+﻿export type BesatRole = "general_manager" | "unit_manager" | "unit_media" | "parent" | string;
+
+export type BesatSession = {
   accessToken: string;
   refreshToken: string;
   username: string;
   fullName: string | null;
-  role: string;
+  role: BesatRole;
   redirectPath: string;
+  unitId: string | null;
 };
 
 const accessTokenKey = "besat_access_token";
@@ -29,7 +32,7 @@ export function readBesatSession(): BesatSession | null {
     return null;
   }
 
-  const fallbackRedirectPath = window.localStorage.getItem(redirectPathKey) || "/admin";
+  const fallbackRedirectPath = window.localStorage.getItem(redirectPathKey) || "/dashboard/admin";
   const fallbackRole = window.localStorage.getItem(userRoleKey) || "";
 
   try {
@@ -41,6 +44,7 @@ export function readBesatSession(): BesatSession | null {
         fullName?: string | null;
         role?: string;
         redirectPath?: string;
+        unitId?: string | null;
       };
 
       return {
@@ -50,6 +54,7 @@ export function readBesatSession(): BesatSession | null {
         fullName: user.fullName || null,
         role: user.role || fallbackRole,
         redirectPath: user.redirectPath || fallbackRedirectPath,
+        unitId: user.unitId ?? null,
       };
     }
   } catch {
@@ -63,6 +68,7 @@ export function readBesatSession(): BesatSession | null {
     fullName: null,
     role: fallbackRole,
     redirectPath: fallbackRedirectPath,
+    unitId: null,
   };
 }
 
@@ -94,4 +100,36 @@ export function clearBesatSession() {
 
 export function getBesatSessionDisplayName(session: BesatSession) {
   return session.fullName || session.username || "حساب کاربری";
+}
+
+// نگاشت نقش به مسیر پنل
+export function redirectPathForRole(role: BesatRole): string {
+  switch (role) {
+    case "general_manager":
+      return "/dashboard/admin";
+    case "unit_manager":
+      return "/dashboard/unit-manager";
+    case "unit_media":
+      return "/dashboard/media";
+    case "parent":
+      return "/dashboard/parents";
+    default:
+      return "/dashboard/admin";
+  }
+}
+
+// نقش‌های مجاز برای هر بخش از مسیر داشبورد
+export function rolesForDashboardSegment(segment: string): BesatRole[] {
+  switch (segment) {
+    case "admin":
+      return ["general_manager"];
+    case "unit-manager":
+      return ["unit_manager", "general_manager"];
+    case "media":
+      return ["unit_media", "unit_manager", "general_manager"];
+    case "parents":
+      return ["parent", "general_manager"];
+    default:
+      return [];
+  }
 }

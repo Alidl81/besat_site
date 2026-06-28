@@ -1,19 +1,31 @@
 ﻿"use client";
 
 import { type FormEvent, useEffect, useState } from "react";
-import { changePassword, updateProfile } from "@/lib/profile/profile-service";
+import {
+  changePassword,
+  loadProfile,
+  saveProfile,
+} from "@/lib/profile/profile-service";
+import type { AccountProfile } from "@/lib/api/account-api";
 
 type PanelProfileContentProps = {
   roleTitle: string;
 };
 
 export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
+  const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>("");
   const [selectedAvatar, setSelectedAvatar] = useState<File | undefined>();
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [profileMessage, setProfileMessage] = useState("");
-  const [passwordMessage, setPasswordMessage] = useState("");
+  const [profileMessage, setProfileMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [passwordMessage, setPasswordMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    loadProfile().then((data) => {
+      if (data) setProfile(data);
+    });
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -25,44 +37,41 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
 
   async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     const formData = new FormData(event.currentTarget);
-
     setIsSaving(true);
+    setProfileMessage(null);
 
-    try {
-      await updateProfile({
-        fullName: String(formData.get("fullName") ?? ""),
-        phone: String(formData.get("phone") ?? ""),
-        email: String(formData.get("email") ?? ""),
-        description: String(formData.get("description") ?? ""),
-        avatar: selectedAvatar,
-      });
+    const result = await saveProfile({
+      fullName: String(formData.get("fullName") ?? ""),
+      phone: String(formData.get("phone") ?? ""),
+      email: String(formData.get("email") ?? ""),
+      description: String(formData.get("description") ?? ""),
+      avatar: selectedAvatar,
+    });
 
-      setProfileMessage("درخواست ذخیره ثبت شد.");
-    } finally {
-      setIsSaving(false);
-    }
+    setProfileMessage({ ok: result.ok, text: result.message });
+    setIsSaving(false);
   }
 
   async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     const formData = new FormData(event.currentTarget);
-
     setIsChangingPassword(true);
+    setPasswordMessage(null);
 
-    try {
-      await changePassword({
-        currentPassword: String(formData.get("currentPassword") ?? ""),
-        newPassword: String(formData.get("newPassword") ?? ""),
-        confirmPassword: String(formData.get("confirmPassword") ?? ""),
-      });
+    const result = await changePassword({
+      currentPassword: String(formData.get("currentPassword") ?? ""),
+      newPassword: String(formData.get("newPassword") ?? ""),
+      confirmPassword: String(formData.get("confirmPassword") ?? ""),
+    });
 
-      setPasswordMessage("درخواست تغییر رمز ثبت شد.");
-    } finally {
-      setIsChangingPassword(false);
+    setPasswordMessage({ ok: result.ok, text: result.message });
+
+    if (result.ok) {
+      (event.target as HTMLFormElement).reset();
     }
+
+    setIsChangingPassword(false);
   }
 
   return (
@@ -79,11 +88,9 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
           <div className="flex flex-col gap-3 rounded-[1.6rem] border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center">
             <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-[1.4rem] border border-slate-200 bg-white text-[#062452] shadow-sm">
               {avatarPreview ? (
-                <img
-                  src={avatarPreview}
-                  alt="تصویر پروفایل"
-                  className="h-full w-full object-cover"
-                />
+                <img src={avatarPreview} alt="تصویر پروفایل" className="h-full w-full object-cover" />
+              ) : profile?.avatar ? (
+                <img src={profile.avatar} alt="تصویر پروفایل" className="h-full w-full object-cover" />
               ) : (
                 <svg
                   viewBox="0 0 24 24"
@@ -110,15 +117,8 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
                 className="sr-only"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
-
-                  if (!file) {
-                    return;
-                  }
-
-                  if (avatarPreview) {
-                    URL.revokeObjectURL(avatarPreview);
-                  }
-
+                  if (!file) return;
+                  if (avatarPreview) URL.revokeObjectURL(avatarPreview);
                   setSelectedAvatar(file);
                   setAvatarPreview(URL.createObjectURL(file));
                 }}
@@ -129,71 +129,71 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
 
         <form onSubmit={handleProfileSubmit} className="mt-6 grid gap-5 md:grid-cols-2">
           <label className="block text-right">
-            <span className="mb-2 block text-sm font-black text-[#062452]">
-              نام و نام خانوادگی
-            </span>
+            <span className="mb-2 block text-sm font-black text-[#062452]">نام و نام خانوادگی</span>
             <input
               type="text"
               name="fullName"
-              defaultValue=""
+              defaultValue={profile?.full_name ?? ""}
+              key={profile?.full_name}
               className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
             />
           </label>
 
           <label className="block text-right">
-            <span className="mb-2 block text-sm font-black text-[#062452]">
-              شماره تماس
-            </span>
+            <span className="mb-2 block text-sm font-black text-[#062452]">شماره تماس</span>
             <input
               type="tel"
               name="phone"
-              defaultValue=""
+              defaultValue={profile?.phone ?? ""}
+              key={profile?.phone}
               className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
             />
           </label>
 
           <label className="block text-right">
-            <span className="mb-2 block text-sm font-black text-[#062452]">
-              نشانی ایمیل
-            </span>
+            <span className="mb-2 block text-sm font-black text-[#062452]">نشانی ایمیل</span>
             <input
               type="email"
               name="email"
-              defaultValue=""
+              defaultValue={profile?.email ?? ""}
+              key={profile?.email}
               className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
             />
           </label>
 
           <label className="block text-right">
-            <span className="mb-2 block text-sm font-black text-[#062452]">
-              نقش کاربری
-            </span>
+            <span className="mb-2 block text-sm font-black text-[#062452]">نقش کاربری</span>
             <input
               type="text"
               name="role"
-              defaultValue={roleTitle}
+              value={profile?.role_display ?? roleTitle}
               readOnly
               className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 text-right text-sm font-black text-slate-500 outline-none"
             />
           </label>
 
           <label className="block text-right md:col-span-2">
-            <span className="mb-2 block text-sm font-black text-[#062452]">
-              توضیحات
-            </span>
+            <span className="mb-2 block text-sm font-black text-[#062452]">توضیحات</span>
             <textarea
               name="description"
-              defaultValue=""
-              rows={5}
+              defaultValue={profile?.description ?? ""}
+              key={profile?.description}
+              rows={4}
               className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
             />
           </label>
 
-          {profileMessage && (
-            <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-right text-sm font-black text-emerald-700 md:col-span-2">
-              {profileMessage}
+          {profileMessage ? (
+            <p
+              className={`rounded-2xl px-4 py-3 text-right text-sm font-black md:col-span-2 ${
+                profileMessage.ok
+                  ? "bg-emerald-50 text-emerald-700"
+                  : "bg-rose-50 text-rose-700"
+              }`}
+            >
+              {profileMessage.text}
             </p>
-          )}
+          ) : null}
 
           <div className="flex justify-end md:col-span-2">
             <button
@@ -201,7 +201,7 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
               disabled={isSaving}
               className="besat-navy-button inline-flex h-[3.25rem] items-center justify-center rounded-2xl bg-[#12395b] px-7 text-sm font-black transition hover:bg-[#0d2f4d] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {isSaving ? "در حال ذخیره" : "ذخیره تغییرات"}
+              {isSaving ? "در حال ذخیره..." : "ذخیره تغییرات"}
             </button>
           </div>
         </form>
@@ -217,43 +217,46 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
 
         <form onSubmit={handlePasswordSubmit} className="mt-6 grid gap-5 md:grid-cols-3">
           <label className="block text-right">
-            <span className="mb-2 block text-sm font-black text-[#062452]">
-              رمز عبور فعلی
-            </span>
+            <span className="mb-2 block text-sm font-black text-[#062452]">رمز عبور فعلی</span>
             <input
               type="password"
               name="currentPassword"
+              required
               className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
             />
           </label>
 
           <label className="block text-right">
-            <span className="mb-2 block text-sm font-black text-[#062452]">
-              رمز عبور جدید
-            </span>
+            <span className="mb-2 block text-sm font-black text-[#062452]">رمز عبور جدید</span>
             <input
               type="password"
               name="newPassword"
+              required
               className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
             />
           </label>
 
           <label className="block text-right">
-            <span className="mb-2 block text-sm font-black text-[#062452]">
-              تکرار رمز عبور جدید
-            </span>
+            <span className="mb-2 block text-sm font-black text-[#062452]">تکرار رمز عبور جدید</span>
             <input
               type="password"
               name="confirmPassword"
+              required
               className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
             />
           </label>
 
-          {passwordMessage && (
-            <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-right text-sm font-black text-emerald-700 md:col-span-3">
-              {passwordMessage}
+          {passwordMessage ? (
+            <p
+              className={`rounded-2xl px-4 py-3 text-right text-sm font-black md:col-span-3 ${
+                passwordMessage.ok
+                  ? "bg-emerald-50 text-emerald-700"
+                  : "bg-rose-50 text-rose-700"
+              }`}
+            >
+              {passwordMessage.text}
             </p>
-          )}
+          ) : null}
 
           <div className="flex justify-end md:col-span-3">
             <button
@@ -261,7 +264,7 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
               disabled={isChangingPassword}
               className="besat-navy-button inline-flex h-[3.25rem] items-center justify-center rounded-2xl bg-[#12395b] px-7 text-sm font-black transition hover:bg-[#0d2f4d] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {isChangingPassword ? "در حال ذخیره" : "به‌روزرسانی رمز عبور"}
+              {isChangingPassword ? "در حال ذخیره..." : "به‌روزرسانی رمز عبور"}
             </button>
           </div>
         </form>
@@ -269,4 +272,3 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-# Local backups
+﻿# Local backups
 _backups/
 
 # Python cache
@@ -54,3 +54,6 @@ htmlcov/
 # OS files
 .DS_Store
 Thumbs.db
+frontend/.env.local
+frontend/.env*.local
+

@@ -1,19 +1,16 @@
-﻿import { HomeContactBanner } from "@/components/home/home-contact-banner";
-import { HomeHero } from "@/components/home/home-hero";
-import { HomeSections } from "@/components/home/home-sections";
-import { SiteFooter } from "@/components/layout/site-footer";
-import { SiteHeader } from "@/components/layout/site-header";
+﻿import { HomeIntroSection } from "@/components/home/home-intro-section";
+import { HomeNewsSection } from "@/components/home/home-news-section";
+import { HomeSliderSection } from "@/components/home/home-slider-section";
+import { HomeUnitsSection } from "@/components/home/home-units-section";
+import { PublicPageLayout } from "@/components/layout/public-page-layout";
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <>
-      <SiteHeader />
-      <main>
-        <HomeHero />
-        <HomeSections />
-        <HomeContactBanner />
-      </main>
-      <SiteFooter />
-    </>
+    <PublicPageLayout>
+      <HomeSliderSection />
+      <HomeIntroSection />
+      <HomeUnitsSection />
+      <HomeNewsSection />
+    </PublicPageLayout>
   );
 }

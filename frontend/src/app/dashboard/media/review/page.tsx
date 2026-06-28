@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function DashboardPage() {
-  return <DashboardShell data={dashboardPages.media} activeKey="review" />;
+  return <DashboardShell panel="media" data={dashboardPages.media} activeKey="review" />;
 }

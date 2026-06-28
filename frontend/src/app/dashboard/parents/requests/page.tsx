@@ -1,11 +1,4 @@
-﻿import type { Metadata } from "next";
-import { dashboardPages } from "@/components/dashboard/dashboard-data";
-import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-
-export const metadata: Metadata = {
-  title: "درخواست‌ها | مدرسه بعثت",
-};
-
-export default function DashboardPage() {
-  return <DashboardShell data={dashboardPages.parents} activeKey="requests" />;
+﻿import { redirect } from "next/navigation";
+export default function PageRedirect() {
+  redirect("/dashboard/parents/registration");
 }

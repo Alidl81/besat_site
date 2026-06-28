@@ -3,9 +3,18 @@
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginAccount } from "@/lib/api/account-api";
+import { performLogin } from "@/lib/auth/login-service";
 import { writeBesatSession } from "@/lib/auth/auth-session";
+import { isApiMode } from "@/lib/data/repository";
 import { BesatLogoMark } from "@/components/shared/besat-logo";
+
+function getNextPath(): string | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get("next");
+  if (next && next.startsWith("/")) return next;
+  return null;
+}
 
 export function LoginCard() {
   const router = useRouter();
@@ -22,27 +31,18 @@ export function LoginCard() {
     setMessage("");
     setIsSubmitting(true);
 
-    try {
-      const response = await loginAccount({
-        username,
-        password,
-      });
+    const result = await performLogin(username, password);
 
-      writeBesatSession({
-        accessToken: response.access,
-        refreshToken: response.refresh,
-        username: response.user.username,
-        fullName: response.user.full_name,
-        role: response.user.role,
-        redirectPath: response.redirect_path,
-      });
-
-      router.push(response.redirect_path);
-    } catch {
-      setMessage("ورود ناموفق بود.");
-    } finally {
+    if (!result.ok) {
+      setMessage(result.message);
       setIsSubmitting(false);
+      return;
     }
+
+    writeBesatSession(result.session);
+
+    const next = getNextPath();
+    router.push(next ?? result.session.redirectPath);
   }
 
   return (
@@ -119,6 +119,19 @@ export function LoginCard() {
             >
               {isSubmitting ? "در حال ورود" : "ورود"}
             </button>
+
+            {!isApiMode() ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-right">
+                <p className="mb-2 text-xs font-black text-slate-400">
+                  حساب‌های تستی (حالت بدون بک‌اند) — رمز همه: <span className="text-emerald-600">1234</span>
+                </p>
+                <ul className="space-y-1 text-xs font-bold text-slate-500">
+                  <li>مدیر کل: <span className="text-[#062452]">admin</span></li>
+                  <li>مدیر واحد: <span className="text-[#062452]">unit_boys</span></li>
+                  <li>همکار رسانه: <span className="text-[#062452]">media</span></li>
+                </ul>
+              </div>
+            ) : null}
 
             <div className="flex justify-center">
               <Link

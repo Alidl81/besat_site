@@ -1,11 +1,5 @@
-﻿import type { Metadata } from "next";
-import { panelData } from "@/components/dashboard/panel-data";
-import { PanelShell } from "@/components/dashboard/panel-shell";
+﻿import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "تنظیمات | مدرسه بعثت",
-};
-
-export default function PanelPage() {
-  return <PanelShell data={panelData.media} activeKey="settings" />;
+export default function MediaRedirect() {
+  redirect("/dashboard/media/settings");
 }

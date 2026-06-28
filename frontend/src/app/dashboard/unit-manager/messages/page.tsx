@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function DashboardPage() {
-  return <DashboardShell data={dashboardPages.unitManager} activeKey="messages" />;
+  return <DashboardShell panel="unitManager" data={dashboardPages.unitManager} activeKey="messages" />;
 }

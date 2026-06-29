@@ -1,0 +1,76 @@
+from rest_framework import serializers
+
+
+class ContentAggregateQuerySerializer(serializers.Serializer):
+    type = serializers.ChoiceField(
+        choices=(
+            "all",
+            "news",
+            "announcement",
+        ),
+        required=False,
+        default="all",
+    )
+    scope = serializers.ChoiceField(
+        choices=(
+            "school",
+            "unit",
+        ),
+        required=False,
+    )
+    unit_id = serializers.IntegerField(
+        required=False,
+        min_value=1,
+    )
+    status = serializers.CharField(
+        required=False,
+        default="published",
+    )
+    category = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )
+    search = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )
+    featured = serializers.BooleanField(
+        required=False,
+    )
+    ordering = serializers.ChoiceField(
+        choices=(
+            "published_at",
+            "-published_at",
+            "title",
+            "-title",
+        ),
+        required=False,
+        default="-published_at",
+    )
+
+
+class ContentUnitSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    slug = serializers.CharField()
+
+
+class ContentCategorySerializer(serializers.Serializer):
+    title = serializers.CharField()
+    slug = serializers.CharField()
+
+
+class ContentAggregateItemSerializer(serializers.Serializer):
+    type = serializers.CharField()
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    slug = serializers.CharField()
+    summary = serializers.CharField(allow_null=True)
+    cover_image = serializers.URLField(allow_null=True)
+    published_at = serializers.DateField()
+    category = ContentCategorySerializer(allow_null=True)
+    scope = serializers.CharField()
+    unit = ContentUnitSerializer(allow_null=True)
+    status = serializers.CharField()
+    is_featured = serializers.BooleanField()
+    detail_url = serializers.CharField()

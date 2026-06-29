@@ -62,7 +62,7 @@ LOCAL_APPS = [
     "apps.news",
     "apps.gallery",
     "apps.achievements",
-    "apps.contact",
+    "apps.content",
     "apps.registration",
     "apps.staff",
     "apps.accounts",

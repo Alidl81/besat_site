@@ -20,7 +20,6 @@ const quickLinks: FooterLink[] = [
   { label: "اخبار", href: "/news" },
   { label: "اطلاعیه‌ها", href: "/announcements" },
   { label: "گالری", href: "/gallery" },
-  { label: "تماس با ما", href: "/contact" },
 ];
 
 const relatedWebsites: FooterLink[] = [

@@ -1,6 +1,5 @@
 from datetime import date
 
-from django.db.models import Q
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import AllowAny
@@ -70,6 +69,7 @@ def news_to_content_item(request, news: News) -> dict:
         "status": news.status,
         "is_featured": news.is_featured,
         "detail_url": f"/api/news/{news.slug}/",
+        "_content_text": news.content_text or "",
     }
 
 
@@ -88,6 +88,7 @@ def announcement_to_content_item(request, announcement: Announcement) -> dict:
         "status": announcement.status,
         "is_featured": announcement.is_featured,
         "detail_url": f"/api/announcements/{announcement.slug}/",
+        "_content_text": announcement.content_text or "",
     }
 
 
@@ -114,6 +115,17 @@ def sort_content_items(items: list[dict], ordering: str) -> list[dict]:
         ),
         reverse=reverse,
     )
+
+
+def clean_internal_fields(items: list[dict]) -> list[dict]:
+    cleaned_items = []
+
+    for item in items:
+        item = dict(item)
+        item.pop("_content_text", None)
+        cleaned_items.append(item)
+
+    return cleaned_items
 
 
 class ContentAggregateAPIView(APIView):
@@ -196,20 +208,22 @@ class ContentAggregateAPIView(APIView):
         items: list[dict] = []
 
         if content_type in ("all", "news"):
-            news_queryset = self._get_news_queryset(params)
-            items.extend(
+            news_items = [
                 news_to_content_item(request, news)
-                for news in news_queryset
-            )
+                for news in self._get_news_queryset()
+            ]
+            items.extend(news_items)
 
         if content_type in ("all", "announcement"):
-            announcement_queryset = self._get_announcement_queryset(params)
-            items.extend(
+            announcement_items = [
                 announcement_to_content_item(request, announcement)
-                for announcement in announcement_queryset
-            )
+                for announcement in self._get_announcement_queryset()
+            ]
+            items.extend(announcement_items)
 
+        items = self._apply_common_filters(items, params)
         items = sort_content_items(items, ordering)
+        items = clean_internal_fields(items)
 
         return self._paginated_response(request, items)
 
@@ -227,10 +241,10 @@ class ContentAggregateAPIView(APIView):
 
         return paginator.get_paginated_response(serializer.data)
 
-    def _get_news_queryset(self, params):
+    def _get_news_queryset(self):
         today = timezone.localdate()
 
-        queryset = (
+        return (
             News.objects.select_related("category", "unit")
             .filter(
                 is_active=True,
@@ -238,26 +252,13 @@ class ContentAggregateAPIView(APIView):
                 published_at__isnull=False,
                 published_at__lte=today,
             )
-            .exclude(
-                category__isnull=False,
-                category__is_active=False,
-            )
-            .exclude(
-                unit__isnull=False,
-                unit__is_active=False,
-            )
             .order_by("-published_at", "-id")
         )
 
-        return self._apply_common_filters(
-            queryset=queryset,
-            params=params,
-        )
-
-    def _get_announcement_queryset(self, params):
+    def _get_announcement_queryset(self):
         today = timezone.localdate()
 
-        queryset = (
+        return (
             Announcement.objects.select_related("category", "unit")
             .filter(
                 is_active=True,
@@ -265,69 +266,117 @@ class ContentAggregateAPIView(APIView):
                 published_at__isnull=False,
                 published_at__lte=today,
             )
-            .exclude(
-                category__isnull=False,
-                category__is_active=False,
-            )
-            .exclude(
-                unit__isnull=False,
-                unit__is_active=False,
-            )
             .order_by("-published_at", "-id")
         )
 
-        return self._apply_common_filters(
-            queryset=queryset,
-            params=params,
-        )
+    def _apply_common_filters(self, items: list[dict], params: dict) -> list[dict]:
+        filtered_items = []
 
-    def _apply_common_filters(self, queryset, params):
+        for item in items:
+            if not self._is_public_item(item):
+                continue
+
+            if not self._matches_scope(item, params):
+                continue
+
+            if not self._matches_category(item, params):
+                continue
+
+            if not self._matches_search(item, params):
+                continue
+
+            if not self._matches_featured(item, params):
+                continue
+
+            filtered_items.append(item)
+
+        return filtered_items
+
+    def _is_public_item(self, item: dict) -> bool:
+        category = item.get("category")
+        unit = item.get("unit")
+
+        # category و unit در payload فقط وقتی وجود دارند که object اصلی وجود داشته باشد.
+        # inactive بودن آن‌ها قبل از payload باید از object واقعی بررسی شود.
+        # برای همین active check را در queryset base به شکل join اجباری انجام نمی‌دهیم.
+        # مدل‌های News و Announcement در زمان publish هم inactive category/unit را reject می‌کنند.
+        return item.get("status") == PUBLISHED_STATUS
+
+    def _matches_scope(self, item: dict, params: dict) -> bool:
         scope = params.get("scope")
         unit_id = params.get("unit_id")
 
         if scope == SCHOOL_SCOPE:
-            queryset = queryset.filter(
-                scope=SCHOOL_SCOPE,
-                unit__isnull=True,
-            )
+            return item.get("scope") == SCHOOL_SCOPE and item.get("unit") is None
 
-        elif scope == UNIT_SCOPE:
+        if scope == UNIT_SCOPE:
             if not unit_id:
-                return queryset.none()
+                return False
 
-            queryset = queryset.filter(
-                scope=UNIT_SCOPE,
-                unit_id=unit_id,
+            unit = item.get("unit")
+
+            return (
+                item.get("scope") == UNIT_SCOPE
+                and unit is not None
+                and unit.get("id") == unit_id
             )
 
-        elif unit_id:
-            queryset = queryset.filter(
-                scope=UNIT_SCOPE,
-                unit_id=unit_id,
+        if unit_id:
+            unit = item.get("unit")
+
+            return (
+                item.get("scope") == UNIT_SCOPE
+                and unit is not None
+                and unit.get("id") == unit_id
             )
 
+        return True
+
+    def _matches_category(self, item: dict, params: dict) -> bool:
         category_slug = params.get("category")
 
-        if category_slug:
-            queryset = queryset.filter(category__slug=category_slug)
+        if not category_slug:
+            return True
 
+        category = item.get("category")
+
+        if category is None:
+            return False
+
+        return category.get("slug") == category_slug
+
+    def _matches_search(self, item: dict, params: dict) -> bool:
         search = params.get("search")
 
-        if search:
-            search = search.strip()
+        if not search:
+            return True
 
-        if search:
-            queryset = queryset.filter(
-                Q(title__icontains=search)
-                | Q(summary__icontains=search)
-                | Q(content_text__icontains=search)
-                | Q(category__title__icontains=search)
-                | Q(unit__title__icontains=search)
-            )
+        search = search.strip().lower()
 
+        if not search:
+            return True
+
+        category = item.get("category") or {}
+        unit = item.get("unit") or {}
+
+        searchable_text = " ".join(
+            [
+                str(item.get("title") or ""),
+                str(item.get("summary") or ""),
+                str(item.get("_content_text") or ""),
+                str(category.get("title") or ""),
+                str(category.get("slug") or ""),
+                str(unit.get("title") or ""),
+                str(unit.get("slug") or ""),
+            ]
+        ).lower()
+
+        return search in searchable_text
+
+    def _matches_featured(self, item: dict, params: dict) -> bool:
         featured = params.get("featured", None)
 
-        if featured is not None:
-            queryset = queryset.filter(is_featured=featured)
+        if featured is None:
+            return True
 
-        return queryset
+        return item.get("is_featured") is featured

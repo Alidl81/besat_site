@@ -34,8 +34,9 @@ class ContentAggregateQuerySerializer(serializers.Serializer):
         required=False,
         allow_blank=True,
     )
-    featured = serializers.BooleanField(
+    featured = serializers.CharField(
         required=False,
+        allow_blank=True,
     )
     ordering = serializers.ChoiceField(
         choices=(
@@ -47,6 +48,25 @@ class ContentAggregateQuerySerializer(serializers.Serializer):
         required=False,
         default="-published_at",
     )
+
+    def validate_featured(self, value):
+        if value is None:
+            return None
+
+        value = str(value).strip().lower()
+
+        if value == "":
+            return None
+
+        if value in ("true", "1", "yes"):
+            return True
+
+        if value in ("false", "0", "no"):
+            return False
+
+        raise serializers.ValidationError(
+            "featured باید یکی از مقادیر true, false, 1, 0, yes, no باشد."
+        )
 
 
 class ContentUnitSerializer(serializers.Serializer):

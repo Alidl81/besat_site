@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -7,8 +7,7 @@ import { logoutAccount } from "@/lib/api/account-api";
 import { isApiMode } from "@/lib/data/repository";
 import {
   clearBesatSession,
-  getBesatSessionDisplayName,
-  readBesatSession,
+readBesatSession,
   type BesatSession,
 } from "@/lib/auth/auth-session";
 
@@ -76,19 +75,8 @@ export function SiteAuthActions() {
       </div>
     );
   }
-
-  const displayName = getBesatSessionDisplayName(session);
-
-  return (
+return (
     <div className="grid w-full min-w-full grid-cols-2 gap-3 self-stretch lg:flex lg:w-auto lg:min-w-0 lg:items-center">
-      <div className="col-span-2 flex h-14 min-w-0 items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-right shadow-sm lg:h-11 lg:w-auto lg:min-w-40">
-        <span className="text-xs font-black text-slate-400 lg:text-[0.7rem]">
-          وارد شده‌اید
-        </span>
-        <span className="min-w-0 truncate text-sm font-black text-[#062452]">
-          {displayName}
-        </span>
-      </div>
 
       <Link
         href={session.redirectPath}

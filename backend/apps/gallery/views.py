@@ -12,6 +12,7 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from apps.accounts.models import UserUnitMembership
 
+from .models import GalleryItem
 from .permissions import (
     HasGalleryCMSPermission,
     get_accessible_unit_ids,
@@ -24,6 +25,7 @@ from .permissions import (
 )
 from .serializers import (
     CMSGalleryItemDetailSerializer,
+    CMSGalleryItemWriteSerializer,
     CMSGalleryItemListSerializer,
     GalleryItemDetailSerializer,
     GalleryItemListSerializer,

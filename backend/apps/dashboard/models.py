@@ -1,0 +1,1 @@
+# Dashboard app has no database model.

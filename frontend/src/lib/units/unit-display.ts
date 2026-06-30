@@ -28,55 +28,62 @@ function normalizeText(value: string) {
     .toLowerCase();
 }
 
-function unitSearchText(unit: UnitDisplaySource) {
+/**
+ * فقط از شناسه، slug و title استفاده می‌کنیم.
+ * description نباید وارد تشخیص شماره واحد شود.
+ */
+function unitIdentityText(unit: UnitDisplaySource) {
   return normalizeText(
     [
       unit.id ?? "",
       unit.slug ?? "",
       unit.title,
-      unit.description ?? "",
-      unit.kind ?? "",
-      unit.gender ?? "",
     ].join(" "),
   );
 }
 
-function hasUnitNumber(text: string, unitNumber: number) {
+function hasExactUnitNumber(text: string, unitNumber: number) {
   const n = String(unitNumber);
   const padded = n.padStart(2, "0");
 
-  return (
-    text.includes(`unit-${n}`) ||
-    text.includes(`unit-${padded}`) ||
-    text.includes(`unit_${n}`) ||
-    text.includes(`unit_${padded}`) ||
-    text.includes(`واحد ${n}`) ||
-    text.includes(`واحد${n}`)
-  );
+  const patterns = [
+    new RegExp(`(^|[^0-9])unit[-_ ]${n}($|[^0-9])`),
+    new RegExp(`(^|[^0-9])unit[-_ ]${padded}($|[^0-9])`),
+    new RegExp(`(^|[^0-9])واحد\\s*${n}($|[^0-9])`),
+    new RegExp(`(^|[^0-9])واحد${n}($|[^0-9])`),
+  ];
+
+  return patterns.some((pattern) => pattern.test(text));
+}
+
+function isUnitOneAndTwo(text: string) {
+  const combinedPatterns = [
+    /unit[-_ ]0?1[-_ ]0?2/,
+    /unit[-_ ]0?1[-_ ]و[-_ ]0?2/,
+    /unit[-_ ]1[-_ ]2/,
+    /واحد\s*1\s*و\s*2/,
+    /واحد1و2/,
+    /1\s*و\s*2/,
+  ];
+
+  if (combinedPatterns.some((pattern) => pattern.test(text))) {
+    return true;
+  }
+
+  return hasExactUnitNumber(text, 1) || hasExactUnitNumber(text, 2);
 }
 
 export function getOfficialUnitShortTitle(unit: UnitDisplaySource) {
-  const text = unitSearchText(unit);
+  const text = unitIdentityText(unit);
 
-  if (
-    text.includes("unit-01-02") ||
-    text.includes("unit_01_02") ||
-    text.includes("1و2") ||
-    text.includes("1 و 2") ||
-    text.includes("واحد 1و2") ||
-    text.includes("واحد 1 و 2")
-  ) {
+  if (isUnitOneAndTwo(text)) {
     return "واحد ۱ و ۲";
   }
 
-  for (let unitNumber = 3; unitNumber <= 13; unitNumber += 1) {
-    if (hasUnitNumber(text, unitNumber)) {
+  for (let unitNumber = 13; unitNumber >= 3; unitNumber -= 1) {
+    if (hasExactUnitNumber(text, unitNumber)) {
       return `واحد ${toPersianDigits(String(unitNumber))}`;
     }
-  }
-
-  if (hasUnitNumber(text, 1) || hasUnitNumber(text, 2)) {
-    return "واحد ۱ و ۲";
   }
 
   return unit.title;

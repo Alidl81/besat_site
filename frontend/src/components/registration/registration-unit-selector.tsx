@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CircularSelector,
   type CircularItem,
@@ -15,13 +15,52 @@ type RegistrationUnitSelectorProps = {
   display?: "all" | "desktop" | "mobile";
 };
 
+function ChevronIcon({ isOpen }: { isOpen: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={`size-5 transition-transform duration-300 ease-out ${
+        isOpen ? "rotate-180" : "rotate-0"
+      }`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
 export function RegistrationUnitSelector({
   units,
   selectedUnitId,
   onSelect,
   display = "all",
 }: RegistrationUnitSelectorProps) {
-  const activeUnits = useMemo(() => units ?? [], [units]);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const activeUnits = useMemo(() => {
+    const sourceUnits = units ?? [];
+    const seenTitles = new Set<string>();
+
+    return sourceUnits.filter((unit) => {
+      const title = getOfficialUnitShortTitle(unit);
+
+      if (seenTitles.has(title)) {
+        return false;
+      }
+
+      seenTitles.add(title);
+      return true;
+    });
+  }, [units]);
+
+  const selectedUnit = useMemo(
+    () => activeUnits.find((unit) => unit.id === selectedUnitId) ?? null,
+    [activeUnits, selectedUnitId],
+  );
 
   const circularItems: CircularItem[] = useMemo(
     () =>
@@ -66,19 +105,67 @@ export function RegistrationUnitSelector({
               واحد مورد نظر
             </span>
 
-            <select
-              value={selectedUnitId}
-              onChange={(event) => onSelect(event.target.value)}
-              required
-              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
-            >
-              <option value="">واحد را انتخاب کنید</option>
-              {activeUnits.map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {getOfficialUnitShortTitle(unit)}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsMobileOpen((current) => !current)}
+                aria-expanded={isMobileOpen}
+                className={`relative flex h-[3.7rem] w-full items-center justify-between rounded-2xl border bg-white px-4 pl-14 pr-4 text-right text-sm font-black text-[#062452] outline-none transition-all duration-300 ease-out ${
+                  isMobileOpen
+                    ? "border-emerald-400 shadow-[0_14px_35px_rgba(16,185,129,0.14)]"
+                    : "border-slate-200 shadow-sm"
+                }`}
+              >
+                <span>
+                  {selectedUnit
+                    ? getOfficialUnitShortTitle(selectedUnit)
+                    : "واحد را انتخاب کنید"}
+                </span>
+
+                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[#062452]">
+                  <ChevronIcon isOpen={isMobileOpen} />
+                </span>
+              </button>
+
+              <div
+                className={`mt-2 overflow-hidden rounded-2xl border bg-white transition-all duration-300 ease-out ${
+                  isMobileOpen
+                    ? "max-h-[24rem] translate-y-0 border-slate-200 opacity-100 shadow-[0_18px_45px_rgba(15,23,42,0.12)]"
+                    : "max-h-0 translate-y-1 border-transparent opacity-0 shadow-none"
+                }`}
+              >
+                <div className="max-h-[22rem] overflow-y-auto overscroll-contain py-2">
+                  {activeUnits.map((unit) => {
+                    const isActive = unit.id === selectedUnitId;
+                    const title = getOfficialUnitShortTitle(unit);
+
+                    return (
+                      <button
+                        key={unit.id}
+                        type="button"
+                        onClick={() => {
+                          onSelect(unit.id);
+                          setIsMobileOpen(false);
+                        }}
+                        className={`flex w-full items-center justify-between px-4 py-3 text-right text-sm font-black transition duration-200 ${
+                          isActive
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "text-[#062452] hover:bg-slate-50"
+                        }`}
+                      >
+                        <span>{title}</span>
+
+                        {isActive ? (
+                          <span className="rounded-full bg-emerald-100 px-2 py-1 text-[0.65rem] font-black text-emerald-700">
+                            انتخاب شده
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </label>
         </div>
       ) : null}

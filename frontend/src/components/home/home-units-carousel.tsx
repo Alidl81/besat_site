@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { SchoolUnitRecord } from "@/lib/data/domain-types";
 
+import { getOfficialUnitShortTitle } from "@/lib/units/unit-display";
 type HomeUnitsCarouselProps = {
   units: SchoolUnitRecord[];
 };
@@ -160,7 +161,7 @@ export function HomeUnitsCarousel({ units }: HomeUnitsCarouselProps) {
             <button
               key={unit.id}
               type="button"
-              aria-label={`نمایش ${unit.title}`}
+              aria-label={`نمایش ${getOfficialUnitShortTitle(unit)}`}
               onClick={() => goTo(index)}
               className={`h-2.5 rounded-full transition-all duration-500 ${
                 index === active ? "w-8 bg-emerald-500" : "w-2.5 bg-slate-300 hover:bg-slate-400"
@@ -192,7 +193,7 @@ function UnitCard({
       {unit.cover_image ? (
         <img
           src={unit.cover_image}
-          alt={unit.title}
+          alt={getOfficialUnitShortTitle(unit)}
           className="absolute inset-0 h-full w-full object-cover"
           draggable={false}
         />
@@ -213,7 +214,7 @@ function UnitCard({
             {genderLabels[unit.gender] ?? unit.gender}
           </span>
         </div>
-        <h3 className="text-xl font-black leading-[1.6] text-white sm:text-2xl">{unit.title}</h3>
+        <h3 className="text-xl font-black leading-[1.6] text-white sm:text-2xl">{getOfficialUnitShortTitle(unit)}</h3>
         {unit.description && isActive ? (
           <p className="mt-2 text-sm font-bold leading-7 text-white/75 line-clamp-2">
             {unit.description}
@@ -233,14 +234,14 @@ function UnitCard({
   // فقط کارت فعال لینک است؛ بقیه کلیک = رفتن به آن واحد
   if (isActive) {
     return (
-      <Link href={`/units/${unit.slug}`} aria-label={unit.title} draggable={false}>
+      <Link href={`/units/${unit.slug}`} aria-label={getOfficialUnitShortTitle(unit)} draggable={false}>
         {cardInner}
       </Link>
     );
   }
 
   return (
-    <button type="button" onClick={onClick} aria-label={`انتخاب ${unit.title}`}>
+    <button type="button" onClick={onClick} aria-label={`انتخاب ${getOfficialUnitShortTitle(unit)}`}>
       {cardInner}
     </button>
   );

@@ -1,5 +1,6 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
+import { getOfficialUnitShortTitle } from "@/lib/units/unit-display";
 export type UnitSummary = {
   title: string;
   slug: string;
@@ -16,7 +17,7 @@ export function UnitCard({ unit }: UnitCardProps) {
       <div className="h-36 bg-[linear-gradient(135deg,#0f2f4a,#16496f)]" />
 
       <div className="p-6 text-right">
-        <h2 className="text-xl font-black text-[#0f2f4a]">{unit.title}</h2>
+        <h2 className="text-xl font-black text-[#0f2f4a]">{getOfficialUnitShortTitle(unit)}</h2>
 
         {unit.description ? (
           <p className="mt-3 text-sm leading-8 text-slate-600">{unit.description}</p>

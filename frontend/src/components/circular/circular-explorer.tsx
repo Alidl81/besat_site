@@ -11,6 +11,7 @@ type CircularExplorerProps = {
   /** توضیح کوتاه هر آیتم (برای overview) */
   descriptions: Record<string, string | null>;
   variant: "unit" | "department";
+  initialSlug?: string | null;
 };
 
 const tabs: ScopedTab[] = [
@@ -20,9 +21,27 @@ const tabs: ScopedTab[] = [
   { key: "gallery", label: "گالری", icon: "▧" },
 ];
 
-export function CircularExplorer({ items, descriptions, variant }: CircularExplorerProps) {
-  const [activeId, setActiveId] = useState(items[0]?.id ?? "");
+export function CircularExplorer({ items, descriptions, variant, initialSlug }: CircularExplorerProps) {
+  const [activeId, setActiveId] = useState<string>(() => {
+    const matchedInitialItem = initialSlug
+      ? items.find((item) => item.slug === initialSlug)
+      : null;
+
+    return matchedInitialItem?.id ?? items[0]?.id ?? "";
+  });
   const [activeTab, setActiveTab] = useState("overview");
+
+  useEffect(() => {
+    if (!initialSlug) {
+      return;
+    }
+
+    const matchedInitialItemOnChange = items.find((item) => item.slug === initialSlug);
+
+    if (matchedInitialItemOnChange) {
+      setActiveId(matchedInitialItemOnChange.id);
+    }
+  }, [initialSlug, items]);
 
   const activeItem = items.find((i) => i.id === activeId) ?? items[0];
 
@@ -202,7 +221,7 @@ function ContentTab({
                       {new Intl.DateTimeFormat("fa-IR").format(new Date(item.published_at))}
                     </span>
                   ) : null}
-                  <span className="text-xs font-black text-emerald-600">مشاهده کامل ›</span>
+                  <span className="text-xs font-black text-emerald-600">مشاهده کامل ‹</span>
                 </div>
               </div>
             </div>

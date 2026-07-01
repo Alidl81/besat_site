@@ -7,7 +7,24 @@ export const metadata: Metadata = {
   title: "واحدها | مدرسه بعثت",
 };
 
-export default function UnitsPage() {
+type UnitsPageProps = {
+  searchParams?: Promise<{
+    unit?: string | string[];
+  }>;
+};
+
+function readSingleParam(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value ?? null;
+}
+
+export default async function UnitsPage({ searchParams }: UnitsPageProps) {
+  const params = searchParams ? await searchParams : undefined;
+  const initialUnitSlug = readSingleParam(params?.unit);
+
   return (
     <PublicPageLayout>
       <PageHero
@@ -15,7 +32,7 @@ export default function UnitsPage() {
         title="واحدهای مدرسه بعثت"
         description="برای مشاهده اطلاعات، اخبار، اطلاعیه‌ها و گالری هر واحد، آن را از گردونه انتخاب کنید."
       />
-      <UnitsExplorerSection variant="unit" />
+      <UnitsExplorerSection variant="unit" initialSlug={initialUnitSlug} />
     </PublicPageLayout>
   );
 }

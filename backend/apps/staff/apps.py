@@ -2,4 +2,6 @@ from django.apps import AppConfig
 
 
 class StaffConfig(AppConfig):
-    name = 'apps.staff'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.staff"
+    verbose_name = "کادر مدرسه"

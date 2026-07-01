@@ -1,17 +1,16 @@
 from django.contrib import admin
 
-from .models import StaffMember
+from .models import Event
 
 
-@admin.register(StaffMember)
-class StaffMemberAdmin(admin.ModelAdmin):
+@admin.register(Event)
+class EventAdmin(admin.ModelAdmin):
     list_display = (
-        "full_name",
-        "staff_type",
-        "role_title",
+        "title",
         "scope",
         "unit",
-        "department",
+        "event_start_at",
+        "status",
         "is_active",
         "is_featured",
         "order",
@@ -23,33 +22,33 @@ class StaffMemberAdmin(admin.ModelAdmin):
         "order",
     )
     list_filter = (
-        "is_active",
-        "is_featured",
-        "staff_type",
+        "status",
         "scope",
         "unit",
-        "department",
+        "is_active",
+        "is_featured",
+        "event_start_at",
+        "published_at",
     )
     search_fields = (
-        "full_name",
+        "title",
         "slug",
-        "role_title",
-        "bio",
-        "email",
-        "phone",
+        "summary",
+        "description",
+        "location",
         "unit__title",
-        "department__title",
     )
     readonly_fields = (
         "created_by",
         "updated_by",
+        "published_by",
         "created_at",
         "updated_at",
     )
     autocomplete_fields = (
         "unit",
-        "department",
     )
+    date_hierarchy = "event_start_at"
     save_on_top = True
 
     fieldsets = (
@@ -58,38 +57,43 @@ class StaffMemberAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "is_active",
-                    "full_name",
+                    "title",
                     "slug",
-                    "staff_type",
-                    "role_title",
-                    "bio",
-                    "avatar",
+                    "summary",
+                    "description",
+                    "cover_image",
+                    "alt_text",
                 ),
             },
         ),
         (
-            "اطلاعات تماس",
+            "زمان و مکان",
             {
                 "fields": (
-                    "email",
-                    "phone",
+                    "event_start_at",
+                    "event_end_at",
+                    "location",
+                    "registration_url",
                 ),
             },
         ),
         (
-            "ارتباط سازمانی",
+            "Scope",
             {
                 "fields": (
                     "scope",
                     "unit",
-                    "department",
                 ),
             },
         ),
         (
-            "نمایش",
+            "وضعیت انتشار",
             {
                 "fields": (
+                    "status",
+                    "published_at",
+                    "published_by",
+                    "review_note",
                     "is_featured",
                     "order",
                 ),
@@ -119,7 +123,7 @@ class StaffMemberAdmin(admin.ModelAdmin):
         return (
             super()
             .get_queryset(request)
-            .select_related("unit", "department", "created_by", "updated_by")
+            .select_related("unit", "created_by", "updated_by", "published_by")
         )
 
     def save_model(self, request, obj, form, change):
@@ -127,5 +131,8 @@ class StaffMemberAdmin(admin.ModelAdmin):
             obj.created_by = request.user
 
         obj.updated_by = request.user
+
+        if obj.status == Event.Status.PUBLISHED and obj.published_by_id is None:
+            obj.published_by = request.user
 
         super().save_model(request, obj, form, change)

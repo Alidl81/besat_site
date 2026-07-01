@@ -1,5 +1,6 @@
 from datetime import date
 
+from django.db.models import Q
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import AllowAny
@@ -9,6 +10,7 @@ from rest_framework.views import APIView
 from apps.announcements.models import Announcement
 from apps.core.pagination import StandardResultsSetPagination
 from apps.news.models import News
+from apps.events.models import Event
 
 from .serializers import (
     ContentAggregateItemSerializer,
@@ -53,6 +55,41 @@ def category_payload(category):
         "slug": category.slug,
     }
 
+def event_content_payload(request, event):
+    image_url = build_absolute_file_url(request, event.cover_image)
+
+    unit = None
+
+    if event.unit_id:
+        unit = {
+            "id": event.unit.id,
+            "title": event.unit.title,
+            "slug": event.unit.slug,
+        }
+
+    return {
+        "id": event.id,
+        "type": "event",
+        "title": event.title,
+        "slug": event.slug,
+        "summary": event.summary,
+        "description": event.description,
+        "cover_image": image_url,
+        "image": image_url,
+        "published_at": event.published_at,
+        "category": None,
+        "scope": event.scope,
+        "unit_id": event.unit_id,
+        "unit": unit,
+        "status": event.status,
+        "is_featured": event.is_featured,
+        "detail_url": f"/api/events/{event.slug}/",
+        "event_start_at": event.event_start_at,
+        "event_end_at": event.event_end_at,
+        "location": event.location,
+        "registration_url": event.registration_url,
+        "_content_text": event.description or "",
+    }
 
 def news_to_content_item(request, news: News) -> dict:
     return {
@@ -134,11 +171,10 @@ class ContentAggregateAPIView(APIView):
 
     @extend_schema(
         tags=["Content"],
-        summary="Aggregate published public content from news and announcements",
-        parameters=[
+        summary="Aggregate published public content from news, announcements, gallery, and events",        parameters=[
             OpenApiParameter(
                 name="type",
-                description="Content type. Accepted values: all, news, announcement.",
+                description="Content type. Accepted values: all, news, announcement, event.",
                 required=False,
                 type=str,
             ),
@@ -220,6 +256,13 @@ class ContentAggregateAPIView(APIView):
                 for announcement in self._get_announcement_queryset()
             ]
             items.extend(announcement_items)
+            
+        if content_type in ("all", "event"):
+            event_items = [
+                event_content_payload(request, event)
+                for event in self._get_event_queryset()
+            ]
+            items.extend(event_items)
 
         items = self._apply_common_filters(items, params)
         items = sort_content_items(items, ordering)
@@ -265,6 +308,24 @@ class ContentAggregateAPIView(APIView):
                 status=PUBLISHED_STATUS,
                 published_at__isnull=False,
                 published_at__lte=today,
+            )
+            .order_by("-published_at", "-id")
+        )
+
+    def _get_event_queryset(self):
+        today = timezone.localdate()
+
+        return (
+            Event.objects.select_related("unit")
+            .filter(
+                is_active=True,
+                status=PUBLISHED_STATUS,
+                published_at__isnull=False,
+                published_at__lte=today,
+            )
+            .exclude(
+                unit__isnull=False,
+                unit__is_active=False,
             )
             .order_by("-published_at", "-id")
         )

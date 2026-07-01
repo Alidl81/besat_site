@@ -16,6 +16,7 @@ from apps.gallery.models import GalleryItem
 from apps.news.models import News
 from apps.site_settings.models import SiteSettings
 from apps.units.models import SchoolUnit
+from apps.achievements.models import Achievement
 
 from apps.home.models import HomeSlide
 
@@ -149,6 +150,18 @@ class HomePublicAPITests(TestCase):
             is_active=True,
             is_featured=True,
         )
+        
+        Achievement.objects.create(
+            title="افتخار ویژه",
+            slug="featured-achievement",
+            summary="خلاصه افتخار",
+            description="توضیحات افتخار",
+            cover_image=make_test_image("achievement.webp"),
+            achievement_date=self.today,
+            related_unit=unit,
+            is_active=True,
+            is_featured=True,
+        )
 
         response = self.client.get("/api/home/")
 
@@ -162,6 +175,8 @@ class HomePublicAPITests(TestCase):
         self.assertEqual(len(response.data["latest_news"]), 1)
         self.assertEqual(len(response.data["latest_announcements"]), 1)
         self.assertEqual(len(response.data["featured_gallery"]), 1)
+        self.assertEqual(len(response.data["featured_achievements"]), 1)
+        self.assertEqual(response.data["featured_achievements"][0]["slug"], "featured-achievement")
 
     def test_home_does_not_return_inactive_slide(self):
         HomeSlide.objects.create(

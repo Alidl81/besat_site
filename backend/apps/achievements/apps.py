@@ -4,4 +4,4 @@ from django.apps import AppConfig
 class AchivementsConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "apps.achievements"
-    verbose_name = "Achievements"
+    verbose_name = "افتخارات"

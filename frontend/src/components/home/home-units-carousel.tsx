@@ -89,7 +89,7 @@ export function HomeUnitsCarousel({ units }: HomeUnitsCarouselProps) {
             واحدهای آموزشی بعثت
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm font-bold leading-8 text-slate-500">
-            برای مشاهده هر واحد، روی آن کلیک کنید یا گردونه را بکشید.
+            برای مشاهده هر واحد، روی آن کلیک کنید.
           </p>
         </div>
 
@@ -143,7 +143,7 @@ export function HomeUnitsCarousel({ units }: HomeUnitsCarouselProps) {
             aria-label="واحد قبلی"
             className="absolute right-2 top-1/2 z-30 flex size-12 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-xl font-black text-[#062452] shadow-lg transition hover:bg-emerald-50 hover:text-emerald-700 sm:right-6"
           >
-            ›
+            ‹
           </button>
           <button
             type="button"
@@ -151,7 +151,7 @@ export function HomeUnitsCarousel({ units }: HomeUnitsCarouselProps) {
             aria-label="واحد بعدی"
             className="absolute left-2 top-1/2 z-30 flex size-12 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-xl font-black text-[#062452] shadow-lg transition hover:bg-emerald-50 hover:text-emerald-700 sm:left-6"
           >
-            ‹
+            ›
           </button>
         </div>
 
@@ -234,7 +234,7 @@ function UnitCard({
   // فقط کارت فعال لینک است؛ بقیه کلیک = رفتن به آن واحد
   if (isActive) {
     return (
-      <Link href={`/units/${unit.slug}`} aria-label={getOfficialUnitShortTitle(unit)} draggable={false}>
+      <Link href={`/units?unit=${encodeURIComponent(unit.slug)}`} aria-label={getOfficialUnitShortTitle(unit)} draggable={false}>
         {cardInner}
       </Link>
     );
@@ -246,3 +246,4 @@ function UnitCard({
     </button>
   );
 }
+

@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 import { getOfficialUnitShortTitle } from "@/lib/units/unit-display";
 export type UnitSummary = {
@@ -25,21 +25,21 @@ export function UnitCard({ unit }: UnitCardProps) {
 
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
           <Link
-            href={`/units/${unit.slug}`}
+            href={`/units?unit=${encodeURIComponent(unit.slug)}`}
             className="besat-tab-link rounded-2xl px-4 py-3 text-center text-sm font-black"
           >
             معرفی
           </Link>
 
           <Link
-            href={`/units/${unit.slug}/news`}
+            href={`/units?unit=${encodeURIComponent(unit.slug)}&section=news`}
             className="besat-tab-link rounded-2xl px-4 py-3 text-center text-sm font-black"
           >
             اخبار
           </Link>
 
           <Link
-            href={`/units/${unit.slug}/gallery`}
+            href={`/units?unit=${encodeURIComponent(unit.slug)}&section=gallery`}
             className="besat-tab-link rounded-2xl px-4 py-3 text-center text-sm font-black"
           >
             گالری
@@ -49,3 +49,4 @@ export function UnitCard({ unit }: UnitCardProps) {
     </article>
   );
 }
+

@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import filters
@@ -13,6 +14,7 @@ from apps.gallery.models import GalleryItem
 from apps.news.models import News
 from apps.site_settings.models import SiteSettings
 from apps.units.models import SchoolUnit
+from apps.achievements.models import Achievement
 
 from .models import HomeSlide
 from .permissions import HasHomeSlideCMSPermission
@@ -200,6 +202,32 @@ def gallery_payload(request, item):
         "unit": unit_payload(item.unit),
         "is_featured": item.is_featured,
     }
+    
+def achievement_payload(request, achievement):
+    image_url = build_absolute_file_url(request, achievement.cover_image)
+
+    related_unit = None
+
+    if achievement.related_unit_id:
+        related_unit = {
+            "id": achievement.related_unit.id,
+            "title": achievement.related_unit.title,
+            "slug": achievement.related_unit.slug,
+        }
+
+    return {
+        "id": achievement.id,
+        "title": achievement.title,
+        "slug": achievement.slug,
+        "summary": achievement.summary,
+        "description": achievement.description,
+        "cover_image": image_url,
+        "image": image_url,
+        "achievement_date": achievement.achievement_date,
+        "related_unit_id": achievement.related_unit_id,
+        "related_unit": related_unit,
+        "is_featured": achievement.is_featured,
+    }
 
 
 class HomePageAPIView(APIView):
@@ -263,6 +291,20 @@ class HomePageAPIView(APIView):
             )
             .order_by("order", "-published_at", "-id")[:8]
         )
+        
+        featured_achievements = (
+            Achievement.objects.select_related("related_unit")
+            .filter(is_active=True, is_featured=True)
+            .filter(
+                Q(achievement_date__isnull=True)
+                | Q(achievement_date__lte=today)
+            )
+            .exclude(
+                related_unit__isnull=False,
+                related_unit__is_active=False,
+            )
+            .order_by("order", "-achievement_date", "-id")[:6]
+        )
 
         return Response(
             {
@@ -292,7 +334,10 @@ class HomePageAPIView(APIView):
                     gallery_payload(request, item)
                     for item in featured_gallery
                 ],
-                "featured_achievements": [],
+                "featured_achievements": [
+                    achievement_payload(request, achievement)
+                    for achievement in featured_achievements
+                ],
             }
         )
 

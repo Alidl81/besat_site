@@ -1,14 +1,13 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 type UnitScopedTabsProps = {
   slug: string;
-  active: "overview" | "news" | "announcements" | "gallery";
+  active: "overview" | "news" | "gallery";
 };
 
 const tabs = [
   { key: "overview", label: "معرفی واحد", href: "" },
   { key: "news", label: "اخبار واحد", href: "/news" },
-  { key: "announcements", label: "اطلاعیه‌های واحد", href: "/announcements" },
   { key: "gallery", label: "گالری واحد", href: "/gallery" },
 ] as const;
 

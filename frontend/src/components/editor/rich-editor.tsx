@@ -1,5 +1,6 @@
 "use client";
 
+import { Node as TiptapNode, mergeAttributes } from "@tiptap/core";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -7,7 +8,7 @@ import Image from "@tiptap/extension-image";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 type RichEditorProps = {
   value: string;
@@ -15,13 +16,353 @@ type RichEditorProps = {
   placeholder?: string;
 };
 
+type GalleryMediaItem = {
+  src: string;
+  type: "image" | "video";
+};
+
 type ToolbarButtonProps = {
   onClick: () => void;
   active?: boolean;
   disabled?: boolean;
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
 };
+
+function safeJsonParse(value: unknown): GalleryMediaItem[] {
+  if (typeof value !== "string") return [];
+
+  try {
+    const parsed = JSON.parse(value) as GalleryMediaItem[];
+
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((item) => typeof item?.src === "string" && item.src.length > 0)
+      .map((item) => ({
+        src: item.src,
+        type: item.type === "video" ? "video" : "image",
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function decodeHtml(value: string) {
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&#34;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function isVideoSource(src: string) {
+  const normalized = src.toLowerCase();
+
+  return (
+    normalized.startsWith("data:video/") ||
+    normalized.endsWith(".mp4") ||
+    normalized.endsWith(".webm") ||
+    normalized.endsWith(".ogg") ||
+    normalized.includes(".mp4?") ||
+    normalized.includes(".webm?") ||
+    normalized.includes(".ogg?")
+  );
+}
+
+function parseGalleryItemsFromElement(element: HTMLElement) {
+  const items: GalleryMediaItem[] = [];
+
+  const dataItems = Array.from(element.querySelectorAll<HTMLElement>("[data-besat-gallery-item]"));
+
+  for (const item of dataItems) {
+    const src = item.getAttribute("data-src") ?? "";
+    const type = item.getAttribute("data-type") === "video" || isVideoSource(src) ? "video" : "image";
+
+    if (src) items.push({ src: decodeHtml(src), type });
+  }
+
+  if (items.length > 0) return items;
+
+  const mediaItems = Array.from(element.querySelectorAll<HTMLImageElement | HTMLVideoElement>("img, video"));
+
+  for (const item of mediaItems) {
+    const src = item.getAttribute("src") ?? "";
+    const type = item.tagName.toLowerCase() === "video" || isVideoSource(src) ? "video" : "image";
+
+    if (src) items.push({ src: decodeHtml(src), type });
+  }
+
+  return items;
+}
+
+function setElementClass(element: HTMLElement, selected: boolean) {
+  element.className = [
+    "relative",
+    "my-6",
+    "rounded-[1.8rem]",
+    "border",
+    "bg-slate-50",
+    "p-3",
+    "transition",
+    selected ? "border-emerald-400" : "border-slate-200",
+    selected ? "ring-4" : "",
+    selected ? "ring-emerald-100" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function createGalleryNodeView({
+  node,
+  editor,
+  getPos,
+}: {
+  node: any;
+  editor: Editor;
+  getPos: (() => number) | boolean;
+}) {
+  let currentNode = node;
+  let selected = false;
+
+  const dom = document.createElement("div");
+  dom.contentEditable = "false";
+  dom.setAttribute("data-besat-editor-block", "gallery");
+  dom.style.maxWidth = "100%";
+  setElementClass(dom, selected);
+
+  const grid = document.createElement("div");
+  grid.className = "grid h-full gap-3 overflow-hidden sm:grid-cols-2 lg:grid-cols-3";
+  dom.appendChild(grid);
+
+  function updateAttributes(attrs: Record<string, string>) {
+    if (typeof getPos !== "function") return;
+
+    const position = getPos();
+
+    if (typeof position !== "number") return;
+
+    editor.view.dispatch(
+      editor.state.tr.setNodeMarkup(position, undefined, {
+        ...currentNode.attrs,
+        ...attrs,
+      }),
+    );
+  }
+
+  function render() {
+    const items = safeJsonParse(currentNode.attrs.items);
+    const width = typeof currentNode.attrs.width === "string" ? currentNode.attrs.width : "100%";
+    const height = typeof currentNode.attrs.height === "string" ? currentNode.attrs.height : "14rem";
+
+    const isScrollable = items.length > 3;
+
+    dom.style.width = width;
+    grid.className = isScrollable
+      ? "flex h-full gap-3 overflow-x-auto overflow-y-hidden pb-3"
+      : "grid h-full gap-3 overflow-hidden sm:grid-cols-2 lg:grid-cols-3";
+    grid.innerHTML = "";
+
+    if (items.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "flex min-h-44 items-center justify-center rounded-[1.3rem] border border-dashed border-slate-200 bg-white text-sm font-bold text-slate-400";
+      empty.textContent = "بلوک گالری خالی است.";
+      grid.appendChild(empty);
+      return;
+    }
+
+    for (const item of items) {
+      const frame = document.createElement("div");
+      frame.className = "overflow-hidden rounded-[1.3rem] border border-slate-200 bg-white";
+
+      if (isScrollable) {
+        frame.style.width = "clamp(9rem, 31%, 18rem)";
+        frame.style.flex = "0 0 clamp(9rem, 31%, 18rem)";
+      }
+
+      if (item.type === "video") {
+        const video = document.createElement("video");
+        video.src = item.src;
+        video.muted = true;
+        video.className = "w-full bg-slate-950 object-cover";
+        video.style.height = height;
+        frame.appendChild(video);
+      } else {
+        const image = document.createElement("img");
+        image.src = item.src;
+        image.alt = "";
+        image.className = "w-full bg-slate-100 object-cover";
+        image.style.height = height;
+        frame.appendChild(image);
+      }
+
+      grid.appendChild(frame);
+    }
+  }
+
+  function startResize(corner: "top-right" | "top-left" | "bottom-right" | "bottom-left", event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rect = dom.getBoundingClientRect();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startWidth = rect.width;
+    const startHeight = rect.height;
+
+    function handleMove(moveEvent: MouseEvent) {
+      const dx = moveEvent.clientX - startX;
+      const dy = moveEvent.clientY - startY;
+
+      const horizontalFactor = corner.includes("left") ? -1 : 1;
+      const verticalFactor = corner.includes("top") ? -1 : 1;
+
+      const nextWidth = Math.max(260, Math.min(1100, startWidth + dx * horizontalFactor));
+      const nextHeight = Math.max(180, Math.min(720, startHeight + dy * verticalFactor));
+
+      updateAttributes({
+        width: `${Math.round(nextWidth)}px`,
+        height: `${Math.round(nextHeight)}px`,
+      });
+    }
+
+    function handleUp() {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    }
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+  }
+
+  const handles: { corner: "top-right" | "top-left" | "bottom-right" | "bottom-left"; className: string }[] = [
+    {
+      corner: "top-right",
+      className: "absolute right-[-0.45rem] top-[-0.45rem] size-4 rounded-md border border-emerald-500 bg-white shadow",
+    },
+    {
+      corner: "top-left",
+      className: "absolute left-[-0.45rem] top-[-0.45rem] size-4 rounded-md border border-emerald-500 bg-white shadow",
+    },
+    {
+      corner: "bottom-right",
+      className: "absolute bottom-[-0.45rem] right-[-0.45rem] size-4 rounded-md border border-emerald-500 bg-white shadow",
+    },
+    {
+      corner: "bottom-left",
+      className: "absolute bottom-[-0.45rem] left-[-0.45rem] size-4 rounded-md border border-emerald-500 bg-white shadow",
+    },
+  ];
+
+  for (const handle of handles) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("aria-label", "resize");
+    button.className = handle.className;
+    button.addEventListener("mousedown", (event) => startResize(handle.corner, event));
+    dom.appendChild(button);
+  }
+
+  render();
+
+  return {
+    dom,
+    update(updatedNode: any) {
+      if (updatedNode.type.name !== currentNode.type.name) return false;
+
+      currentNode = updatedNode;
+      render();
+
+      return true;
+    },
+    selectNode() {
+      selected = true;
+      setElementClass(dom, selected);
+    },
+    deselectNode() {
+      selected = false;
+      setElementClass(dom, selected);
+    },
+  };
+}
+
+const BesatGalleryBlock = TiptapNode.create({
+  name: "besatGalleryBlock",
+
+  group: "block",
+
+  atom: true,
+
+  selectable: true,
+
+  draggable: true,
+
+  addAttributes() {
+    return {
+      items: {
+        default: "[]",
+        parseHTML: (element) => {
+          const htmlElement = element as HTMLElement;
+          const dataItems = htmlElement.getAttribute("data-items");
+
+          if (dataItems) return dataItems;
+
+          return JSON.stringify(parseGalleryItemsFromElement(htmlElement));
+        },
+        renderHTML: () => ({}),
+      },
+      width: {
+        default: "100%",
+        parseHTML: (element) => (element as HTMLElement).getAttribute("data-width") ?? "100%",
+        renderHTML: (attributes) => ({
+          "data-width": attributes.width,
+        }),
+      },
+      height: {
+        default: "14rem",
+        parseHTML: (element) => (element as HTMLElement).getAttribute("data-height") ?? "14rem",
+        renderHTML: (attributes) => ({
+          "data-height": attributes.height,
+        }),
+      },
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: 'section[data-besat-block="gallery"]',
+      },
+    ];
+  },
+
+  renderHTML({ node, HTMLAttributes }) {
+    const items = safeJsonParse(node.attrs.items);
+
+    const children = items.map((item) => [
+      "div",
+      {
+        "data-besat-gallery-item": "",
+        "data-type": item.type,
+        "data-src": item.src,
+      },
+    ]);
+
+    return [
+      "section",
+      mergeAttributes(HTMLAttributes, {
+        "data-besat-block": "gallery",
+        class: "my-8",
+      }),
+      ...children,
+    ];
+  },
+
+  addNodeView() {
+    return (props) => createGalleryNodeView(props as any);
+  },
+});
 
 function ToolbarButton({ onClick, active, disabled, title, children }: ToolbarButtonProps) {
   return (
@@ -203,6 +544,7 @@ export function RichEditor({ value, onChange, placeholder }: RichEditorProps) {
     immediatelyRender: false,
     extensions: [
       StarterKit,
+      BesatGalleryBlock,
       Underline,
       Link.configure({ openOnClick: false, autolink: true }),
       Image.configure({ inline: false }),
@@ -225,7 +567,6 @@ export function RichEditor({ value, onChange, placeholder }: RichEditorProps) {
     },
   });
 
-  // همگام‌سازی مقدار بیرونی با ادیتور (مثلاً هنگام باز کردن رکورد برای ویرایش)
   useEffect(() => {
     if (!editor) return;
     if (isInternalUpdate.current) {

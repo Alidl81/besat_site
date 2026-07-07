@@ -1,9 +1,9 @@
-﻿import { PublicPageLayout } from "@/components/layout/public-page-layout";
+import { PublicPageLayout } from "@/components/layout/public-page-layout";
 import { Container } from "@/components/shared/container";
 import { PublicContentTabs } from "@/components/content/public-content-tabs";
 
 type PublicContentPageProps = {
-  active: "news" | "announcements";
+  active: "news";
   eyebrow: string;
   title: string;
   description: string;

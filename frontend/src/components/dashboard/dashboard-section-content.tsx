@@ -66,6 +66,8 @@ export function DashboardSectionContent({
             <ContentManager kind="announcement" authorRole="general_manager" />
           </div>
         );
+      case "media":
+        return <GalleryManager />;
       case "gallery":
         return <GalleryManager />;
       case "home-slider":
@@ -102,6 +104,8 @@ export function DashboardSectionContent({
             <ContentManager kind="announcement" unitId={scopedUnitId} authorRole="unit_manager" />
           </div>
         );
+      case "media":
+        return <GalleryManager unitId={scopedUnitId} />;
       case "requests":
         return <RegistrationsManager unitId={scopedUnitId} />;
       default:
@@ -116,6 +120,7 @@ export function DashboardSectionContent({
         return <ContentManager kind="news" unitId={scopedUnitId} authorRole="unit_media" canPublish={false} />;
       case "announcements":
         return <ContentManager kind="announcement" unitId={scopedUnitId} authorRole="unit_media" canPublish={false} />;
+      case "media":
       case "gallery":
       case "albums":
         return <GalleryManager unitId={scopedUnitId} canPublish={false} />;

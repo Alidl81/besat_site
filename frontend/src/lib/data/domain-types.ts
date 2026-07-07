@@ -93,6 +93,20 @@ export type GalleryItemRecord = {
   updated_at: string;
 };
 
+
+// افتخار واحد یا مدرسه
+export type AchievementRecord = {
+  id: EntityId;
+  title: string;
+  description: string | null;
+  image: string | null;
+  scope: ContentScope;
+  unit_id: EntityId | null;
+  status: PublishStatus;
+  achieved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
 // اسلاید صفحه اصلی
 export type HomeSlideRecord = {
   id: EntityId;

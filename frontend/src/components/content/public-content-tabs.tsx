@@ -1,12 +1,11 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 type PublicContentTabsProps = {
-  active: "news" | "announcements";
+  active: "news";
 };
 
 const tabs = [
   { key: "news", label: "اخبار", href: "/news" },
-  { key: "announcements", label: "اطلاعیه‌ها", href: "/announcements" },
 ] as const;
 
 export function PublicContentTabs({ active }: PublicContentTabsProps) {

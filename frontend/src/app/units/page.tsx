@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { PublicPageLayout } from "@/components/layout/public-page-layout";
 import { PageHero } from "@/components/page/page-hero";
 import { UnitsExplorerSection } from "@/components/circular/units-explorer-section";
@@ -30,7 +30,7 @@ export default async function UnitsPage({ searchParams }: UnitsPageProps) {
       <PageHero
         eyebrow="واحدها"
         title="واحدهای مدرسه بعثت"
-        description="برای مشاهده اطلاعات، اخبار، اطلاعیه‌ها و گالری هر واحد، آن را از گردونه انتخاب کنید."
+        description="برای مشاهده اطلاعات، اخبار، افتخارات و گالری هر واحد، آن را از گردونه انتخاب کنید."
       />
       <UnitsExplorerSection variant="unit" initialSlug={initialUnitSlug} />
     </PublicPageLayout>

@@ -1,4 +1,4 @@
-﻿export type DashboardPageKey = string;
+export type DashboardPageKey = string;
 
 export type DashboardCard = {
   title: string;
@@ -43,6 +43,7 @@ export const dashboardPages = {
       { key: "departments", label: "دپارتمان‌ها", href: "/dashboard/admin/departments", icon: "◈", description: "دپارتمان‌ها و گروه‌های تخصصی مجموعه از این بخش مدیریت می‌شوند.", emptyText: emptyDetail },
       { key: "users", label: "کاربران", href: "/dashboard/admin/users", icon: "♙", description: "کاربران ثبت‌شده در این بخش مدیریت می‌شوند.", emptyText: emptyDetail },
       { key: "content", label: "اخبار و اطلاعیه‌ها", href: "/dashboard/admin/content", icon: "▦", description: "محتوای ثبت‌شده در این بخش نمایش داده می‌شود.", emptyText: emptyDetail },
+      { key: "media", label: "مدیا", href: "/dashboard/admin/media", icon: "▨", description: "کتابخانه عکس‌ها و ویدیوهای سایت در این بخش مدیریت می‌شود.", emptyText: "مدیایی برای نمایش وجود ندارد." },
       { key: "gallery", label: "گالری", href: "/dashboard/admin/gallery", icon: "▧", description: "تصاویر و گالری مدرسه در این بخش مدیریت می‌شوند.", emptyText: "تصویری برای نمایش وجود ندارد." },
       { key: "home-slider", label: "اسلایدر خانه", href: "/dashboard/admin/home-slider", icon: "◫", description: "اسلایدهای صفحه اصلی سایت از این بخش مدیریت می‌شوند.", emptyText: emptyDetail },
       { key: "registrations", label: "ثبت‌نام‌ها", href: "/dashboard/admin/registrations", icon: "▤", description: "درخواست‌های ثبت‌نام در این بخش نمایش داده می‌شوند.", emptyText: "درخواست ثبت‌نامی برای نمایش وجود ندارد." },
@@ -72,6 +73,7 @@ export const dashboardPages = {
       { key: "attendance", label: "حضور و غیاب", href: "/dashboard/unit-manager/attendance", icon: "▤", description: "گزارش حضور و غیاب در این بخش نمایش داده می‌شود.", emptyText: emptyDetail },
       { key: "programs", label: "برنامه‌ها", href: "/dashboard/unit-manager/programs", icon: "▦", description: "برنامه‌های آموزشی واحد در این بخش نمایش داده می‌شوند.", emptyText: emptyDetail },
       { key: "content", label: "اخبار و اطلاعیه‌ها", href: "/dashboard/unit-manager/content", icon: "▦", description: "محتوای واحد در این بخش نمایش داده می‌شود.", emptyText: emptyDetail },
+      { key: "media", label: "مدیا", href: "/dashboard/unit-manager/media", icon: "▨", description: "کتابخانه عکس‌ها و ویدیوهای واحد در این بخش مدیریت می‌شود.", emptyText: "مدیایی برای نمایش وجود ندارد." },
       { key: "messages", label: "پیام‌ها", href: "/dashboard/unit-manager/messages", icon: "✉", description: "پیام‌های واحد در این بخش نمایش داده می‌شوند.", emptyText: "پیامی برای نمایش وجود ندارد." },
       { key: "profile", label: "پروفایل", href: "/dashboard/unit-manager/profile", icon: "◇", description: "اطلاعات پروفایل کاربری در این بخش نمایش داده می‌شود.", emptyText: emptyDetail },
     ],
@@ -93,6 +95,7 @@ export const dashboardPages = {
       { key: "overview", label: "داشبورد", href: "/dashboard/media", icon: "⌂", description: "نمای کلی پنل رسانه در این بخش نمایش داده می‌شود.", emptyText: emptyDetail },
       { key: "news", label: "اخبار", href: "/dashboard/media/news", icon: "▦", description: "خبرهای واحد در این بخش نمایش داده می‌شوند.", emptyText: "خبری برای نمایش وجود ندارد." },
       { key: "announcements", label: "اطلاعیه‌ها", href: "/dashboard/media/announcements", icon: "▤", description: "اطلاعیه‌های واحد در این بخش نمایش داده می‌شوند.", emptyText: "اطلاعیه‌ای برای نمایش وجود ندارد." },
+      { key: "media", label: "مدیا", href: "/dashboard/media/media", icon: "▨", description: "کتابخانه مدیای واحد برای استفاده در محتواها در این بخش مدیریت می‌شود.", emptyText: "مدیایی برای نمایش وجود ندارد." },
       { key: "gallery", label: "گالری", href: "/dashboard/media/gallery", icon: "▧", description: "تصاویر واحد در این بخش نمایش داده می‌شوند.", emptyText: "تصویری برای نمایش وجود ندارد." },
       { key: "albums", label: "آلبوم‌ها", href: "/dashboard/media/albums", icon: "▨", description: "آلبوم‌های واحد در این بخش مدیریت می‌شوند.", emptyText: emptyDetail },
       { key: "review", label: "بررسی محتوا", href: "/dashboard/media/review", icon: "◉", description: "موارد قابل بررسی در این بخش نمایش داده می‌شوند.", emptyText: emptyDetail },

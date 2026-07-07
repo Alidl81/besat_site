@@ -3,6 +3,7 @@
 import { type FormEvent, useState } from "react";
 import { CrudManager, FormActions, type Column } from "@/components/crud/crud-manager";
 import { Field, Select, StatusBadge, TextArea, TextInput } from "@/components/crud/crud-ui";
+import { ContentBlockInserter } from "@/components/cms/content-block-inserter";
 import { RichEditor } from "@/components/editor/rich-editor";
 import { contentRepository } from "@/lib/data/repositories";
 import type {
@@ -202,6 +203,12 @@ function ContentForm({
           placeholder={`متن کامل ${kind === "news" ? "خبر" : "اطلاعیه"} را اینجا بنویسید...`}
         />
       </Field>
+
+      <ContentBlockInserter
+        value={bodyHtml}
+        onChange={setBodyHtml}
+        unitId={unitId}
+      />
 
       <div className="grid gap-5 md:grid-cols-2">
         {unitId ? (

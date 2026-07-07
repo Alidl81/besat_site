@@ -1,11 +1,11 @@
-﻿import { PublicPageLayout } from "@/components/layout/public-page-layout";
+import { PublicPageLayout } from "@/components/layout/public-page-layout";
 import { Container } from "@/components/shared/container";
 import { UnitEmptyState } from "@/components/units/unit-empty-state";
 import { UnitScopedTabs } from "@/components/units/unit-scoped-tabs";
 
 type UnitScopedPageProps = {
   slug: string;
-  active: "overview" | "news" | "announcements" | "gallery";
+  active: "overview" | "news" | "gallery";
   eyebrow: string;
   title: string;
   description: string;

@@ -18,7 +18,6 @@ const quickLinks: FooterLink[] = [
   { label: "واحدها", href: "/units" },
   { label: "دپارتمان‌ها", href: "/departments" },
   { label: "اخبار", href: "/news" },
-  { label: "اطلاعیه‌ها", href: "/announcements" },
   { label: "گالری", href: "/gallery" },
 ];
 

@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { CircularSelector, type CircularItem } from "@/components/circular/circular-selector";
 import { ScopedTabs, type ScopedTab } from "@/components/circular/scoped-tabs";
-import { contentRepository, galleryRepository } from "@/lib/data/repositories";
-import type { ContentRecord, GalleryItemRecord } from "@/lib/data/domain-types";
+import { achievementsRepository, contentRepository, galleryRepository } from "@/lib/data/repositories";
+import type { AchievementRecord, ContentRecord, GalleryItemRecord } from "@/lib/data/domain-types";
 
 type CircularExplorerProps = {
   items: CircularItem[];
@@ -17,7 +17,7 @@ type CircularExplorerProps = {
 const tabs: ScopedTab[] = [
   { key: "overview", label: "معرفی", icon: "◇" },
   { key: "news", label: "اخبار", icon: "▦" },
-  { key: "announcements", label: "اطلاعیه‌ها", icon: "▤" },
+  { key: "achievements", label: "افتخارات", icon: "✦" },
   { key: "gallery", label: "گالری", icon: "▧" },
 ];
 
@@ -65,7 +65,6 @@ export function CircularExplorer({ items, descriptions, variant, initialSlug }: 
     <section dir="rtl" className="bg-[#f8fafc] px-4 py-14 sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-7xl">
         <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
-          {/* گردونه — sticky */}
           <div className="lg:sticky lg:top-28">
             <div className="rounded-[2.5rem] border border-slate-200 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.08)] sm:p-8">
               <CircularSelector items={items} activeId={activeId} onSelect={handleSelect} />
@@ -75,7 +74,6 @@ export function CircularExplorer({ items, descriptions, variant, initialSlug }: 
             </div>
           </div>
 
-          {/* محتوا */}
           <div>
             <div className="mb-5 text-right">
               <p className="mb-1 text-sm font-black text-emerald-600">
@@ -96,7 +94,6 @@ export function CircularExplorer({ items, descriptions, variant, initialSlug }: 
   );
 }
 
-// ---------- TabContent ----------
 function TabContent({
   tab,
   itemId,
@@ -110,7 +107,7 @@ function TabContent({
 }) {
   if (tab === "overview") return <OverviewTab description={description} variant={variant} />;
   if (tab === "news") return <ContentTab itemId={itemId} kind="news" emptyText="خبری برای این بخش ثبت نشده است." />;
-  if (tab === "announcements") return <ContentTab itemId={itemId} kind="announcement" emptyText="اطلاعیه‌ای برای این بخش ثبت نشده است." />;
+  if (tab === "achievements") return <AchievementsTab itemId={itemId} />;
   return <GalleryTab itemId={itemId} />;
 }
 
@@ -151,20 +148,19 @@ function OverviewTab({ description, variant }: { description: string | null; var
         {description ?? "توضیحات این بخش پس از ثبت توسط مدیریت نمایش داده می‌شود."}
       </p>
       <p className="mt-5 text-xs font-bold text-slate-400">
-        برای مشاهده اخبار، اطلاعیه‌ها و گالری این {variant === "unit" ? "واحد" : "دپارتمان"}، از تب‌های بالا استفاده کنید.
+        برای مشاهده اخبار، افتخارات و گالری این {variant === "unit" ? "واحد" : "دپارتمان"}، از تب‌های بالا استفاده کنید.
       </p>
     </Card>
   );
 }
 
-// ---------- ContentTab با modal detail ----------
 function ContentTab({
   itemId,
   kind,
   emptyText,
 }: {
   itemId: string;
-  kind: "news" | "announcement";
+  kind: "news";
   emptyText: string;
 }) {
   const [items, setItems] = useState<ContentRecord[] | null>(null);
@@ -203,7 +199,7 @@ function ContentTab({
                 />
               ) : (
                 <div className="hidden size-16 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-2xl text-emerald-700 sm:flex">
-                  {kind === "news" ? "▦" : "▤"}
+                  ▦
                 </div>
               )}
               <div className="min-w-0 flex-1">
@@ -229,7 +225,6 @@ function ContentTab({
         ))}
       </div>
 
-      {/* modal detail */}
       <ContentDetailModal item={detail} onClose={() => setDetail(null)} />
     </>
   );
@@ -268,7 +263,6 @@ function ContentDetailModal({
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
       <article className="w-full max-w-3xl rounded-[2rem] border border-slate-200 bg-white shadow-2xl">
-        {/* هدر */}
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-6 sm:p-8">
           <div className="min-w-0 flex-1 text-right">
             {item.category ? (
@@ -293,14 +287,12 @@ function ContentDetailModal({
           </button>
         </div>
 
-        {/* تصویر */}
         {item.cover_image ? (
           <div className="aspect-[16/7] overflow-hidden">
             <img src={item.cover_image} alt={item.title} className="h-full w-full object-cover" />
           </div>
         ) : null}
 
-        {/* محتوا */}
         <div className="p-6 sm:p-8">
           {item.summary ? (
             <p className="mb-5 text-base font-bold leading-8 text-slate-700">{item.summary}</p>
@@ -319,7 +311,159 @@ function ContentDetailModal({
   );
 }
 
-// ---------- GalleryTab ----------
+function AchievementsTab({ itemId }: { itemId: string }) {
+  const [items, setItems] = useState<AchievementRecord[] | null>(null);
+  const [detail, setDetail] = useState<AchievementRecord | null>(null);
+
+  useEffect(() => {
+    setItems(null);
+    achievementsRepository.list().then((all) => {
+      setItems(
+        all.filter(
+          (item) => item.status === "published" && item.unit_id === itemId,
+        ),
+      );
+    });
+  }, [itemId]);
+
+  if (items === null) return <Spinner />;
+  if (items.length === 0) return <EmptyBox text="افتخاری برای این واحد ثبت نشده است." />;
+
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {items.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setDetail(item)}
+            className="group overflow-hidden rounded-[2rem] border border-slate-200 bg-white text-right shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+          >
+            {item.image ? (
+              <div className="aspect-[16/9] overflow-hidden bg-slate-100">
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                />
+              </div>
+            ) : (
+              <div className="flex aspect-[16/9] items-center justify-center bg-emerald-50 text-5xl text-emerald-700">
+                ✦
+              </div>
+            )}
+
+            <div className="p-5">
+              <h3 className="text-base font-black leading-7 text-[#062452] group-hover:text-emerald-700">
+                {item.title}
+              </h3>
+
+              {item.description ? (
+                <p className="mt-2 line-clamp-2 text-sm font-bold leading-7 text-slate-500">
+                  {item.description}
+                </p>
+              ) : null}
+
+              <div className="mt-4 flex items-center justify-between">
+                {item.achieved_at ? (
+                  <span className="text-xs font-bold text-slate-400">
+                    {new Intl.DateTimeFormat("fa-IR").format(new Date(item.achieved_at))}
+                  </span>
+                ) : (
+                  <span />
+                )}
+
+                <span className="text-xs font-black text-emerald-600">مشاهده کامل ‹</span>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <AchievementDetailModal item={detail} onClose={() => setDetail(null)} />
+    </>
+  );
+}
+
+function AchievementDetailModal({
+  item,
+  onClose,
+}: {
+  item: AchievementRecord | null;
+  onClose: () => void;
+}) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (item) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
+    return () => { document.body.style.overflow = ""; };
+  }, [item]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+
+    if (item) window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [item, onClose]);
+
+  if (!item) return null;
+
+  return (
+    <div
+      ref={overlayRef}
+      dir="rtl"
+      className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/45 p-4 backdrop-blur-sm sm:p-8"
+      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+    >
+      <article className="w-full max-w-3xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-6 sm:p-8">
+          <div className="min-w-0 flex-1 text-right">
+            <span className="mb-3 inline-block rounded-xl bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+              افتخارات
+            </span>
+
+            <h2 className="text-xl font-black leading-[1.6] text-[#062452] sm:text-2xl">
+              {item.title}
+            </h2>
+
+            {item.achieved_at ? (
+              <p className="mt-2 text-xs font-bold text-slate-400">
+                {new Intl.DateTimeFormat("fa-IR", { year: "numeric", month: "long", day: "numeric" }).format(new Date(item.achieved_at))}
+              </p>
+            ) : null}
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="بستن"
+            className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-lg text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
+          >
+            ✕
+          </button>
+        </div>
+
+        {item.image ? (
+          <div className="aspect-[16/7] overflow-hidden bg-slate-100">
+            <img src={item.image} alt={item.title} className="h-full w-full object-cover" />
+          </div>
+        ) : null}
+
+        <div className="p-6 sm:p-8">
+          {item.description ? (
+            <p className="text-sm font-bold leading-8 text-slate-600">{item.description}</p>
+          ) : (
+            <p className="text-sm font-bold leading-8 text-slate-500">توضیحی برای این افتخار ثبت نشده است.</p>
+          )}
+        </div>
+      </article>
+    </div>
+  );
+}
+
 function GalleryTab({ itemId }: { itemId: string }) {
   const [items, setItems] = useState<GalleryItemRecord[] | null>(null);
   const [lightbox, setLightbox] = useState<GalleryItemRecord | null>(null);
@@ -364,7 +508,6 @@ function GalleryTab({ itemId }: { itemId: string }) {
         ))}
       </div>
 
-      {/* lightbox */}
       {lightbox ? (
         <div
           dir="rtl"

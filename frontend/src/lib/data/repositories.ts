@@ -9,6 +9,7 @@ import {
   seedUsers,
 } from "@/lib/data/seed-data";
 import type {
+  AchievementRecord,
   ClassRecord,
   ContactMessageRecord,
   ContentRecord,
@@ -53,6 +54,11 @@ export const galleryRepository = createRepository<GalleryItemRecord>({
   endpoint: "cms/gallery/",
 });
 
+
+export const achievementsRepository = createRepository<AchievementRecord>({
+  collection: "achievements",
+  endpoint: "cms/achievements/",
+});
 export const homeSlidesRepository = createRepository<HomeSlideRecord>({
   collection: "home_slides",
   endpoint: "cms/home-slides/",

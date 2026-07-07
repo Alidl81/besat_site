@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ContentBlockInserter } from "@/components/cms/content-block-inserter";
 import { RichEditor } from "@/components/editor/rich-editor";
 import { staticPagesRepository } from "@/lib/data/repositories";
 import type { StaticPageRecord } from "@/lib/data/domain-types";
@@ -136,6 +137,8 @@ export function StaticPageEditor({ slug }: StaticPageEditorProps) {
               onChange={setBodyHtml}
               placeholder="محتوای صفحه درباره ما را اینجا بنویسید..."
             />
+
+            <ContentBlockInserter value={bodyHtml} onChange={setBodyHtml} />
           </div>
         </div>
       </div>

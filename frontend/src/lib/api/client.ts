@@ -7,7 +7,14 @@
 };
 
 function getApiBaseUrl() {
-  return process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000/api";
+  const publicApiBaseUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api";
+
+  if (typeof window === "undefined") {
+    return process.env.NEXT_SERVER_API_BASE_URL ?? publicApiBaseUrl;
+  }
+
+  return publicApiBaseUrl;
 }
 
 function normalizeEndpoint(endpoint: string) {

@@ -1,18 +1,28 @@
-name: Docker Image CI
+name: Docker Compose CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+      - uses: actions/checkout@v4
+
+      - name: Build compose services
+        run: docker compose build
+
+      - name: Start services
+        run: docker compose up -d
+
+      - name: Show logs
+        if: always()
+        run: docker compose logs
+
+      - name: Stop services
+        if: always()
+        run: docker compose down -v

@@ -30,7 +30,7 @@ def normalize_plain_text(value: str | None) -> str:
 
 
 def validate_editorjs_content(value):
-    if value is (None, ""):
+    if value in (None, ""):
         return default_news_content_json()
     
     if not isinstance(value, dict):

@@ -11,7 +11,7 @@ class SchoolUnitQuerySet(models.QuerySet):
     
 
 class SchoolUnitManager(models.Manager):
-    def ger_queryset(self):
+    def get_queryset(self):
         return SchoolUnitQuerySet(self.model, using=self._db)
     
     def active(self):
@@ -19,6 +19,17 @@ class SchoolUnitManager(models.Manager):
     
 
 class SchoolUnit(TimeStampedModel, ActiveModel, OrderedModel):
+    class Kind(models.TextChoices):
+        PRESCHOOL = "presvhool", "پیش دبستانی"
+        ELEMENTARY = "elementary", "دبستان"
+        MIDDLE_SCHOOL = "middle_school", "متوسطه اول"
+        HIGH_SCHOOL = "high_school", "دبیرستان"
+
+    class Gender(models.TextChoices):
+        BOYS = "boys", "پسرانه"
+        GIRLS = "girls", "دخترانه"
+        MIXED = "mixed", "مختلط"
+    
     title = models.CharField(
         max_length=255,
         verbose_name="عنوان واحد آموزشی",
@@ -30,6 +41,20 @@ class SchoolUnit(TimeStampedModel, ActiveModel, OrderedModel):
         blank=True,
         verbose_name="اسلاگ",
         help_text="برای URL صفحه جزئیات استفاده می‌شود. اگر خالی بماند، از عنوان ساخته می‌شود.",
+    )
+    kind = models.TextField(
+        max_length=30,
+        choices=Kind.choices,
+        default=Kind.ELEMENTARY,
+        db_index=True,
+        verbose_name="نوع واحد",
+    )
+    gender = models.TextField(
+        max_length=20,
+        choices=Gender.choices,
+        default=Gender.BOYS,
+        db_index=True,
+        verbose_name="جنسیت",
     )
     subtitle = models.CharField(
         max_length=255,
@@ -80,6 +105,7 @@ class SchoolUnit(TimeStampedModel, ActiveModel, OrderedModel):
         nullable_text_fields = (
             "subtitle",
             "description",
+            "cover_image_url",
             "age_range",
             "grade_range",
         )

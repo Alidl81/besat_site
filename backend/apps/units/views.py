@@ -1,13 +1,13 @@
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import filters
-from rest_framework.permissions import AllowAny
-from rest_framework.viewsets import ReadOnlyModelViewSet
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.viewsets import ReadOnlyModelViewSet, ModelViewSet
 
 from apps.site_settings.models import SiteSettings
 
 from .models import SchoolUnit
-from .serializers import SchoolUnitDetailSerializer, SchoolUnitListSerializer
+from .serializers import SchoolUnitDetailSerializer, SchoolUnitListSerializer, CMSSchoolUnitSerializer
 
 
 @extend_schema_view(
@@ -96,3 +96,37 @@ class SchoolUnitViewSet(ReadOnlyModelViewSet):
         context["shared_unit_icon"] = site_settings.logo if site_settings else None
 
         return context
+    
+class CMSSchoolUnitViewSet(ModelViewSet):
+    queryset = SchoolUnit.objects.all().order_by("order", "id")
+    serializer_class = CMSSchoolUnitSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_value_regex = r"\d+"
+
+    filter_backends = (
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    )
+
+    search_fields = (
+        "title",
+        "slug",
+        "subtitle",
+        "description",
+        "age_range",
+        "grade_range",
+    )
+
+    ordering_fields = (
+        "order",
+        "title",
+        "id",
+        "created_at",
+        "updated_at",
+        "is_active",
+    )
+
+    ordering = (
+        "order",
+        "id",
+    )

@@ -9,8 +9,6 @@ services:
       POSTGRES_DB: besat_site
       POSTGRES_USER: besat_user
       POSTGRES_PASSWORD: besat_password
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -50,8 +48,8 @@ services:
     container_name: besat_frontend
     restart: unless-stopped
     environment:
-      NEXT_PUBLISH_DATA_SOURCE: api
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api
+      NEXT_PUBLIC_API_BASE_URL: api
+      NEXT_PUBLISH_DATA_SOURCE: http://localhost:8000/api
       NEXT_SERVER_API_BASE_URL: http://backend:8000/api
       WATCHPACK_POLLING: "true"
     ports:

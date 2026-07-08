@@ -20,7 +20,7 @@ class SchoolUnitManager(models.Manager):
 
 class SchoolUnit(TimeStampedModel, ActiveModel, OrderedModel):
     class Kind(models.TextChoices):
-        PRESCHOOL = "presvhool", "پیش دبستانی"
+        PRESCHOOL = "preschool", "پیش دبستانی"
         ELEMENTARY = "elementary", "دبستان"
         MIDDLE_SCHOOL = "middle_school", "متوسطه اول"
         HIGH_SCHOOL = "high_school", "دبیرستان"
@@ -105,7 +105,7 @@ class SchoolUnit(TimeStampedModel, ActiveModel, OrderedModel):
         nullable_text_fields = (
             "subtitle",
             "description",
-            "cover_image_url",
+            "cover_image",
             "age_range",
             "grade_range",
         )

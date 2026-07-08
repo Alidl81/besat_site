@@ -27,6 +27,7 @@ from .serializers import (
 class LoginAPIView(TokenObtainPairView):
     permission_classes = [AllowAny]
     serializer_class = LoginSerializer
+    throttle_scope = "login"
 
     @extend_schema(
         tags=["Auth"],
@@ -39,6 +40,7 @@ class LoginAPIView(TokenObtainPairView):
 
 class RefreshTokenAPIView(TokenRefreshView):
     permission_classes = [AllowAny]
+    throttle_scope = "refresh"
 
     @extend_schema(
         tags=["Auth"],
@@ -205,6 +207,7 @@ class MeUnitsAPIView(APIView):
 class ChangePasswordAPIView(APIView):
     permission_classes = [IsAuthenticatedAndActiveProfile]
     serializer_class = ChangePasswordSerializer
+    throttle_scope = "password_change"
 
     @extend_schema(
         tags=["Me"],

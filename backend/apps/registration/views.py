@@ -60,6 +60,7 @@ class RegistrationInfoAPIView(APIView):
 
 class RegistrationRequestCreateAPIView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = "registration"
 
     @extend_schema(
         tags=["Registration"],
@@ -77,12 +78,11 @@ class RegistrationRequestCreateAPIView(APIView):
             },
         )
         serializer.is_valid(raise_exception=True)
-        registration_request = serializer.save()
+        serializer.save()
 
         return Response(
             {
                 "message": "درخواست پیش‌ثبت‌نام با موفقیت ثبت شد.",
-                "id": registration_request.id,
             },
             status=status.HTTP_201_CREATED,
         )

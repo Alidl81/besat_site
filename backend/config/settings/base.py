@@ -11,6 +11,7 @@ env = environ.Env(
     DEBUG=(bool, False),
     )
 
+
 READ_DOT_ENV_FILE = env.bool("DJANGO_READ_DOT_ENV_FILE", default=True)
 
 if READ_DOT_ENV_FILE:
@@ -25,6 +26,7 @@ def csv_env(name: str, default: str = "") -> list[str]:
 
 SECRET_KEY = env("SECRET_KEY", default="unsafe-development-key-change-me")
 DEBUG = env.bool("DEBUG", default=False)
+ENABLE_API_DOCS = env.bool("ENABLE_API_DOCS", default=DEBUG)
 
 ALLOWED_HOSTS = csv_env("ALLOWED_HOSTS", "localhost,127.0.0.1")
 
@@ -140,6 +142,17 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = env("MEDIA_URL", default="/media/")
 MEDIA_ROOT = BASE_DIR / "media"
 
+DATA_UPLOAD_MAX_MEMORY_SIZE = env.int(
+    "DATA_UPLOAD_MAX_MEMORY_SIZE",
+    default=10 * 1024 * 1024,
+)
+
+FILE_UPLOAD_MAX_MEMORY_SIZE = env.int(
+    "FILE_UPLOAD_MAX_MEMORY_SIZE",
+    default=5 * 1024 * 1024,
+)
+
+
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -156,24 +169,46 @@ CSRF_TRUSTED_ORIGINS = csv_env("CSRF_TRUSTED_ORIGINS")
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
     ],
+
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
+    ],
+
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/hour",
+        "user": "1000/hour",
+        "login": "5/min",
+        "refresh": "20/min",
+        "contact": "5/hour",
+        "registration": "3/hour",
+        "password_change": "5/hour",
+    },
+
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ],
+
     "DEFAULT_PAGINATION_CLASS": "apps.core.pagination.StandardResultsSetPagination",
     "PAGE_SIZE": 10,
+
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
+
     "DEFAULT_PARSER_CLASSES": [
         "rest_framework.parsers.JSONParser",
-        "rest_framework.parsers.FormParser",
-        "rest_framework.parsers.MultiPartParser",
     ],
 }
 

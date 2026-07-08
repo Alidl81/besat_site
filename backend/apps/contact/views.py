@@ -57,6 +57,7 @@ class ContactInfoAPIView(APIView):
 
 class ContactMessageCreateAPIView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = "contact"
 
     @extend_schema(
         tags=["Contact"],

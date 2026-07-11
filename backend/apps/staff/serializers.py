@@ -8,6 +8,7 @@ from apps.departments.models import Department
 from apps.units.models import SchoolUnit
 
 from .models import StaffMember
+from .permissions import get_unit_manager_unit_ids, is_general_manager
 from .validators import validate_staff_image_file
 
 
@@ -123,6 +124,12 @@ class CMSStaffMemberWriteSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
+    unit_id = serializers.PrimaryKeyRelatedField(
+        source="unit",
+        queryset=SchoolUnit.objects.all(),
+        required=False,
+        allow_null=True,
+    )
     department = serializers.PrimaryKeyRelatedField(
         queryset=Department.objects.all(),
         required=False,
@@ -147,6 +154,7 @@ class CMSStaffMemberWriteSerializer(serializers.ModelSerializer):
             "phone",
             "scope",
             "unit",
+            "unit_id",
             "department",
             "is_featured",
             "is_active",
@@ -179,6 +187,19 @@ class CMSStaffMemberWriteSerializer(serializers.ModelSerializer):
             "unit",
             self.instance.unit if self.instance else None,
         )
+        request = self.context.get("request")
+        if (
+            request
+            and not is_general_manager(request.user)
+            and unit is None
+            and "scope" not in self.initial_data
+        ):
+            unit_ids = get_unit_manager_unit_ids(request.user)
+            if len(unit_ids) == 1:
+                unit = SchoolUnit.objects.get(pk=unit_ids[0])
+                attrs["unit"] = unit
+                attrs["scope"] = StaffMember.Scope.UNIT
+                scope = StaffMember.Scope.UNIT
         department = attrs.get(
             "department",
             self.instance.department if self.instance else None,

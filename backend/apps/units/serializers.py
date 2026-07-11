@@ -1,7 +1,7 @@
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.core.serializers import AbsoluteMediaURLMixin
+from apps.core.serializers import AbsoluteMediaURLMixin, FileOrURLField
 
 from .models import SchoolUnit
 
@@ -29,9 +29,7 @@ class SchoolUnitListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerialize
 
     @extend_schema_field(serializers.URLField(allow_null=True))
     def get_cover_image(self, obj):
-        if obj.cover_image:
-            return self.build_absolute_media_url(obj.cover_image)
-        return obj.cover_image_url
+        return self.build_file_or_fallback_url(obj.cover_image, obj.cover_image_url)
 
     @extend_schema_field(serializers.URLField(allow_null=True))
     def get_icon(self, obj):
@@ -49,7 +47,7 @@ class SchoolUnitDetailSerializer(SchoolUnitListSerializer):
 
 
 class CMSSchoolUnitSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
-    cover_image = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    cover_image = FileOrURLField(required=False, allow_null=True)
 
     class Meta:
         model = SchoolUnit
@@ -78,10 +76,10 @@ class CMSSchoolUnitSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer
     def to_representation(self, instance):
         data = super().to_representation(instance)
 
-        if instance.cover_image:
-            data["cover_image"] = self.build_absolute_media_url(instance.cover_image)
-        else:
-            data["cover_image"] = instance.cover_image_url
+        data["cover_image"] = self.build_file_or_fallback_url(
+            instance.cover_image,
+            instance.cover_image_url,
+        )
 
         return data
 
@@ -89,7 +87,10 @@ class CMSSchoolUnitSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer
         cover_image = validated_data.pop("cover_image", None)
 
         if isinstance(cover_image, str):
-            validated_data["cover_image_url"] = cover_image.strip() or None
+            validated_data["cover_image_url"] = cover_image
+        elif cover_image is not None:
+            validated_data["cover_image"] = cover_image
+            validated_data["cover_image_url"] = None
 
         return super().create(validated_data)
 
@@ -98,11 +99,13 @@ class CMSSchoolUnitSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer
 
         if cover_image is not serializers.empty:
             if isinstance(cover_image, str):
-                instance.cover_image_url = cover_image.strip() or None
-                if instance.cover_image_url:
-                    instance.cover_image = None
+                instance.cover_image_url = cover_image
+                instance.cover_image = None
             elif cover_image is None:
                 instance.cover_image_url = None
                 instance.cover_image = None
+            else:
+                instance.cover_image = cover_image
+                instance.cover_image_url = None
 
         return super().update(instance, validated_data)

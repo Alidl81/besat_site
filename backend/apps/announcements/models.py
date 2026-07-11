@@ -143,6 +143,11 @@ class Announcement(
         blank=True,
         verbose_name="تصویر کاور",
     )
+    cover_image_url = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name="نشانی تصویر کاور",
+    )
     content_json = models.JSONField(
         default=default_announcement_content_json,
         blank=True,
@@ -215,6 +220,9 @@ class Announcement(
 
         if isinstance(self.summary, str):
             self.summary = normalize_text(self.summary) or None
+
+        if isinstance(self.cover_image_url, str):
+            self.cover_image_url = self.cover_image_url.strip() or None
 
         self.content_json = validate_editorjs_content(self.content_json)
         self.content_text = extract_editorjs_plain_text(self.content_json) or None

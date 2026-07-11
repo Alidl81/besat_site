@@ -40,6 +40,12 @@ class ContactMessageCreateSerializer(serializers.ModelSerializer):
             "message",
         )
 
+    def to_internal_value(self, data):
+        payload = data.copy() if hasattr(data, "copy") else dict(data)
+        if not payload.get("full_name") and payload.get("name"):
+            payload["full_name"] = payload["name"]
+        return super().to_internal_value(payload)
+
     def validate(self, attrs):
         phone = attrs.get("phone")
         email = attrs.get("email")
@@ -85,16 +91,21 @@ class ContactMessageSuccessSerializer(serializers.Serializer):
 
 
 class CMSContactMessageSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source="full_name", read_only=True)
+    is_read = serializers.SerializerMethodField()
+
     class Meta:
         model = ContactMessage
         fields = (
             "id",
             "full_name",
+            "name",
             "phone",
             "email",
             "subject",
             "message",
             "status",
+            "is_read",
             "admin_note",
             "ip_address",
             "user_agent",
@@ -103,20 +114,37 @@ class CMSContactMessageSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
+            "full_name",
+            "name",
+            "is_read",
             "ip_address",
             "user_agent",
             "created_at",
             "updated_at",
         )
 
+    def get_is_read(self, obj):
+        return obj.status != ContactMessage.Status.NEW
+
 
 class CMSContactMessageUpdateSerializer(serializers.ModelSerializer):
+    is_read = serializers.BooleanField(required=False, write_only=True)
+
     class Meta:
         model = ContactMessage
         fields = (
             "status",
             "admin_note",
+            "is_read",
         )
+
+    def update(self, instance, validated_data):
+        is_read = validated_data.pop("is_read", None)
+        if is_read is True and "status" not in validated_data:
+            validated_data["status"] = ContactMessage.Status.SEEN
+        elif is_read is False and "status" not in validated_data:
+            validated_data["status"] = ContactMessage.Status.NEW
+        return super().update(instance, validated_data)
 
     def validate_status(self, value):
         valid_statuses = {

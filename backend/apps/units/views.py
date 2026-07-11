@@ -4,7 +4,9 @@ from rest_framework import filters
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.viewsets import ReadOnlyModelViewSet, ModelViewSet
 
+from apps.core.permissions import IsGeneralManager
 from apps.site_settings.models import SiteSettings
+from apps.news.permissions import is_general_manager
 
 from .models import SchoolUnit
 from .serializers import SchoolUnitDetailSerializer, SchoolUnitListSerializer, CMSSchoolUnitSerializer
@@ -98,7 +100,7 @@ class SchoolUnitViewSet(ReadOnlyModelViewSet):
         return context
     
 class CMSSchoolUnitViewSet(ModelViewSet):
-    queryset = SchoolUnit.objects.all().order_by("order", "id")
+    queryset = SchoolUnit.objects.none()
     serializer_class = CMSSchoolUnitSerializer
     permission_classes = [IsAuthenticated]
     lookup_value_regex = r"\d+"
@@ -130,3 +132,14 @@ class CMSSchoolUnitViewSet(ModelViewSet):
         "order",
         "id",
     )
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [AllowAny()]
+        return [IsAuthenticated(), IsGeneralManager()]
+
+    def get_queryset(self):
+        queryset = SchoolUnit.objects.all()
+        if not is_general_manager(self.request.user):
+            queryset = queryset.filter(is_active=True)
+        return queryset.order_by("order", "id")

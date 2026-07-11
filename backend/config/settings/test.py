@@ -6,6 +6,7 @@ PASSWORD_HASHERS = [
 ]
 
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+ENABLE_API_DOCS = True
 
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,  # noqa: F405

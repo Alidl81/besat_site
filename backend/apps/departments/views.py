@@ -1,10 +1,13 @@
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import filters
-from rest_framework.permissions import AllowAny
-from rest_framework.viewsets import ReadOnlyModelViewSet
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
+
+from apps.core.permissions import IsGeneralManager
+from apps.news.permissions import is_general_manager
 
 from .models import Department
-from .serializers import DepartmentDetailSerializer, DepartmentListSerializer
+from .serializers import CMSDepartmentSerializer, DepartmentDetailSerializer, DepartmentListSerializer
 
 
 @extend_schema_view(
@@ -69,3 +72,23 @@ class DepartmentViewSet(ReadOnlyModelViewSet):
             return DepartmentDetailSerializer
 
         return DepartmentListSerializer
+
+
+class CMSDepartmentViewSet(ModelViewSet):
+    serializer_class = CMSDepartmentSerializer
+    lookup_value_regex = r"\d+"
+    filter_backends = (filters.SearchFilter, filters.OrderingFilter)
+    search_fields = ("title", "slug", "short_description", "description")
+    ordering_fields = ("order", "title", "created_at", "updated_at", "is_active")
+    ordering = ("order", "id")
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [AllowAny()]
+        return [IsAuthenticated(), IsGeneralManager()]
+
+    def get_queryset(self):
+        queryset = Department.objects.all()
+        if not is_general_manager(self.request.user):
+            queryset = queryset.filter(is_active=True)
+        return queryset.order_by("order", "id")

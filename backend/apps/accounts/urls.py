@@ -1,4 +1,7 @@
 from django.urls import path
+from rest_framework.routers import DefaultRouter
+
+from .cms import CMSUserViewSet
 
 from .views import (
     LoginAPIView,
@@ -29,3 +32,7 @@ urlpatterns = [
     path("me/units/", MeUnitsAPIView.as_view(), name="me-units"),
     path("me/change-password/", ChangePasswordAPIView.as_view(), name="me-change-password"),
 ]
+
+router = DefaultRouter()
+router.register("cms/users", CMSUserViewSet, basename="cms-user")
+urlpatterns += router.urls

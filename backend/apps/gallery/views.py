@@ -223,6 +223,11 @@ class CMSGalleryItemViewSet(ModelViewSet):
         "-id",
     )
 
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [AllowAny()]
+        return super().get_permissions()
+
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return GalleryItem.objects.none()
@@ -236,6 +241,17 @@ class CMSGalleryItemViewSet(ModelViewSet):
             )
             .order_by("-updated_at", "-id")
         )
+
+        if not (
+            is_general_manager(self.request.user)
+            or is_unit_manager(self.request.user)
+            or is_unit_media(self.request.user)
+        ):
+            return queryset.filter(
+                is_active=True,
+                status=GalleryItem.Status.PUBLISHED,
+                published_at__lte=timezone.localdate(),
+            )
 
         if not is_general_manager(self.request.user):
             accessible_unit_ids = get_accessible_unit_ids(self.request.user)

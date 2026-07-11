@@ -56,6 +56,18 @@ class GalleryItem(
         blank=True,
         verbose_name="تصویر",
     )
+    media_url = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name="نشانی مدیا",
+        help_text="مسیر، URL یا data URL عکس/ویدیو ارسال‌شده از فرانت‌اند.",
+    )
+    album = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name="آلبوم",
+    )
     alt_text = models.CharField(
         max_length=255,
         null=True,
@@ -136,6 +148,8 @@ class GalleryItem(
             "summary",
             "alt_text",
             "caption",
+            "media_url",
+            "album",
         )
 
         for field_name in nullable_text_fields:
@@ -157,7 +171,7 @@ class GalleryItem(
             if not self.summary:
                 errors["summary"] = "برای انتشار تصویر، توضیح کوتاه الزامی است."
 
-            if not self.image:
+            if not self.image and not self.media_url:
                 errors["image"] = "برای انتشار تصویر، فایل تصویر الزامی است."
 
             if self.unit and not self.unit.is_active:

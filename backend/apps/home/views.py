@@ -1,5 +1,6 @@
 from django.db.models import Q
 from django.utils import timezone
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import filters
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -17,7 +18,7 @@ from apps.units.models import SchoolUnit
 from apps.achievements.models import Achievement
 
 from .models import HomeSlide
-from .permissions import HasHomeSlideCMSPermission
+from .permissions import HasHomeSlideCMSPermission, is_general_manager
 from .serializers import (
     CMSHomeSlideSerializer,
     CMSHomeSlideWriteSerializer,
@@ -236,15 +237,15 @@ class HomePageAPIView(APIView):
     @extend_schema(
         tags=["Home"],
         summary="Get public home page aggregate payload",
+        responses=OpenApiTypes.OBJECT,
     )
     def get(self, request):
         today = timezone.localdate()
 
         settings_obj = SiteSettings.objects.filter(is_active=True).first()
 
-        slides = HomeSlide.objects.filter(
-            is_active=True,
-            image__isnull=False,
+        slides = HomeSlide.objects.filter(is_active=True).filter(
+            Q(image__isnull=False) | Q(image_url__isnull=False)
         ).order_by("order", "-id")
 
         units = SchoolUnit.objects.filter(
@@ -403,17 +404,24 @@ class CMSHomeSlideViewSet(ModelViewSet):
         "-id",
     )
 
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [AllowAny()]
+        return super().get_permissions()
+
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return HomeSlide.objects.none()
 
-        return (
-            HomeSlide.objects.select_related(
+        queryset = HomeSlide.objects.select_related(
                 "created_by",
                 "updated_by",
             )
-            .order_by("order", "-id")
-        )
+        if not is_general_manager(self.request.user):
+            queryset = queryset.filter(is_active=True).filter(
+                Q(image__isnull=False) | Q(image_url__isnull=False)
+            )
+        return queryset.order_by("order", "-id")
 
     def get_serializer_class(self):
         if self.action in (
@@ -434,4 +442,17 @@ class CMSHomeSlideViewSet(ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(
             updated_by=self.request.user,
+        )
+
+
+class HomeSlideListAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(tags=["Home"], responses=HomeSlideSerializer(many=True))
+    def get(self, request):
+        slides = HomeSlide.objects.filter(is_active=True).filter(
+            Q(image__isnull=False) | Q(image_url__isnull=False)
+        ).order_by("order", "-id")
+        return Response(
+            HomeSlideSerializer(slides, many=True, context={"request": request}).data
         )

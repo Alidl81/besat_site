@@ -54,6 +54,12 @@ class Department(TimeStampedModel, ActiveModel, OrderedModel):
         blank=True,
         verbose_name="تصویر کاور",
     )
+    cover_image_url = models.CharField(
+        max_length=2000,
+        null=True,
+        blank=True,
+        verbose_name="نشانی تصویر کاور",
+    )
 
     objects = DepartmentManager()
 
@@ -74,6 +80,7 @@ class Department(TimeStampedModel, ActiveModel, OrderedModel):
         nullable_text_fields = (
             "short_description",
             "description",
+            "cover_image_url",
         )
 
         for field_name in nullable_text_fields:

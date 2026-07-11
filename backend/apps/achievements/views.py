@@ -9,7 +9,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from .models import Achievement
-from .permissions import HasAchievementCMSPermission
+from .permissions import HasAchievementCMSPermission, is_general_manager
 from .serializers import (
     AchievementDetailSerializer,
     AchievementListSerializer,
@@ -184,6 +184,11 @@ class CMSAchievementViewSet(ModelViewSet):
         "-id",
     )
 
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [AllowAny()]
+        return super().get_permissions()
+
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Achievement.objects.none()
@@ -196,6 +201,12 @@ class CMSAchievementViewSet(ModelViewSet):
             )
             .order_by("order", "-achievement_date", "-id")
         )
+
+        if not is_general_manager(self.request.user):
+            return queryset.filter(is_active=True).filter(
+                Q(achievement_date__isnull=True)
+                | Q(achievement_date__lte=timezone.localdate())
+            )
 
         unit_id = self.request.query_params.get("unit_id")
 

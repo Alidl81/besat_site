@@ -15,10 +15,10 @@ def get_or_create_user_profile(user) -> UserProfile:
 
 def get_role_redirect_path(role: str) -> str:
     mapping = {
-        UserProfile.Role.GENERAL_MANAGER: "/admin",
-        UserProfile.Role.UNIT_MANAGER: "/unit-manager",
-        UserProfile.Role.UNIT_MEDIA: "/media",
-        UserProfile.Role.PARENT: "/parents",
+        UserProfile.Role.GENERAL_MANAGER: "/dashboard/admin",
+        UserProfile.Role.UNIT_MANAGER: "/dashboard/unit-manager",
+        UserProfile.Role.UNIT_MEDIA: "/dashboard/media",
+        UserProfile.Role.PARENT: "/dashboard/parents",
     }
 
     return mapping.get(role, "/")
@@ -37,6 +37,7 @@ def get_user_units_payload(user) -> list[dict]:
                 "slug": unit.slug,
                 "access_role": UserProfile.Role.GENERAL_MANAGER,
                 "access_role_display": "مدیر کل",
+                "role": UserProfile.Role.GENERAL_MANAGER,
             }
             for unit in units
         ]
@@ -58,6 +59,7 @@ def get_user_units_payload(user) -> list[dict]:
             "slug": membership.unit.slug,
             "access_role": membership.role,
             "access_role_display": membership.get_role_display(),
+            "role": membership.role,
         }
         for membership in memberships
     ]
@@ -72,7 +74,7 @@ def get_user_permissions_payload(user) -> dict:
     is_unit_media = role == UserProfile.Role.UNIT_MEDIA
     is_parent = role == UserProfile.Role.PARENT
 
-    return {
+    payload = {
         "role": role,
         "role_display": profile.get_role_display(),
         "redirect_path": get_role_redirect_path(role),
@@ -95,3 +97,19 @@ def get_user_permissions_payload(user) -> dict:
         },
         "django_permissions": sorted(user.get_all_permissions()),
     }
+
+    # Flat aliases retained for the older service types still present in the
+    # frontend; the canonical detailed permissions object remains unchanged.
+    payload.update(
+        {
+            "can_see_all_units": is_general_manager,
+            "can_manage_own_unit": is_general_manager or is_unit_manager,
+            "can_create_own_unit_content": is_general_manager or is_unit_manager or is_unit_media,
+            "can_review_own_unit_content": is_general_manager or is_unit_manager,
+            "can_review_all_content": is_general_manager,
+            "can_publish_school_content": is_general_manager,
+            "can_publish_unit_content": is_general_manager,
+            "can_see_own_children": is_parent,
+        }
+    )
+    return payload

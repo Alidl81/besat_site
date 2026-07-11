@@ -42,6 +42,10 @@ class AchievementListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializ
     image = serializers.SerializerMethodField()
     related_unit = AchievementUnitSerializer(read_only=True)
     related_unit_id = serializers.IntegerField(read_only=True)
+    unit_id = serializers.IntegerField(source="related_unit_id", read_only=True)
+    scope = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    achieved_at = serializers.DateField(source="achievement_date", read_only=True, allow_null=True)
 
     class Meta:
         model = Achievement
@@ -54,8 +58,12 @@ class AchievementListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializ
             "cover_image",
             "image",
             "achievement_date",
+            "achieved_at",
             "related_unit",
             "related_unit_id",
+            "unit_id",
+            "scope",
+            "status",
             "is_featured",
         )
         read_only_fields = fields
@@ -67,6 +75,12 @@ class AchievementListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializ
     @extend_schema_field(OpenApiTypes.URI)
     def get_image(self, obj) -> str | None:
         return self.build_absolute_media_url(obj.cover_image)
+
+    def get_scope(self, obj):
+        return "unit" if obj.related_unit_id else "school"
+
+    def get_status(self, obj):
+        return "published" if obj.is_active else "draft"
 
 
 class AchievementDetailSerializer(AchievementListSerializer):
@@ -90,8 +104,12 @@ class CMSAchievementListSerializer(AchievementListSerializer):
             "cover_image",
             "image",
             "achievement_date",
+            "achieved_at",
             "related_unit",
             "related_unit_id",
+            "unit_id",
+            "scope",
+            "status",
             "is_featured",
             "is_active",
             "order",

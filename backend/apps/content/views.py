@@ -11,6 +11,7 @@ from apps.announcements.models import Announcement
 from apps.core.pagination import StandardResultsSetPagination
 from apps.news.models import News
 from apps.events.models import Event
+from apps.gallery.models import GalleryItem
 
 from .serializers import (
     ContentAggregateItemSerializer,
@@ -91,17 +92,42 @@ def event_content_payload(request, event):
         "_content_text": event.description or "",
     }
 
+
+def gallery_content_payload(request, item):
+    image_url = build_absolute_file_url(request, item.image) or item.media_url
+    return {
+        "id": item.id,
+        "type": "gallery",
+        "title": item.title,
+        "slug": item.slug,
+        "summary": item.summary,
+        "cover_image": image_url,
+        "published_at": item.published_at,
+        "category": None,
+        "scope": item.scope,
+        "unit_id": item.unit_id,
+        "unit": unit_payload(item.unit),
+        "status": item.status,
+        "is_featured": item.is_featured,
+        "detail_url": f"/api/gallery/{item.slug}/",
+        "_content_text": " ".join(
+            value for value in (item.summary, item.caption, item.alt_text) if value
+        ),
+    }
+
 def news_to_content_item(request, news: News) -> dict:
+    cover_image = build_absolute_file_url(request, news.cover_image) or news.cover_image_url
     return {
         "type": "news",
         "id": news.id,
         "title": news.title,
         "slug": news.slug,
         "summary": news.summary,
-        "cover_image": build_absolute_file_url(request, news.cover_image),
+        "cover_image": cover_image,
         "published_at": news.published_at,
         "category": category_payload(news.category),
         "scope": news.scope,
+        "unit_id": news.unit_id,
         "unit": unit_payload(news.unit),
         "status": news.status,
         "is_featured": news.is_featured,
@@ -111,16 +137,21 @@ def news_to_content_item(request, news: News) -> dict:
 
 
 def announcement_to_content_item(request, announcement: Announcement) -> dict:
+    cover_image = (
+        build_absolute_file_url(request, announcement.cover_image)
+        or announcement.cover_image_url
+    )
     return {
         "type": "announcement",
         "id": announcement.id,
         "title": announcement.title,
         "slug": announcement.slug,
         "summary": announcement.summary,
-        "cover_image": build_absolute_file_url(request, announcement.cover_image),
+        "cover_image": cover_image,
         "published_at": announcement.published_at,
         "category": category_payload(announcement.category),
         "scope": announcement.scope,
+        "unit_id": announcement.unit_id,
         "unit": unit_payload(announcement.unit),
         "status": announcement.status,
         "is_featured": announcement.is_featured,
@@ -174,7 +205,7 @@ class ContentAggregateAPIView(APIView):
         summary="Aggregate published public content from news, announcements, gallery, and events",        parameters=[
             OpenApiParameter(
                 name="type",
-                description="Content type. Accepted values: all, news, announcement, event.",
+                description="Content type. Accepted values: all, news, announcement, event, gallery.",
                 required=False,
                 type=str,
             ),
@@ -264,6 +295,13 @@ class ContentAggregateAPIView(APIView):
             ]
             items.extend(event_items)
 
+        if content_type in ("all", "gallery"):
+            gallery_items = [
+                gallery_content_payload(request, item)
+                for item in self._get_gallery_queryset()
+            ]
+            items.extend(gallery_items)
+
         items = self._apply_common_filters(items, params)
         items = sort_content_items(items, ordering)
         items = clean_internal_fields(items)
@@ -327,6 +365,21 @@ class ContentAggregateAPIView(APIView):
                 unit__isnull=False,
                 unit__is_active=False,
             )
+            .order_by("-published_at", "-id")
+        )
+
+    def _get_gallery_queryset(self):
+        today = timezone.localdate()
+
+        return (
+            GalleryItem.objects.select_related("unit")
+            .filter(
+                is_active=True,
+                status=PUBLISHED_STATUS,
+                published_at__isnull=False,
+                published_at__lte=today,
+            )
+            .exclude(unit__isnull=False, unit__is_active=False)
             .order_by("-published_at", "-id")
         )
 

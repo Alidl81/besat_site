@@ -54,6 +54,15 @@ class ContactInfoAPIView(APIView):
 
         return Response(serializer.data)
 
+    @extend_schema(
+        tags=["Contact"],
+        summary="Create public contact message (frontend-compatible alias)",
+        request=ContactMessageCreateSerializer,
+        responses={201: ContactMessageSuccessSerializer},
+    )
+    def post(self, request):
+        return create_contact_message_response(request)
+
 
 class ContactMessageCreateAPIView(APIView):
     permission_classes = [AllowAny]
@@ -68,21 +77,21 @@ class ContactMessageCreateAPIView(APIView):
         },
     )
     def post(self, request):
-        serializer = ContactMessageCreateSerializer(
-            data=request.data,
-            context={
-                "request": request,
-            },
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+        return create_contact_message_response(request)
 
-        return Response(
-            {
-                "message": "پیام شما با موفقیت ثبت شد.",
-            },
-            status=status.HTTP_201_CREATED,
-        )
+
+def create_contact_message_response(request):
+    serializer = ContactMessageCreateSerializer(
+        data=request.data,
+        context={"request": request},
+    )
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+
+    return Response(
+        {"message": "پیام شما با موفقیت ثبت شد."},
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @extend_schema_view(

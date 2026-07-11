@@ -3,7 +3,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.core.serializers import AbsoluteMediaURLMixin
+from apps.core.serializers import AbsoluteMediaURLMixin, FileOrURLField
 
 from .models import HomeSlide
 from .validators import validate_home_slide_image_file
@@ -46,7 +46,7 @@ class HomeSlideSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.URI)
     def get_image(self, obj) -> str | None:
-        return self.build_absolute_media_url(obj.image)
+        return self.build_file_or_fallback_url(obj.image, obj.image_url)
 
 
 class CMSHomeSlideSerializer(HomeSlideSerializer):
@@ -73,7 +73,7 @@ class CMSHomeSlideSerializer(HomeSlideSerializer):
 
 
 class CMSHomeSlideWriteSerializer(serializers.ModelSerializer):
-    image = serializers.ImageField(
+    image = FileOrURLField(
         required=False,
         allow_null=True,
     )
@@ -103,7 +103,7 @@ class CMSHomeSlideWriteSerializer(serializers.ModelSerializer):
         )
 
     def validate_image(self, value):
-        if value is None:
+        if value is None or isinstance(value, str):
             return value
 
         return validate_image_or_error(value)
@@ -117,7 +117,7 @@ class CMSHomeSlideWriteSerializer(serializers.ModelSerializer):
         )
         image = attrs.get(
             "image",
-            instance.image if instance else None,
+            (instance.image or instance.image_url) if instance else None,
         )
 
         if is_active and not image:
@@ -128,3 +128,26 @@ class CMSHomeSlideWriteSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+    def create(self, validated_data):
+        image = validated_data.pop("image", None)
+        if isinstance(image, str):
+            validated_data["image_url"] = image
+        elif image is not None:
+            validated_data["image"] = image
+            validated_data["image_url"] = None
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        image = validated_data.pop("image", serializers.empty)
+        if image is not serializers.empty:
+            if isinstance(image, str):
+                instance.image = None
+                instance.image_url = image
+            elif image is None:
+                instance.image = None
+                instance.image_url = None
+            else:
+                instance.image = image
+                instance.image_url = None
+        return super().update(instance, validated_data)

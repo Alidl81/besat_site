@@ -63,6 +63,8 @@ class AnnouncementCategoryListSerializer(serializers.ModelSerializer):
 
 class AnnouncementListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
     cover_image = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+    content = serializers.CharField(source="content_text", read_only=True, allow_null=True)
     category = AnnouncementCategoryBriefSerializer(read_only=True)
     unit = UnitBriefSerializer(read_only=True)
     is_published = serializers.SerializerMethodField()
@@ -75,6 +77,8 @@ class AnnouncementListSerializer(AbsoluteMediaURLMixin, serializers.ModelSeriali
             "slug",
             "summary",
             "cover_image",
+            "image",
+            "content",
             "published_at",
             "category",
             "scope",
@@ -87,7 +91,11 @@ class AnnouncementListSerializer(AbsoluteMediaURLMixin, serializers.ModelSeriali
 
     @extend_schema_field(OpenApiTypes.URI)
     def get_cover_image(self, obj) -> str | None:
-        return self.build_absolute_media_url(obj.cover_image)
+        return self.build_file_or_fallback_url(obj.cover_image, obj.cover_image_url)
+
+    @extend_schema_field(OpenApiTypes.URI)
+    def get_image(self, obj) -> str | None:
+        return self.get_cover_image(obj)
 
     @extend_schema_field(OpenApiTypes.BOOL)
     def get_is_published(self, obj) -> bool:
@@ -183,7 +191,7 @@ class CMSAnnouncementListSerializer(AbsoluteMediaURLMixin, serializers.ModelSeri
 
     @extend_schema_field(OpenApiTypes.URI)
     def get_cover_image(self, obj) -> str | None:
-        return self.build_absolute_media_url(obj.cover_image)
+        return self.build_file_or_fallback_url(obj.cover_image, obj.cover_image_url)
 
 
 class CMSAnnouncementDetailSerializer(CMSAnnouncementListSerializer):

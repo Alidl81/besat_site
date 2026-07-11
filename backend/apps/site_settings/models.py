@@ -68,7 +68,7 @@ class SiteSettings(TimeStampedModel):
         verbose_name="زیر عنوان hero",
     )
     hero_image = models.ImageField(
-        upload_to="site/settings/heto/",
+        upload_to="site/settings/hero/",
         null=True,
         blank=True,
         verbose_name="تصویر hero"

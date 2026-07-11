@@ -370,12 +370,12 @@ class GalleryCMSPermissionTests(TestCase):
             is_active=True,
         )
 
-    def test_parent_cannot_access_cms_gallery(self):
+    def test_parent_can_read_published_gallery_for_frontend(self):
         self.authenticate(self.parent)
 
         response = self.client.get("/api/cms/gallery/")
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 200)
 
     def test_general_manager_can_see_all_cms_gallery_items(self):
         self.authenticate(self.general_manager)

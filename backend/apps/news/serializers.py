@@ -61,6 +61,8 @@ class NewsCategoryListSerializer(serializers.ModelSerializer):
 
 class NewsListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
     cover_image = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+    content = serializers.CharField(source="content_text", read_only=True, allow_null=True)
     category = NewsCategoryBriefSerializer(read_only=True)
     unit = UnitBriefSerializer(read_only=True)
     is_published = serializers.SerializerMethodField()
@@ -73,6 +75,8 @@ class NewsListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
             "slug",
             "summary",
             "cover_image",
+            "image",
+            "content",
             "published_at",
             "category",
             "scope",
@@ -85,7 +89,11 @@ class NewsListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.URI)
     def get_cover_image(self, obj) -> str | None:
-        return self.build_absolute_media_url(obj.cover_image)
+        return self.build_file_or_fallback_url(obj.cover_image, obj.cover_image_url)
+
+    @extend_schema_field(OpenApiTypes.URI)
+    def get_image(self, obj) -> str | None:
+        return self.get_cover_image(obj)
 
     @extend_schema_field(OpenApiTypes.BOOL)
     def get_is_published(self, obj) -> bool:
@@ -181,7 +189,7 @@ class CMSNewsListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.URI)
     def get_cover_image(self, obj) -> str | None:
-        return self.build_absolute_media_url(obj.cover_image)
+        return self.build_file_or_fallback_url(obj.cover_image, obj.cover_image_url)
 
 
 class CMSNewsDetailSerializer(CMSNewsListSerializer):

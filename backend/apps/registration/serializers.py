@@ -55,8 +55,22 @@ class RegistrationRequestCreateSerializer(serializers.ModelSerializer):
             "requested_grade",
             "description",
         )
+        extra_kwargs = {
+            "parent_full_name": {"required": False, "allow_null": True, "allow_blank": True},
+        }
+
+    def to_internal_value(self, data):
+        payload = data.copy() if hasattr(data, "copy") else dict(data)
+        if not payload.get("student_full_name") and payload.get("full_name"):
+            payload["student_full_name"] = payload["full_name"]
+        if not payload.get("requested_unit") and payload.get("unit_id"):
+            payload["requested_unit"] = payload["unit_id"]
+        return super().to_internal_value(payload)
 
     def validate(self, attrs):
+        if not attrs.get("parent_full_name"):
+            attrs["parent_full_name"] = None
+
         active_info = RegistrationInfo.objects.filter(is_active=True).first()
 
         if active_info is not None and not active_info.is_open:
@@ -91,23 +105,27 @@ class RegistrationRequestCreateSerializer(serializers.ModelSerializer):
 
 class RegistrationRequestSuccessSerializer(serializers.Serializer):
     message = serializers.CharField()
-    id = serializers.IntegerField()
+    id = serializers.IntegerField(required=False)
 
 
 class CMSRegistrationRequestSerializer(serializers.ModelSerializer):
     requested_unit = RegistrationUnitBriefSerializer(read_only=True)
     requested_unit_id = serializers.IntegerField(read_only=True)
+    full_name = serializers.CharField(source="student_full_name", read_only=True)
+    unit_id = serializers.IntegerField(source="requested_unit_id", read_only=True)
 
     class Meta:
         model = RegistrationRequest
         fields = (
             "id",
             "student_full_name",
+            "full_name",
             "parent_full_name",
             "parent_phone",
             "parent_email",
             "requested_unit",
             "requested_unit_id",
+            "unit_id",
             "requested_grade",
             "description",
             "status",

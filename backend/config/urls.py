@@ -29,13 +29,20 @@ urlpatterns = [
     path("api/", include("apps.achievements.urls")),
     path("api/", include("apps.events.urls")),
     path("api/", include("apps.staff.urls")),
-    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
-    path(
-        "api/docs/",
-        SpectacularSwaggerView.as_view(url_name="schema"),
-        name="swagger-ui",
-    ),
+    
 ]
+
+
+
+if settings.ENABLE_API_DOCS:
+    urlpatterns += [
+        path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+        path(
+            "api/docs/",
+            SpectacularSwaggerView.as_view(url_name="schema"),
+            name="swagger-ui",
+        ),
+    ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -16,6 +16,11 @@ cms_router.register(
     CMSRegistrationRequestViewSet,
     basename="cms-registration-request",
 )
+cms_router.register(
+    "cms/registrations",
+    CMSRegistrationRequestViewSet,
+    basename="cms-registration-frontend-alias",
+)
 
 urlpatterns = [
     path("registration/", RegistrationInfoAPIView.as_view(), name="registration-info"),

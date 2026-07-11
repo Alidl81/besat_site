@@ -7,6 +7,8 @@ class ContentAggregateQuerySerializer(serializers.Serializer):
             "all",
             "news",
             "announcement",
+            "event",
+            "gallery",
         ),
         required=False,
         default="all",
@@ -90,6 +92,7 @@ class ContentAggregateItemSerializer(serializers.Serializer):
     published_at = serializers.DateField()
     category = ContentCategorySerializer(allow_null=True)
     scope = serializers.CharField()
+    unit_id = serializers.IntegerField(allow_null=True)
     unit = ContentUnitSerializer(allow_null=True)
     status = serializers.CharField()
     is_featured = serializers.BooleanField()

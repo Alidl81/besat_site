@@ -250,17 +250,19 @@ class AchievementCMSAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 1)
 
-    def test_parent_cannot_list_achievements(self):
+    def test_parent_can_read_active_achievements_for_frontend(self):
         self.authenticate(self.parent)
 
         response = self.client.get("/api/cms/achievements/")
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
 
-    def test_anonymous_cannot_list_achievements(self):
+    def test_anonymous_can_read_active_achievements_for_frontend(self):
         response = self.client.get("/api/cms/achievements/")
 
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
 
     def test_general_manager_can_create_achievement(self):
         self.authenticate(self.general_manager)

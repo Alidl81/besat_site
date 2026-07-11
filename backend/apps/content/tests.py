@@ -5,6 +5,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.announcements.models import Announcement, AnnouncementCategory
+from apps.gallery.models import GalleryItem
 from apps.news.models import News, NewsCategory
 from apps.units.models import SchoolUnit
 
@@ -126,15 +127,37 @@ class ContentAggregateAPITests(TestCase):
             content_json=valid_content_json("اطلاعیه آینده"),
         )
 
-    def test_content_aggregate_returns_news_and_announcements(self):
+        self.unit_gallery_item = GalleryItem.objects.create(
+            title="تصویر واحد دبستان",
+            slug="unit-gallery-item",
+            summary="گزارش تصویری واحد",
+            media_url="https://cdn.example.com/gallery/unit.jpg",
+            scope=GalleryItem.Scope.UNIT,
+            unit=self.unit,
+            status=GalleryItem.Status.PUBLISHED,
+            published_at=self.today,
+            is_active=True,
+        )
+
+    def test_content_aggregate_returns_all_supported_types(self):
         response = self.client.get("/api/content/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["count"], 4)
+        self.assertEqual(response.data["count"], 5)
 
         returned_types = {item["type"] for item in response.data["results"]}
 
-        self.assertEqual(returned_types, {"news", "announcement"})
+        self.assertEqual(returned_types, {"news", "announcement", "gallery"})
+
+    def test_content_type_gallery_matches_frontend_unit_service(self):
+        response = self.client.get(
+            f"/api/content/?type=gallery&scope=unit&unit_id={self.unit.id}"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["type"], "gallery")
+        self.assertEqual(response.data["results"][0]["unit_id"], self.unit.id)
 
     def test_content_type_news_returns_only_news(self):
         response = self.client.get("/api/content/?type=news")
@@ -174,7 +197,7 @@ class ContentAggregateAPITests(TestCase):
         response = self.client.get(f"/api/content/?scope=unit&unit_id={self.unit.id}")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["count"], 2)
+        self.assertEqual(response.data["count"], 3)
 
         for item in response.data["results"]:
             self.assertEqual(item["scope"], "unit")
@@ -224,7 +247,7 @@ class ContentAggregateAPITests(TestCase):
             self.assertEqual(item["type"], "announcement")
 
     def test_content_invalid_type_returns_400(self):
-        response = self.client.get("/api/content/?type=gallery")
+        response = self.client.get("/api/content/?type=video")
 
         self.assertEqual(response.status_code, 400)
 

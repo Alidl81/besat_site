@@ -11,6 +11,8 @@
   announcements: "announcements/",
   gallery: "gallery/",
   achievements: "achievements/",
+  events: "events/",
+  staff: "staff/",
   contact: "contact/",
   registration: "registration/",
   dashboard: {
@@ -29,6 +31,15 @@
     changePassword: "me/change-password/",
   },
   cms: {
+    units: "cms/units/",
+    news: "cms/news/",
+    announcements: "cms/announcements/",
+    gallery: "cms/gallery/",
+    achievements: "cms/achievements/",
+    events: "cms/events/",
+    staff: "cms/staff/",
+    messages: "cms/messages/",
+    registrationRequests: "cms/registration-requests/",
     homeSlides: "cms/home-slides/",
   },
 } as const;

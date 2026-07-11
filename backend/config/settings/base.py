@@ -163,8 +163,14 @@ STORAGES = {
 }
 
 
-CORS_ALLOWED_ORIGINS = csv_env("CORS_ALLOWED_ORIGINS")
-CSRF_TRUSTED_ORIGINS = csv_env("CSRF_TRUSTED_ORIGINS")
+CORS_ALLOWED_ORIGINS = csv_env(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000",
+)
+CSRF_TRUSTED_ORIGINS = csv_env(
+    "CSRF_TRUSTED_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000",
+)
 
 
 REST_FRAMEWORK = {

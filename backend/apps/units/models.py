@@ -73,6 +73,13 @@ class SchoolUnit(TimeStampedModel, ActiveModel, OrderedModel):
         blank=True,
         verbose_name="تصویر کاور",
     )
+    cover_image_url = models.CharField(
+        max_length=2000,
+        null=True,
+        blank=True,
+        verbose_name="نشانی تصویر کاور",
+        help_text="برای سازگاری با تصاویر مدیریت‌شده توسط فرانت‌اند.",
+    )
     age_range = models.CharField(
         max_length=100,
         null=True,
@@ -105,7 +112,7 @@ class SchoolUnit(TimeStampedModel, ActiveModel, OrderedModel):
         nullable_text_fields = (
             "subtitle",
             "description",
-            "cover_image",
+            "cover_image_url",
             "age_range",
             "grade_range",
         )

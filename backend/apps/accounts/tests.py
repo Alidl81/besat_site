@@ -76,7 +76,7 @@ class AccountsAuthTests(TestCase):
         self.assertIn("user", data)
         self.assertEqual(data["user"]["username"], "manager")
         self.assertEqual(data["user"]["role"], UserProfile.Role.GENERAL_MANAGER)
-        self.assertEqual(data["redirect_path"], "/admin")
+        self.assertEqual(data["redirect_path"], "/dashboard/admin")
 
     def test_login_with_wrong_password_returns_401(self):
         response = self.client.post(

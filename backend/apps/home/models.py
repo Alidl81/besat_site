@@ -38,6 +38,12 @@ class HomeSlide(TimeStampedModel, ActiveModel, OrderedModel):
         blank=True,
         verbose_name="تصویر",
     )
+    image_url = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name="نشانی تصویر",
+        help_text="مسیر داخلی، URL کامل یا data URL ارسال‌شده از فرانت‌اند.",
+    )
     alt_text = models.CharField(
         max_length=255,
         null=True,
@@ -99,7 +105,10 @@ class HomeSlide(TimeStampedModel, ActiveModel, OrderedModel):
 
         errors = {}
 
-        if self.is_active and not self.image:
+        if isinstance(self.image_url, str):
+            self.image_url = self.image_url.strip() or None
+
+        if self.is_active and not self.image and not self.image_url:
             errors["image"] = "برای فعال بودن اسلاید، تصویر الزامی است."
 
         if errors:

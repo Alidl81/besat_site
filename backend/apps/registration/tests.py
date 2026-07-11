@@ -95,7 +95,6 @@ class RegistrationPublicAPITests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("student_full_name", response.data)
-        self.assertIn("parent_full_name", response.data)
         self.assertIn("parent_phone", response.data)
         self.assertIn("requested_unit", response.data)
 

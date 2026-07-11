@@ -1,7 +1,7 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .views import CMSHomeSlideViewSet, HomePageAPIView
+from .views import CMSHomeSlideViewSet, HomePageAPIView, HomeSlideListAPIView
 
 
 app_name = "home"
@@ -15,6 +15,7 @@ cms_router.register(
 
 urlpatterns = [
     path("home/", HomePageAPIView.as_view(), name="home-page"),
+    path("home/slides/", HomeSlideListAPIView.as_view(), name="home-slides"),
 ]
 
 urlpatterns += cms_router.urls

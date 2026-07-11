@@ -1,12 +1,14 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.core.serializers import AbsoluteMediaURLMixin
+from apps.core.serializers import AbsoluteMediaURLMixin, FileOrURLField
 from apps.units.models import SchoolUnit
 
 from .models import GalleryItem
+from .permissions import get_accessible_unit_ids, is_general_manager
 from .validators import validate_gallery_image_file
 
 
@@ -52,6 +54,7 @@ class GalleryItemListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializ
             "slug",
             "summary",
             "image",
+            "album",
             "alt_text",
             "caption",
             "event_date",
@@ -67,7 +70,7 @@ class GalleryItemListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializ
 
     @extend_schema_field(OpenApiTypes.URI)
     def get_image(self, obj) -> str | None:
-        return self.build_absolute_media_url(obj.image)
+        return self.build_file_or_fallback_url(obj.image, obj.media_url)
 
     @extend_schema_field(OpenApiTypes.BOOL)
     def get_is_published(self, obj) -> bool:
@@ -93,6 +96,7 @@ class CMSGalleryItemListSerializer(GalleryItemListSerializer):
             "slug",
             "summary",
             "image",
+            "album",
             "alt_text",
             "caption",
             "event_date",
@@ -125,7 +129,13 @@ class CMSGalleryItemWriteSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
-    image = serializers.ImageField(
+    unit_id = serializers.PrimaryKeyRelatedField(
+        source="unit",
+        queryset=SchoolUnit.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    image = FileOrURLField(
         required=False,
         allow_null=True,
     )
@@ -138,12 +148,14 @@ class CMSGalleryItemWriteSerializer(serializers.ModelSerializer):
             "slug",
             "summary",
             "image",
+            "album",
             "alt_text",
             "caption",
             "event_date",
             "published_at",
             "scope",
             "unit",
+            "unit_id",
             "status",
             "is_featured",
             "is_active",
@@ -164,7 +176,7 @@ class CMSGalleryItemWriteSerializer(serializers.ModelSerializer):
         )
 
     def validate_image(self, value):
-        if value is None:
+        if value is None or isinstance(value, str):
             return value
 
         return validate_image_or_error(value)
@@ -180,6 +192,17 @@ class CMSGalleryItemWriteSerializer(serializers.ModelSerializer):
             "unit",
             instance.unit if instance else None,
         )
+        request = self.context.get("request")
+        if (
+            request
+            and scope == GalleryItem.Scope.UNIT
+            and unit is None
+            and not is_general_manager(request.user)
+        ):
+            unit_ids = get_accessible_unit_ids(request.user)
+            if len(unit_ids) == 1:
+                unit = SchoolUnit.objects.get(pk=unit_ids[0])
+                attrs["unit"] = unit
         status = attrs.get(
             "status",
             instance.status if instance else GalleryItem.Status.DRAFT,
@@ -195,7 +218,7 @@ class CMSGalleryItemWriteSerializer(serializers.ModelSerializer):
 
         image = attrs.get(
             "image",
-            instance.image if instance else None,
+            (instance.image or instance.media_url) if instance else None,
         )
 
         errors = {}
@@ -208,10 +231,10 @@ class CMSGalleryItemWriteSerializer(serializers.ModelSerializer):
 
         if status == GalleryItem.Status.PUBLISHED:
             if not published_at:
-                errors["published_at"] = "برای انتشار تصویر، تاریخ انتشار الزامی است."
+                attrs["published_at"] = timezone.localdate()
 
             if not summary:
-                errors["summary"] = "برای انتشار تصویر، توضیح کوتاه الزامی است."
+                attrs["summary"] = attrs.get("title", instance.title if instance else "")
 
             if not image:
                 errors["image"] = "برای انتشار تصویر، فایل تصویر الزامی است."
@@ -223,6 +246,29 @@ class CMSGalleryItemWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(errors)
 
         return attrs
+
+    def create(self, validated_data):
+        image = validated_data.pop("image", None)
+        if isinstance(image, str):
+            validated_data["media_url"] = image
+        elif image is not None:
+            validated_data["image"] = image
+            validated_data["media_url"] = None
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        image = validated_data.pop("image", serializers.empty)
+        if image is not serializers.empty:
+            if isinstance(image, str):
+                instance.image = None
+                instance.media_url = image
+            elif image is None:
+                instance.image = None
+                instance.media_url = None
+            else:
+                instance.image = image
+                instance.media_url = None
+        return super().update(instance, validated_data)
 
 
 class GalleryWorkflowActionSerializer(serializers.Serializer):

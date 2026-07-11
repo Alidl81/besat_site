@@ -12,6 +12,7 @@ from .selectors import (
     get_or_create_user_profile,
     get_role_redirect_path,
     get_user_permissions_payload,
+    get_user_units_payload,
 )
 from .validators import validate_avatar_image_file
 
@@ -109,12 +110,18 @@ class ProfileSerializer(AbsoluteMediaURLMixin, serializers.Serializer):
     avatar = serializers.URLField(read_only=True, allow_null=True)
     role = serializers.CharField(read_only=True)
     role_display = serializers.CharField(read_only=True)
+    redirect_path = serializers.CharField(read_only=True)
+    is_staff = serializers.BooleanField(read_only=True)
+    is_superuser = serializers.BooleanField(read_only=True)
+    unit_id = serializers.IntegerField(read_only=True, allow_null=True)
     is_active = serializers.BooleanField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
 
     def to_representation(self, profile):
         user = profile.user
+
+        units = get_user_units_payload(user)
 
         return {
             "id": user.id,
@@ -126,6 +133,10 @@ class ProfileSerializer(AbsoluteMediaURLMixin, serializers.Serializer):
             "avatar": self.build_absolute_media_url(profile.avatar),
             "role": profile.role,
             "role_display": profile.get_role_display(),
+            "redirect_path": get_role_redirect_path(profile.role),
+            "is_staff": user.is_staff,
+            "is_superuser": user.is_superuser,
+            "unit_id": units[0]["id"] if len(units) == 1 else None,
             "is_active": profile.is_active,
             "created_at": profile.created_at,
             "updated_at": profile.updated_at,
@@ -179,7 +190,13 @@ class ChangePasswordSerializer(serializers.Serializer):
         write_only=True,
         trim_whitespace=False,
     )
+    confirm_password = serializers.CharField(
+        required=False,
+        write_only=True,
+        trim_whitespace=False,
+    )
     new_password_confirm = serializers.CharField(
+        required=False,
         write_only=True,
         trim_whitespace=False,
     )
@@ -195,12 +212,22 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate(self, attrs):
         user = self.context["request"].user
         new_password = attrs.get("new_password")
-        new_password_confirm = attrs.get("new_password_confirm")
+        confirm_password = attrs.get("confirm_password", attrs.get("new_password_confirm"))
 
-        if new_password != new_password_confirm:
+        if confirm_password is None:
+            raise serializers.ValidationError(
+                {"confirm_password": "تکرار رمز عبور جدید الزامی است."}
+            )
+
+        if new_password != confirm_password:
+            error_field = (
+                "confirm_password"
+                if "confirm_password" in attrs
+                else "new_password_confirm"
+            )
             raise serializers.ValidationError(
                 {
-                    "new_password_confirm": "تکرار رمز عبور جدید با رمز عبور جدید یکسان نیست.",
+                    error_field: "تکرار رمز عبور جدید با رمز عبور جدید یکسان نیست.",
                 }
             )
         
@@ -224,6 +251,7 @@ class UserUnitSerializer(serializers.Serializer):
     slug = serializers.CharField()
     access_role = serializers.CharField()
     access_role_display = serializers.CharField()
+    role = serializers.CharField()
 
 
 class UserPermissionsSerializer(serializers.Serializer):

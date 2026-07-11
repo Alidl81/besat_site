@@ -1,4 +1,12 @@
 from django.urls import path
+from rest_framework.routers import DefaultRouter
+
+from .cms_views import (
+    CMSClassViewSet,
+    CMSInternalMessageViewSet,
+    CMSProgramViewSet,
+    CMSStudentViewSet,
+)
 
 from .views import (
     GeneralManagerDashboardAPIView,
@@ -32,3 +40,10 @@ urlpatterns = [
         name="parents-dashboard",
     ),
 ]
+
+router = DefaultRouter()
+router.register("cms/students", CMSStudentViewSet, basename="cms-student")
+router.register("cms/classes", CMSClassViewSet, basename="cms-class")
+router.register("cms/programs", CMSProgramViewSet, basename="cms-program")
+router.register("cms/internal-messages", CMSInternalMessageViewSet, basename="cms-internal-message")
+urlpatterns += router.urls

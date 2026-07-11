@@ -115,6 +115,8 @@ class RegistrationRequest(TimeStampedModel):
     )
     parent_full_name = models.CharField(
         max_length=255,
+        null=True,
+        blank=True,
         verbose_name="نام و نام خانوادگی ولی",
     )
     parent_phone = models.CharField(
@@ -183,7 +185,9 @@ class RegistrationRequest(TimeStampedModel):
         super().clean()
 
         self.student_full_name = normalize_text(self.student_full_name)
-        self.parent_full_name = normalize_text(self.parent_full_name)
+        self.parent_full_name = (
+            normalize_text(self.parent_full_name) if self.parent_full_name else None
+        )
         self.parent_phone = normalize_text(self.parent_phone)
         self.parent_email = normalize_text(self.parent_email).lower() if self.parent_email else None
         self.requested_grade = normalize_text(self.requested_grade) if self.requested_grade else None
@@ -194,9 +198,6 @@ class RegistrationRequest(TimeStampedModel):
 
         if not self.student_full_name:
             errors["student_full_name"] = "نام و نام خانوادگی دانش‌آموز الزامی است."
-
-        if not self.parent_full_name:
-            errors["parent_full_name"] = "نام و نام خانوادگی ولی الزامی است."
 
         if not self.parent_phone:
             errors["parent_phone"] = "شماره تماس ولی الزامی است."

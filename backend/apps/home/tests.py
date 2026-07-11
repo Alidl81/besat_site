@@ -247,17 +247,19 @@ class HomeSlideCMSAPITests(TestCase):
         self.assertEqual(response.data["count"], 1)
         self.assertEqual(response.data["results"][0]["title"], "اسلاید تست")
 
-    def test_parent_cannot_list_home_slides(self):
+    def test_parent_can_list_active_home_slides_for_frontend(self):
         self.authenticate(self.parent)
 
         response = self.client.get("/api/cms/home-slides/")
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
 
-    def test_anonymous_cannot_list_home_slides(self):
+    def test_anonymous_can_list_active_home_slides_for_frontend(self):
         response = self.client.get("/api/cms/home-slides/")
 
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
 
     def test_general_manager_can_create_home_slide(self):
         self.authenticate(self.general_manager)

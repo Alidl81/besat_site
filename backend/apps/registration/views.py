@@ -57,6 +57,15 @@ class RegistrationInfoAPIView(APIView):
 
         return Response(serializer.data)
 
+    @extend_schema(
+        tags=["Registration"],
+        summary="Create public registration request (frontend-compatible alias)",
+        request=RegistrationRequestCreateSerializer,
+        responses={201: RegistrationRequestSuccessSerializer},
+    )
+    def post(self, request):
+        return create_registration_request_response(request)
+
 
 class RegistrationRequestCreateAPIView(APIView):
     permission_classes = [AllowAny]
@@ -71,21 +80,24 @@ class RegistrationRequestCreateAPIView(APIView):
         },
     )
     def post(self, request):
-        serializer = RegistrationRequestCreateSerializer(
-            data=request.data,
-            context={
-                "request": request,
-            },
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+        return create_registration_request_response(request)
 
-        return Response(
-            {
-                "message": "درخواست پیش‌ثبت‌نام با موفقیت ثبت شد.",
-            },
-            status=status.HTTP_201_CREATED,
-        )
+
+def create_registration_request_response(request):
+    serializer = RegistrationRequestCreateSerializer(
+        data=request.data,
+        context={"request": request},
+    )
+    serializer.is_valid(raise_exception=True)
+    registration_request = serializer.save()
+
+    return Response(
+        {
+            "message": "درخواست پیش‌ثبت‌نام با موفقیت ثبت شد.",
+            "id": registration_request.id,
+        },
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @extend_schema_view(

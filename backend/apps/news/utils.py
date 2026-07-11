@@ -1,4 +1,5 @@
 from html import unescape
+from urllib.parse import urlparse
 
 from django.core.exceptions import ValidationError
 from django.utils.html import strip_tags
@@ -7,10 +8,30 @@ ALLOWED_EDITOR_BLOCK_TYPES = {
     "paragraph",
     "header",
     "list",
-    "qoute",
+    "quote",
     "delimiter",
     "image",
 }
+
+LEGACY_BLOCK_TYPE_ALIASES = {
+    "qoute": "quote",
+}
+
+FORBIDDEN_URL_PREFIXES = (
+    "javascript:",
+    "data:",
+    "file:",
+    "vbscript:",
+)
+
+ALLOWED_URL_SCHEMES = {
+    "http",
+    "https",
+}
+
+MAX_EDITOR_BLOCKS = 100
+MAX_EDITOR_TEXT_LENGTH = 10000
+MAX_EDITOR_URL_LENGTH = 1000
 
 def default_news_content_json():
     return {
@@ -42,6 +63,12 @@ def validate_editorjs_content(value):
         blocks = []
 
     if not isinstance(blocks, list):
+        raise ValidationError("فهرست بلاک‌های محتوا معتبر نیست.")
+
+    if len(blocks) > MAX_EDITOR_BLOCKS:
+        raise ValidationError("تعداد بلاک‌های محتوا بیش از حد مجاز است.")
+
+    if not isinstance(blocks, list):
         raise ValidationError("فیلد blocks باید یک لیست باشد.")
 
     for index, block in enumerate(blocks):
@@ -49,11 +76,14 @@ def validate_editorjs_content(value):
             raise ValidationError(f"بلاک شماره {index + 1} معتبر نیست.")
 
         block_type = block.get("type")
+        block_type = LEGACY_BLOCK_TYPE_ALIASES.get(block_type, block_type)
 
         if block_type not in ALLOWED_EDITOR_BLOCK_TYPES:
             raise ValidationError(
                 f"نوع بلاک '{block_type}' مجاز نیست."
             )
+
+        block["type"] = block_type
 
         data = block.get("data", {})
 
@@ -70,19 +100,58 @@ def validate_editorjs_content(value):
 
     return normalized_value
 
+def validate_editor_text(value, field_label: str) -> None:
+    if value is None:
+        return
+
+    if not isinstance(value, str):
+        raise ValidationError(f"{field_label} معتبر نیست.")
+
+    if len(value) > MAX_EDITOR_TEXT_LENGTH:
+        raise ValidationError(f"{field_label} بیش از حد طولانی است.")
+
+
+def validate_safe_editor_url(url: str) -> str:
+    if not isinstance(url, str):
+        raise ValidationError("URL تصویر معتبر نیست.")
+
+    url = url.strip()
+
+    if not url:
+        raise ValidationError("URL تصویر الزامی است.")
+
+    if len(url) > MAX_EDITOR_URL_LENGTH:
+        raise ValidationError("URL تصویر بیش از حد طولانی است.")
+
+    lowered_url = url.lower().strip()
+
+    if lowered_url.startswith(FORBIDDEN_URL_PREFIXES):
+        raise ValidationError("URL تصویر مجاز نیست.")
+
+    if url.startswith("/"):
+        return url
+
+    parsed = urlparse(url)
+
+    if parsed.scheme and parsed.scheme not in ALLOWED_URL_SCHEMES:
+        raise ValidationError("Scheme لینک مجاز نیست.")
+
+    if not parsed.scheme and not url.startswith("/"):
+        raise ValidationError("URL باید داخلی یا http/https باشد.")
+
+    return url
+
 def _validate_block_data(block_type: str, data: dict, index: int) -> None:
     if block_type == "paragraph":
         text = data.get("text", "")
 
-        if text is not None and not isinstance(text, str):
-            raise ValidationError(f"متن پاراگراف شماره {index + 1} معتبر نیست.")
+        validate_editor_text(text, f"متن پاراگراف شماره {index + 1}")
 
     elif block_type == "header":
         text = data.get("text", "")
         level = data.get("level", 2)
 
-        if text is not None and not isinstance(text, str):
-            raise ValidationError(f"متن تیتر شماره {index + 1} معتبر نیست.")
+        validate_editor_text(text, f"متن تیتر شماره {index + 1}")
 
         if level not in (1, 2, 3, 4, 5, 6):
             raise ValidationError(f"سطح تیتر شماره {index + 1} معتبر نیست.")
@@ -101,11 +170,8 @@ def _validate_block_data(block_type: str, data: dict, index: int) -> None:
         text = data.get("text", "")
         caption = data.get("caption", "")
 
-        if text is not None and not isinstance(text, str):
-            raise ValidationError(f"متن نقل‌قول شماره {index + 1} معتبر نیست.")
-
-        if caption is not None and not isinstance(caption, str):
-            raise ValidationError(f"توضیح نقل‌قول شماره {index + 1} معتبر نیست.")
+        validate_editor_text(text, f"متن نقل‌قول شماره {index + 1}")
+        validate_editor_text(caption, f"توضیح نقل‌قول شماره {index + 1}")
 
     elif block_type == "image":
         file_data = data.get("file", {})
@@ -115,12 +181,9 @@ def _validate_block_data(block_type: str, data: dict, index: int) -> None:
             raise ValidationError(f"اطلاعات تصویر شماره {index + 1} معتبر نیست.")
 
         url = file_data.get("url")
+        file_data["url"] = validate_safe_editor_url(url)
 
-        if not url or not isinstance(url, str):
-            raise ValidationError(f"تصویر شماره {index + 1} باید URL معتبر داشته باشد.")
-
-        if caption is not None and not isinstance(caption, str):
-            raise ValidationError(f"کپشن تصویر شماره {index + 1} معتبر نیست.")
+        validate_editor_text(caption, f"کپشن تصویر شماره {index + 1}")
 
 
 def extract_editorjs_plain_text(value) -> str:

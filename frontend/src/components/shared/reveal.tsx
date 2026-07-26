@@ -10,6 +10,7 @@ type RevealProps = {
   reserveClassName?: string;
   delay?: number;
   mode?: RevealMode;
+  direction?: "up" | "right" | "left" | "scale";
 };
 
 export function Reveal({
@@ -18,6 +19,7 @@ export function Reveal({
   reserveClassName = "min-h-24",
   delay = 0,
   mode = "immediate",
+  direction = "up",
 }: RevealProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [shouldRender, setShouldRender] = useState(mode === "immediate");
@@ -25,58 +27,73 @@ export function Reveal({
 
   useEffect(() => {
     if (mode === "immediate") {
-      setShouldRender(true);
-      setIsVisible(true);
       return;
     }
-
-    const show = () => {
-      setShouldRender(true);
-      globalThis.setTimeout(() => {
-        setIsVisible(true);
-      }, 20);
-    };
 
     const element = ref.current;
-
-    if (!element) {
-      show();
-      return;
+    if (!element || typeof IntersectionObserver === "undefined") {
+      const timer = globalThis.setTimeout(() => {
+        setShouldRender(true);
+        setIsVisible(true);
+      }, 30);
+      return () => globalThis.clearTimeout(timer);
     }
 
-    if (typeof IntersectionObserver === "undefined") {
-      show();
-      return;
-    }
+    let frameOne = 0;
+    let frameTwo = 0;
 
-    const observer = new IntersectionObserver(
+    const reveal = () => {
+      setShouldRender(true);
+      frameOne = window.requestAnimationFrame(() => {
+        frameTwo = window.requestAnimationFrame(() => setIsVisible(true));
+      });
+    };
+
+    const preloadObserver = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting) {
-          return;
+        if (entry.isIntersecting) {
+          setShouldRender(true);
+          preloadObserver.disconnect();
         }
-
-        show();
-        observer.unobserve(entry.target);
       },
-      {
-        rootMargin: "180px 0px",
-        threshold: 0.04,
-      },
+      { rootMargin: "420px 0px", threshold: 0 },
     );
 
-    observer.observe(element);
+    const revealObserver = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          reveal();
+          revealObserver.disconnect();
+        }
+      },
+      { rootMargin: "0px 0px -8% 0px", threshold: 0.08 },
+    );
+
+    preloadObserver.observe(element);
+    revealObserver.observe(element);
 
     return () => {
-      observer.disconnect();
+      preloadObserver.disconnect();
+      revealObserver.disconnect();
+      window.cancelAnimationFrame(frameOne);
+      window.cancelAnimationFrame(frameTwo);
     };
   }, [mode]);
+
+  const hiddenTransform = {
+    up: "translate-y-12",
+    right: "translate-x-12",
+    left: "-translate-x-12",
+    scale: "scale-[.965]",
+  }[direction];
 
   return (
     <div
       ref={ref}
+      data-reveal-state={isVisible ? "visible" : "hidden"}
       style={{ transitionDelay: `${delay}ms` }}
-      className={`${shouldRender ? "" : reserveClassName} transform-gpu transition duration-700 ease-out motion-reduce:transform-none motion-reduce:transition-none ${
-        isVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
+      className={`${shouldRender ? "" : reserveClassName} transform-gpu transition-[opacity,transform,filter] duration-[950ms] ease-[cubic-bezier(.16,1,.3,1)] ${
+        isVisible ? "translate-x-0 translate-y-0 scale-100 opacity-100 blur-0" : `${hiddenTransform} opacity-0 blur-[3px]`
       } ${className}`}
     >
       {shouldRender ? children : null}

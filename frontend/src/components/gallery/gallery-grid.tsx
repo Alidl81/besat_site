@@ -13,7 +13,7 @@ export function GalleryGrid({ items }: GalleryGridProps) {
   if (items.length === 0) {
     return (
       <div className="rounded-[2rem] border border-dashed border-slate-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-3xl bg-emerald-50 text-2xl text-emerald-700">
+        <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-3xl bg-blue-50 text-2xl text-blue-700">
           ◌
         </div>
 
@@ -31,7 +31,7 @@ export function GalleryGrid({ items }: GalleryGridProps) {
       {items.map((item) => (
         <article
           key={item.id}
-          className="group overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm transition duration-500 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl hover:shadow-slate-200/70"
+          className="group overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm transition duration-500 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/70"
         >
           <div className="aspect-[4/3] overflow-hidden bg-slate-100">
             <img

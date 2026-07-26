@@ -80,7 +80,7 @@ return (
 
       <Link
         href={session.redirectPath}
-        className="besat-green-button inline-flex h-14 w-full items-center justify-center rounded-2xl bg-emerald-600 px-5 text-sm font-black transition hover:bg-emerald-700 lg:h-11 lg:w-auto"
+        className="besat-accent-button inline-flex h-14 w-full items-center justify-center rounded-2xl bg-blue-600 px-5 text-sm font-black transition hover:bg-blue-700 lg:h-11 lg:w-auto"
       >
         پنل من
       </Link>

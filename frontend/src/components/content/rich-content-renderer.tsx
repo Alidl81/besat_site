@@ -202,7 +202,7 @@ function GalleryBlock({
             key={`${item.src}-${index}`}
             type="button"
             onClick={() => goToIndex(index)}
-            className="group overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white p-2 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-emerald-300 hover:shadow-[0_18px_45px_rgba(15,23,42,0.12)]"
+            className="group overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white p-2 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-[0_18px_45px_rgba(15,23,42,0.12)]"
             style={
               isScrollable
                 ? {

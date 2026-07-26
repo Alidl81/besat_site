@@ -10,7 +10,7 @@ export function MessagesManager() {
       key: "read",
       header: "",
       render: (i) =>
-        i.is_read ? null : <span className="inline-block size-2.5 rounded-full bg-emerald-500" />,
+        i.is_read ? null : <span className="inline-block size-2.5 rounded-full bg-blue-500" />,
     },
     { key: "name", header: "فرستنده", render: (i) => <span className="font-black">{i.name}</span> },
     { key: "subject", header: "موضوع", render: (i) => <span>{i.subject}</span> },
@@ -52,7 +52,7 @@ export function MessagesManager() {
             onClick={() =>
               update(item.id, { is_read: true } as Partial<WithoutSystemFields<ContactMessageRecord>>)
             }
-            className="rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-700 transition hover:bg-emerald-100"
+            className="rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 transition hover:bg-blue-100"
           >
             علامت خوانده‌شده
           </button>

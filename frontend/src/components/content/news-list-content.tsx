@@ -60,7 +60,7 @@ export function NewsListContent() {
   if (items === null) {
     return (
       <div className="flex min-h-56 items-center justify-center rounded-[2rem] border border-slate-200 bg-white">
-        <div className="size-10 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-500" />
+        <div className="size-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
       </div>
     );
   }
@@ -80,7 +80,7 @@ export function NewsListContent() {
         return (
           <article
             key={item.id}
-            className="group overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white text-right shadow-sm transition duration-500 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-[0_24px_60px_rgba(15,23,42,0.10)]"
+            className="group overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white text-right shadow-sm transition duration-500 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_24px_60px_rgba(15,23,42,0.10)]"
           >
             <Link href={href} className="block">
               {coverImage ? (
@@ -92,12 +92,12 @@ export function NewsListContent() {
                   />
                 </div>
               ) : (
-                <div className="aspect-[16/9] bg-gradient-to-br from-[#143e61]/10 via-[#0d3157]/5 to-emerald-50" />
+                <div className="aspect-[16/9] bg-gradient-to-br from-[#143e61]/10 via-[#0d3157]/5 to-blue-50" />
               )}
 
               <div className="p-5">
                 {item.category ? (
-                  <span className="mb-3 inline-block rounded-xl bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                  <span className="mb-3 inline-block rounded-xl bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
                     {item.category}
                   </span>
                 ) : null}

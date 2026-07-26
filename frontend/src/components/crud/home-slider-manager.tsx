@@ -24,7 +24,7 @@ export function HomeSliderManager() {
       key: "active",
       header: "وضعیت",
       render: (i) => (
-        <span className={`rounded-xl px-3 py-1 text-xs font-black ${i.is_active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+        <span className={`rounded-xl px-3 py-1 text-xs font-black ${i.is_active ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
           {i.is_active ? "فعال" : "غیرفعال"}
         </span>
       ),
@@ -98,7 +98,7 @@ function SlideForm({
       </div>
       <label className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
         <span className="text-sm font-black text-[#062452]">اسلاید فعال (نمایش در سایت)</span>
-        <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="size-5 rounded border-slate-300 accent-emerald-600" />
+        <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="size-5 rounded border-slate-300 accent-blue-600" />
       </label>
       <FormActions onCancel={onCancel} submitting={submitting} />
     </form>

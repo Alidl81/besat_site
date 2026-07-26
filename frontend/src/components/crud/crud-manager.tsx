@@ -119,7 +119,7 @@ export function CrudManager<T extends BaseRecord>({
 
       {loading ? (
         <div className="flex min-h-40 items-center justify-center">
-          <div className="size-10 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-500" />
+          <div className="size-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
         </div>
       ) : items.length === 0 ? (
         <EmptyState text={emptyText} />
@@ -157,7 +157,7 @@ export function CrudManager<T extends BaseRecord>({
                         <button
                           type="button"
                           onClick={() => openEdit(item)}
-                          className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-black text-[#062452] transition hover:bg-emerald-50 hover:text-emerald-700"
+                          className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-black text-[#062452] transition hover:bg-blue-50 hover:text-blue-700"
                         >
                           ویرایش
                         </button>

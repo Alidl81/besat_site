@@ -100,7 +100,7 @@ export function ScopedTabs({ tabs, activeKey, onChange, children }: ScopedTabsPr
               type="button"
               onClick={() => onChange(tab.key)}
               className={`relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 text-xs font-black transition-colors duration-400 sm:gap-2 sm:px-4 sm:text-sm ${
-                isActive ? "text-white" : "text-[#062452] hover:text-emerald-700"
+                isActive ? "text-white" : "text-[#062452] hover:text-blue-700"
               }`}
             >
               <span className="text-base">{tab.icon}</span>

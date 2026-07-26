@@ -135,7 +135,7 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
               name="fullName"
               defaultValue={profile?.full_name ?? ""}
               key={profile?.full_name}
-              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
+              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
             />
           </label>
 
@@ -146,7 +146,7 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
               name="phone"
               defaultValue={profile?.phone ?? ""}
               key={profile?.phone}
-              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
+              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
             />
           </label>
 
@@ -157,7 +157,7 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
               name="email"
               defaultValue={profile?.email ?? ""}
               key={profile?.email}
-              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
+              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
             />
           </label>
 
@@ -179,7 +179,7 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
               defaultValue={profile?.description ?? ""}
               key={profile?.description}
               rows={4}
-              className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
+              className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
             />
           </label>
 
@@ -187,7 +187,7 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
             <p
               className={`rounded-2xl px-4 py-3 text-right text-sm font-black md:col-span-2 ${
                 profileMessage.ok
-                  ? "bg-emerald-50 text-emerald-700"
+                  ? "bg-blue-50 text-blue-700"
                   : "bg-rose-50 text-rose-700"
               }`}
             >
@@ -222,7 +222,7 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
               type="password"
               name="currentPassword"
               required
-              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
+              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
             />
           </label>
 
@@ -232,7 +232,7 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
               type="password"
               name="newPassword"
               required
-              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
+              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
             />
           </label>
 
@@ -242,7 +242,7 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
               type="password"
               name="confirmPassword"
               required
-              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
+              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
             />
           </label>
 
@@ -250,7 +250,7 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
             <p
               className={`rounded-2xl px-4 py-3 text-right text-sm font-black md:col-span-3 ${
                 passwordMessage.ok
-                  ? "bg-emerald-50 text-emerald-700"
+                  ? "bg-blue-50 text-blue-700"
                   : "bg-rose-50 text-rose-700"
               }`}
             >

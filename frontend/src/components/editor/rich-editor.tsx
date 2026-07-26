@@ -106,9 +106,9 @@ function setElementClass(element: HTMLElement, selected: boolean) {
     "bg-slate-50",
     "p-3",
     "transition",
-    selected ? "border-emerald-400" : "border-slate-200",
+    selected ? "border-blue-400" : "border-slate-200",
     selected ? "ring-4" : "",
-    selected ? "ring-emerald-100" : "",
+    selected ? "ring-blue-100" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -239,19 +239,19 @@ function createGalleryNodeView({
   const handles: { corner: "top-right" | "top-left" | "bottom-right" | "bottom-left"; className: string }[] = [
     {
       corner: "top-right",
-      className: "absolute right-[-0.45rem] top-[-0.45rem] size-4 rounded-md border border-emerald-500 bg-white shadow",
+      className: "absolute right-[-0.45rem] top-[-0.45rem] size-4 rounded-md border border-blue-500 bg-white shadow",
     },
     {
       corner: "top-left",
-      className: "absolute left-[-0.45rem] top-[-0.45rem] size-4 rounded-md border border-emerald-500 bg-white shadow",
+      className: "absolute left-[-0.45rem] top-[-0.45rem] size-4 rounded-md border border-blue-500 bg-white shadow",
     },
     {
       corner: "bottom-right",
-      className: "absolute bottom-[-0.45rem] right-[-0.45rem] size-4 rounded-md border border-emerald-500 bg-white shadow",
+      className: "absolute bottom-[-0.45rem] right-[-0.45rem] size-4 rounded-md border border-blue-500 bg-white shadow",
     },
     {
       corner: "bottom-left",
-      className: "absolute bottom-[-0.45rem] left-[-0.45rem] size-4 rounded-md border border-emerald-500 bg-white shadow",
+      className: "absolute bottom-[-0.45rem] left-[-0.45rem] size-4 rounded-md border border-blue-500 bg-white shadow",
     },
   ];
 

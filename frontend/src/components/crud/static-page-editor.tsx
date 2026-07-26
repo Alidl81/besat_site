@@ -93,7 +93,7 @@ export function StaticPageEditor({ slug }: StaticPageEditorProps) {
       {message ? (
         <div
           className={`rounded-2xl px-4 py-3 text-right text-sm font-black ${
-            message.ok ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+            message.ok ? "bg-blue-50 text-blue-700" : "bg-rose-50 text-rose-700"
           }`}
         >
           {message.text}
@@ -111,7 +111,7 @@ export function StaticPageEditor({ slug }: StaticPageEditorProps) {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
+              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
             />
           </label>
 
@@ -124,7 +124,7 @@ export function StaticPageEditor({ slug }: StaticPageEditorProps) {
               value={metaDescription}
               onChange={(e) => setMetaDescription(e.target.value)}
               placeholder="توضیح کوتاه برای نمایش در نتایج جستجو"
-              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
+              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
             />
           </label>
 

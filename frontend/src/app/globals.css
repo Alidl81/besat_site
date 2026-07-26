@@ -1,4 +1,6 @@
 ﻿@import "tailwindcss";
+@source not "../../public/images/home-slider/بررسی قالب HTML Digimark.html";
+@source not "../../public/images/home-slider/بررسی قالب HTML Digimark_files";
 
 @font-face {
   font-family: "Estedad";
@@ -17,11 +19,11 @@
 }
 
 :root {
-  --color-primary: #0f2f4a;
-  --color-primary-soft: #e8f0f7;
-  --color-accent: #16a36a;
-  --color-accent-soft: #e8f8f0;
-  --color-bg: #f6f8fa;
+  --color-primary: #0a2848;
+  --color-primary-soft: #e8eef3;
+  --color-accent: #c98c3d;
+  --color-accent-soft: #fbf3e7;
+  --color-bg: #fbfaf7;
   --color-surface: #ffffff;
   --color-border: #e5e7eb;
   --color-text: #0f172a;
@@ -45,6 +47,400 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-main);
+  overflow-x: hidden;
+  text-rendering: optimizeLegibility;
+}
+
+img {
+  display: block;
+}
+
+:where(a, button, input, select, textarea, summary) {
+  transition-duration: 280ms;
+  transition-timing-function: cubic-bezier(.2, .8, .2, 1);
+}
+
+@keyframes besat-carousel-enter {
+  from { opacity: 0; transform: translateY(34px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes besat-orbit-enter {
+  0% { opacity: 0; transform: scale(.78) rotate(-16deg); filter: blur(6px); }
+  65% { opacity: 1; transform: scale(1.025) rotate(2deg); filter: blur(0); }
+  to { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@keyframes besat-page-enter {
+  from { opacity: 0; transform: translateY(12px); filter: blur(2px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes besat-dropdown-in {
+  0% { opacity: 0; transform: translate(50%, -12px) scale(.94); clip-path: inset(0 0 100% 0 round 1rem); }
+  100% { opacity: 1; transform: translate(50%, 0) scale(1); clip-path: inset(0 0 0 0 round 1rem); }
+}
+
+@keyframes besat-menu-glow {
+  0%, 100% { box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), 0 0 0 rgba(226,174,91,0); }
+  50% { box-shadow: inset 0 0 0 1px rgba(255,255,255,.16), 0 0 24px rgba(226,174,91,.13); }
+}
+
+@keyframes besat-ken-burns {
+  from { transform: scale(1.01) translate3d(0, 0, 0); }
+  to { transform: scale(1.075) translate3d(-.7%, -.4%, 0); }
+}
+
+@keyframes besat-soft-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+@keyframes besat-hero-line-in {
+  from { opacity: 0; transform: translateY(28px); filter: blur(5px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes besat-carousel-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes besat-stagger-item {
+  from { opacity: 0; transform: translateY(26px) scale(.975); filter: blur(4px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes besat-content-swap {
+  from { opacity: 0; transform: translateX(-18px); filter: blur(3px); }
+  to { opacity: 1; transform: translateX(0); filter: blur(0); }
+}
+
+@keyframes besat-overlay-in {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to { opacity: 1; }
+}
+
+@keyframes besat-modal-in {
+  from { opacity: 0; transform: translateY(34px) scale(.94); filter: blur(5px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes besat-orbit-ring {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes besat-orbit-core {
+  0%, 100% { box-shadow: 0 20px 45px rgba(18,57,91,.28), 0 0 0 0 rgba(201,140,61,.18); }
+  50% { box-shadow: 0 20px 45px rgba(18,57,91,.34), 0 0 0 13px rgba(201,140,61,0); }
+}
+
+@keyframes besat-tour-backdrop-drift {
+  0%, 100% { transform: scale(1.055) translate3d(-.35%, 0, 0); }
+  50% { transform: scale(1.085) translate3d(.45%, -.5%, 0); }
+}
+
+@keyframes besat-tour-shutter-top-idle {
+  0%, 100% { transform: translateY(-5px); }
+  50% { transform: translateY(4px); }
+}
+
+@keyframes besat-tour-shutter-bottom-idle {
+  0%, 100% { transform: translateY(5px); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes besat-tour-shutter-open-top {
+  0% { transform: translateY(0); }
+  35% { transform: translateY(10px); }
+  100% { transform: translateY(-126%); }
+}
+
+@keyframes besat-tour-shutter-open-bottom {
+  0% { transform: translateY(0); }
+  35% { transform: translateY(-10px); }
+  100% { transform: translateY(126%); }
+}
+
+@keyframes besat-tour-orbit {
+  0%, 100% { transform: translateY(0) rotate(0); box-shadow: 0 20px 70px rgba(0,0,0,.35), 0 0 0 0 rgba(226,174,91,.18); }
+  50% { transform: translateY(-8px) rotate(2deg); box-shadow: 0 28px 80px rgba(0,0,0,.4), 0 0 0 14px rgba(226,174,91,0); }
+}
+
+@keyframes besat-room-content-in {
+  from { opacity: 0; transform: translateY(24px) scale(.985); filter: blur(5px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes besat-door-in {
+  from { opacity: 0; transform: translateY(34px) rotateX(-8deg); }
+  to { opacity: 1; transform: translateY(0) rotateX(0); }
+}
+
+@keyframes besat-tour-preview-drift {
+  0%, 100% { transform: scale(1.08) translate3d(-1.2%, 0, 0); }
+  50% { transform: scale(1.14) translate3d(1.2%, -.7%, 0); }
+}
+
+.besat-carousel-enter {
+  opacity: 0;
+}
+
+.besat-orbit-enter {
+  animation: besat-orbit-enter 850ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.besat-page-enter {
+  animation: besat-page-enter 650ms cubic-bezier(.16,1,.3,1) both;
+}
+
+.besat-dropdown-panel[data-open="true"] {
+  animation: besat-dropdown-in 460ms cubic-bezier(.16,1,.3,1) both;
+}
+
+.besat-dropdown-surface {
+  background: rgba(255, 255, 255, .985);
+  border-color: rgba(203, 213, 225, .78);
+  color: #0a2848;
+}
+
+.besat-dropdown-heading {
+  border-color: #e5eaf0;
+  color: #a9661d !important;
+}
+
+.besat-dropdown-item,
+.besat-dropdown-title {
+  color: #0a2848 !important;
+}
+
+.besat-dropdown-description {
+  color: #52677d !important;
+}
+
+.besat-dropdown-arrow {
+  color: #b97827 !important;
+}
+
+.besat-menu-trigger[data-open="true"] {
+  animation: besat-menu-glow 1.8s ease-in-out infinite;
+}
+
+.besat-hero-ken-burns {
+  animation: besat-ken-burns 9s ease-in-out alternate infinite;
+}
+
+.besat-soft-float {
+  animation: besat-soft-float 3.6s ease-in-out infinite;
+}
+
+.besat-hero-line {
+  opacity: 0;
+  animation: besat-hero-line-in 800ms cubic-bezier(.16,1,.3,1) forwards;
+}
+
+.besat-hero-line-1 { animation-delay: 100ms; }
+.besat-hero-line-2 { animation-delay: 190ms; }
+.besat-hero-line-3 { animation-delay: 280ms; }
+.besat-hero-line-4 { animation-delay: 370ms; }
+.besat-hero-line-5 { animation-delay: 460ms; }
+
+.besat-carousel-progress {
+  animation: besat-carousel-progress 3.6s linear forwards;
+}
+
+.besat-orbit-ring {
+  animation: besat-orbit-ring 24s linear infinite;
+}
+
+.besat-orbit-core {
+  animation: besat-orbit-core 2.8s ease-in-out infinite;
+}
+
+.besat-tour-backdrop {
+  animation: besat-tour-backdrop-drift 12s ease-in-out infinite;
+  will-change: transform;
+}
+
+.besat-tour-shutter {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 12;
+  height: 22%;
+  border-color: rgba(9, 38, 67, .12);
+  background:
+    repeating-linear-gradient(180deg, rgba(5, 31, 55, .06) 0, rgba(5, 31, 55, .06) 1px, transparent 1px, transparent 14px),
+    linear-gradient(180deg, #fffefb, #f6f3eb);
+  box-shadow: 0 16px 42px rgba(3, 18, 33, .2);
+  will-change: transform;
+}
+
+.besat-tour-shutter::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 8px;
+  background: linear-gradient(90deg, #a96e27, #edc987 22%, #bd843b 50%, #edc987 78%, #a96e27);
+  box-shadow: 0 4px 16px rgba(4, 23, 41, .2);
+}
+
+.besat-tour-shutter-top {
+  top: -50px;
+  border-bottom: 1px solid rgba(9, 38, 67, .16);
+  animation: besat-tour-shutter-top-idle 4.6s ease-in-out infinite;
+}
+
+.besat-tour-shutter-top::after { bottom: 0; }
+
+.besat-tour-shutter-bottom {
+  bottom: -50px;
+  border-top: 1px solid rgba(9, 38, 67, .16);
+  animation: besat-tour-shutter-bottom-idle 4.6s ease-in-out infinite;
+}
+
+.besat-tour-shutter-bottom::after { top: 0; }
+
+.besat-tour-shutter-handle {
+  position: absolute;
+  left: 50%;
+  width: 76px;
+  height: 9px;
+  border: 1px solid rgba(112, 74, 30, .42);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f6dba7, #b8792e);
+  transform: translateX(-50%);
+  box-shadow: 0 5px 15px rgba(82, 50, 16, .22);
+}
+
+.besat-tour-shutter-top .besat-tour-shutter-handle { bottom: 18px; }
+.besat-tour-shutter-bottom .besat-tour-shutter-handle { top: 18px; }
+
+.besat-tour-entry[data-opening="true"] .besat-tour-shutter-top {
+  animation: besat-tour-shutter-open-top 820ms cubic-bezier(.65,0,.2,1) both;
+}
+
+.besat-tour-entry[data-opening="true"] .besat-tour-shutter-bottom {
+  animation: besat-tour-shutter-open-bottom 820ms cubic-bezier(.65,0,.2,1) both;
+}
+
+.besat-tour-entry[data-opening="true"] > .relative {
+  opacity: 0;
+  transform: scale(1.035);
+  transition: opacity 400ms ease, transform 700ms cubic-bezier(.2,.8,.2,1);
+}
+
+.besat-tour-orbit {
+  animation: besat-tour-orbit 4s ease-in-out infinite;
+}
+
+.besat-tour-room {
+  background:
+    radial-gradient(circle at 50% 34%, rgba(42, 83, 116, .46), transparent 33%),
+    linear-gradient(180deg, #102d49 0%, #071b31 52%, #04101f 100%);
+}
+
+.besat-tour-room-ceiling {
+  background:
+    linear-gradient(110deg, transparent 0 49.7%, rgba(226,174,91,.18) 50%, transparent 50.3%),
+    linear-gradient(70deg, transparent 0 49.7%, rgba(226,174,91,.18) 50%, transparent 50.3%),
+    linear-gradient(180deg, rgba(2,11,22,.72), rgba(10,37,62,.08));
+  clip-path: polygon(0 0, 100% 0, 82% 100%, 18% 100%);
+}
+
+.besat-tour-room-floor {
+  background:
+    linear-gradient(90deg, transparent 49.65%, rgba(226,174,91,.14) 50%, transparent 50.35%),
+    repeating-linear-gradient(90deg, transparent 0, transparent 8.8%, rgba(255,255,255,.055) 9%, transparent 9.2%),
+    repeating-linear-gradient(180deg, transparent 0, transparent 17%, rgba(255,255,255,.07) 17.3%, transparent 17.6%),
+    linear-gradient(180deg, rgba(11,42,67,.08), #030d19 94%);
+  clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%);
+  transform-origin: top;
+}
+
+.besat-room-content {
+  animation: besat-room-content-in 720ms cubic-bezier(.16,1,.3,1) both;
+}
+
+.besat-lobby-door {
+  opacity: 0;
+  animation: besat-door-in 650ms cubic-bezier(.16,1,.3,1) forwards;
+}
+
+.besat-lobby-door-frame {
+  position: relative;
+  transition:
+    transform 520ms cubic-bezier(.16,1,.3,1),
+    filter 520ms cubic-bezier(.16,1,.3,1),
+    box-shadow 520ms cubic-bezier(.16,1,.3,1);
+  will-change: transform;
+}
+
+.besat-lobby-door-leaf {
+  transition:
+    transform 520ms cubic-bezier(.16,1,.3,1),
+    box-shadow 520ms cubic-bezier(.16,1,.3,1),
+    border-color 520ms cubic-bezier(.16,1,.3,1);
+}
+
+.besat-lobby-door:hover .besat-lobby-door-frame,
+.besat-lobby-door:focus-visible .besat-lobby-door-frame {
+  transform: translateY(-7px) scale(1.018);
+  filter: brightness(1.07) saturate(1.04);
+  box-shadow: 0 30px 64px rgba(0,0,0,.4), 0 0 0 1px rgba(242,207,141,.34);
+}
+
+.besat-lobby-door:hover .besat-lobby-door-leaf,
+.besat-lobby-door:focus-visible .besat-lobby-door-leaf {
+  transform: scale(.992);
+  border-color: rgba(255, 231, 184, .7);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), inset 0 -36px 70px rgba(4,18,34,.16);
+}
+
+.besat-door-gallery {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(226,174,91,.5) rgba(255,255,255,.05);
+}
+
+.besat-door-gallery::-webkit-scrollbar { width: 6px; }
+.besat-door-gallery::-webkit-scrollbar-track { background: rgba(255,255,255,.05); border-radius: 999px; }
+.besat-door-gallery::-webkit-scrollbar-thumb { background: rgba(226,174,91,.5); border-radius: 999px; }
+
+.besat-tour-preview-drift {
+  animation: besat-tour-preview-drift 14s ease-in-out infinite;
+  will-change: transform;
+}
+
+.pnlm-container,
+.pnlm-container * {
+  font-family: var(--font-main) !important;
+}
+
+[data-reveal-state="hidden"] [data-stagger-item] {
+  opacity: 0;
+}
+
+[data-reveal-state="visible"] [data-stagger-item] {
+  opacity: 0;
+  animation: besat-stagger-item 760ms cubic-bezier(.16,1,.3,1) forwards;
+}
+
+[data-reveal-state="visible"] .besat-carousel-enter {
+  animation: besat-carousel-enter 900ms cubic-bezier(.16,1,.3,1) forwards;
+}
+
+
+.besat-content-swap {
+  animation: besat-content-swap 600ms cubic-bezier(.16,1,.3,1) both;
+}
+
+.besat-modal-overlay {
+  animation: besat-overlay-in 280ms ease-out both;
+}
+
+.besat-modal-panel {
+  animation: besat-modal-in 520ms cubic-bezier(.16,1,.3,1) both;
 }
 
 a {
@@ -71,8 +467,8 @@ button {
 }
 
 ::selection {
-  background: #d1fae5;
-  color: #064e3b;
+  background: #f3dfbf;
+  color: #0a2848;
 }
 
 /* BESAT_CUSTOM_UI_START */
@@ -126,7 +522,7 @@ button[class*="bg-[#062452]"] span {
   bottom: 0.35rem;
   height: 2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(22, 163, 106, 0), #16a36a, rgba(22, 163, 106, 0));
+  background: linear-gradient(90deg, rgba(201, 140, 61, 0), #c98c3d, rgba(201, 140, 61, 0));
   transform: scaleX(0);
   transform-origin: center;
   opacity: 0;
@@ -136,7 +532,7 @@ button[class*="bg-[#062452]"] span {
 }
 
 .besat-nav-link:hover {
-  color: #047857;
+  color: #174f7a;
   background: #ffffff;
   transform: translateY(-1px);
 }
@@ -163,14 +559,14 @@ button[class*="bg-[#062452]"] span {
   width: 0;
   height: 2px;
   border-radius: 999px;
-  background: #16a36a;
+  background: #c98c3d;
   transform: translateY(-50%);
   transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .besat-mobile-link:hover {
-  color: #047857;
-  background: #ecfdf5;
+  color: #174f7a;
+  background: #eef5fa;
   padding-right: 2rem;
 }
 
@@ -199,7 +595,7 @@ button[class*="bg-[#062452]"] span {
   bottom: 0.55rem;
   height: 2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(22, 163, 106, 0), #16a36a, rgba(22, 163, 106, 0));
+  background: linear-gradient(90deg, rgba(201, 140, 61, 0), #c98c3d, rgba(201, 140, 61, 0));
   transform: scaleX(0);
   transform-origin: center;
   opacity: 0;
@@ -209,10 +605,10 @@ button[class*="bg-[#062452]"] span {
 }
 
 .besat-tab-link:hover {
-  color: #047857;
-  background: #ecfdf5;
+  color: #174f7a;
+  background: #eef5fa;
   transform: translateY(-1px);
-  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.22), 0 12px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(43, 111, 159, 0.24), 0 12px 24px rgba(15, 23, 42, 0.06);
 }
 
 .besat-tab-link:hover::after {
@@ -232,7 +628,7 @@ button[class*="bg-[#062452]"] span {
 }
 
 .besat-tab-link-active::after {
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0), #34d399, rgba(255, 255, 255, 0));
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), #e2ae5b, rgba(255, 255, 255, 0));
   transform: scaleX(1);
   opacity: 1;
 }
@@ -257,14 +653,14 @@ button[class*="bg-[#062452]"] span {
 }
 
 .dashboard-quick-link:hover {
-  background: #ecfdf5 !important;
-  color: #047857 !important;
+  background: #eef5fa !important;
+  color: #174f7a !important;
   transform: translateY(-2px);
 }
 
 .dashboard-quick-link:hover span,
 .dashboard-quick-link:hover svg {
-  color: #047857 !important;
+  color: #174f7a !important;
 }
 
 .dashboard-sidebar-text,
@@ -299,13 +695,13 @@ button[class*="bg-[#062452]"] span {
 }
 
 .besat-panel-white-link:hover {
-  background: #ecfdf5 !important;
-  color: #047857 !important;
+  background: #eef5fa !important;
+  color: #174f7a !important;
 }
 
 .besat-panel-white-link:hover span,
 .besat-panel-white-link:hover svg {
-  color: #047857 !important;
+  color: #174f7a !important;
 }
 
 .besat-panel-soft-link,
@@ -317,7 +713,7 @@ button[class*="bg-[#062452]"] span {
 .besat-panel-soft-link:hover,
 .besat-panel-soft-link:hover span,
 .besat-panel-soft-link:hover svg {
-  color: #047857 !important;
+  color: #174f7a !important;
 }
 /* BESAT_DASHBOARD_IMAGE_UI_END */
 
@@ -351,19 +747,19 @@ button.besat-navy-button * {
   color: #ffffff !important;
 }
 
-.besat-green-button,
-.besat-green-button *,
-a.besat-green-button,
-a.besat-green-button *,
-button.besat-green-button,
-button.besat-green-button * {
+.besat-accent-button,
+.besat-accent-button *,
+a.besat-accent-button,
+a.besat-accent-button *,
+button.besat-accent-button,
+button.besat-accent-button * {
   color: #ffffff !important;
 }
 
 .besat-navy-button:hover,
 .besat-navy-button:hover *,
-.besat-green-button:hover,
-.besat-green-button:hover * {
+.besat-accent-button:hover,
+.besat-accent-button:hover * {
   color: #ffffff !important;
 }
 /* BESAT_BUTTON_COLOR_FIX_END */
@@ -419,15 +815,15 @@ button.besat-green-button * {
   margin: 0.25rem 0;
 }
 .besat-rich-content blockquote {
-  border-right: 4px solid #34d399;
-  background: #ecfdf5;
+  border-right: 4px solid #e2ae5b;
+  background: #fbf3e7;
   padding: 0.75rem 1rem;
   margin: 0.75rem 0;
   border-radius: 0.75rem;
-  color: #065f46;
+  color: #174f7a;
 }
 .besat-rich-content a {
-  color: #047857;
+  color: #174f7a;
   text-decoration: underline;
   font-weight: 700;
 }

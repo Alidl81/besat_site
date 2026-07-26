@@ -43,7 +43,7 @@ export function UnitsExplorerSection({ variant, initialSlug }: ExplorerSectionPr
   if (items === null) {
     return (
       <div className="flex min-h-[28rem] items-center justify-center bg-[#f8fafc]">
-        <div className="size-12 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-500" />
+        <div className="size-12 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
       </div>
     );
   }
@@ -53,7 +53,7 @@ export function UnitsExplorerSection({ variant, initialSlug }: ExplorerSectionPr
       <section className="bg-[#f8fafc] py-16">
         <div className="mx-auto max-w-3xl px-4 text-center">
           <div className="rounded-[2rem] border border-dashed border-slate-200 bg-white p-10 shadow-sm">
-            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-emerald-50 text-2xl text-emerald-700">
+            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-blue-50 text-2xl text-blue-700">
               ○
             </div>
             <p className="text-sm font-bold leading-8 text-slate-500">

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BesatLogoMark } from "@/components/shared/besat-logo";
+import { AnimatedCounter } from "@/components/shared/animated-counter";
 
 type FooterLink = {
   label: string;
@@ -168,13 +169,13 @@ function LinkIcon() {
 export function SiteFooter() {
   return (
     <footer dir="rtl" className="relative overflow-hidden bg-[#071524] text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(20,184,166,0.24),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(14,165,233,0.16),transparent_30%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(43,111,159,0.22),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(14,165,233,0.16),transparent_30%)]" />
 
       <div className="relative mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
         <div className="grid overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.06] shadow-[0_28px_80px_rgba(0,0,0,0.22)] backdrop-blur-xl lg:grid-cols-[1.35fr_0.85fr_1.1fr_1.15fr]">
           <section className="border-b border-white/10 p-6 text-right lg:border-b-0 lg:border-l lg:p-8">
             <div className="flex items-start justify-start gap-4">
-              <BesatLogoMark size="md" />
+              <BesatLogoMark size="md" tone="light" />
               <div>
                 <h2 className="text-2xl font-black leading-10">
                   مدرسه بعثت
@@ -190,17 +191,17 @@ export function SiteFooter() {
               و آماده‌سازی نسل آینده با نگاهی روشن و انسانی است.
             </p>
 
-            <div className="mt-8 grid grid-cols-3 gap-3">
-              <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.06] p-4 text-center">
-                <p className="text-2xl font-black">+۳۲</p>
+            <div className="mt-8 grid grid-cols-2 gap-3">
+              <div className="flex min-h-[128px] min-w-0 flex-col items-center justify-center rounded-[1.4rem] border border-white/10 bg-white/[0.06] p-4 text-center">
+                <p className="text-2xl font-black"><AnimatedCounter target={32} before="+" duration={1100} /></p>
                 <p className="mt-2 text-xs font-bold text-white/55">سال سابقه</p>
               </div>
-              <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.06] p-4 text-center">
-                <p className="text-lg font-black leading-8">پیش‌دبستانی تا دبیرستان</p>
+              <div className="flex min-h-[128px] min-w-0 flex-col items-center justify-center rounded-[1.4rem] border border-white/10 bg-white/[0.06] p-4 text-center">
+                <p className="max-w-full text-base font-black leading-8">پیش‌دبستانی تا دبیرستان</p>
                 <p className="mt-2 text-xs font-bold text-white/55">مسیر آموزشی</p>
               </div>
-              <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.06] p-4 text-center">
-                <p className="text-lg font-black leading-8">دخترانه و پسرانه</p>
+              <div className="col-span-2 flex min-h-[104px] min-w-0 flex-col items-center justify-center rounded-[1.4rem] border border-white/10 bg-white/[0.06] p-4 text-center">
+                <p className="max-w-full text-base font-black leading-8">دخترانه و پسرانه</p>
                 <p className="mt-2 text-xs font-bold text-white/55">مدارس بعثت</p>
               </div>
             </div>
@@ -235,7 +236,7 @@ export function SiteFooter() {
 
           <section className="border-b border-white/10 p-6 text-right lg:border-b-0 lg:border-l lg:p-8">
             <div className="flex items-center justify-start gap-3">
-              <span className="flex size-10 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300">
+              <span className="flex size-10 items-center justify-center rounded-2xl bg-blue-400/10 text-blue-300">
                 <LinkIcon />
               </span>
               <div>
@@ -370,7 +371,7 @@ export function SiteFooter() {
                 </Link>
                 <Link
                   href="/registration"
-                  className="besat-green-button inline-flex h-12 items-center justify-center rounded-2xl bg-emerald-600 px-5 text-sm font-black transition hover:bg-emerald-700"
+                  className="besat-accent-button inline-flex h-12 items-center justify-center rounded-2xl bg-blue-600 px-5 text-sm font-black transition hover:bg-blue-700"
                 >
                   پیش‌ثبت‌نام
                 </Link>

@@ -45,7 +45,7 @@ export function RegistrationsManager({ unitId = null }: RegistrationsManagerProp
               status: e.target.value as RegistrationRequestRecord["status"],
             } as Partial<WithoutSystemFields<RegistrationRequestRecord>>)
           }
-          className="rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-xs font-black text-[#062452] outline-none focus:border-emerald-400"
+          className="rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-xs font-black text-[#062452] outline-none focus:border-blue-400"
         >
           <option value="new">جدید</option>
           <option value="reviewing">در حال بررسی</option>

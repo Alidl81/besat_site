@@ -121,7 +121,7 @@ export function Field({ label, children, required, className = "" }: FieldProps)
 }
 
 const inputClass =
-  "h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white";
+  "h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white";
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${inputClass} ${props.className ?? ""}`} />;
@@ -131,7 +131,7 @@ export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   return (
     <textarea
       {...props}
-      className={`w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white ${props.className ?? ""}`}
+      className={`w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white ${props.className ?? ""}`}
     />
   );
 }
@@ -140,7 +140,7 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className={`h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white ${props.className ?? ""}`}
+      className={`h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white ${props.className ?? ""}`}
     />
   );
 }
@@ -168,11 +168,11 @@ export function GhostButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>
 const statusMap: Record<string, { label: string; className: string }> = {
   draft: { label: "پیش‌نویس", className: "bg-slate-100 text-slate-600" },
   waiting_review: { label: "در انتظار بررسی", className: "bg-amber-50 text-amber-700" },
-  published: { label: "منتشرشده", className: "bg-emerald-50 text-emerald-700" },
+  published: { label: "منتشرشده", className: "bg-blue-50 text-blue-700" },
   rejected: { label: "رد شده", className: "bg-rose-50 text-rose-700" },
   new: { label: "جدید", className: "bg-sky-50 text-sky-700" },
   reviewing: { label: "در حال بررسی", className: "bg-amber-50 text-amber-700" },
-  accepted: { label: "پذیرفته‌شده", className: "bg-emerald-50 text-emerald-700" },
+  accepted: { label: "پذیرفته‌شده", className: "bg-blue-50 text-blue-700" },
 };
 
 export function StatusBadge({ status }: { status: string }) {
@@ -213,7 +213,7 @@ export function CrudSection({ title, description, action, children }: CrudSectio
 export function EmptyState({ text }: { text: string }) {
   return (
     <div className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-7 text-center">
-      <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-white text-xl text-emerald-700 shadow-sm">
+      <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-white text-xl text-blue-700 shadow-sm">
         ◌
       </div>
       <p className="text-sm font-bold leading-7 text-slate-500">{text}</p>

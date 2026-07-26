@@ -4,6 +4,7 @@
 import { createRepository } from "@/lib/data/repository";
 import {
   seedDepartments,
+  seedContent,
   seedHomeSlides,
   seedUnits,
   seedUsers,
@@ -47,6 +48,7 @@ export const usersRepository = createRepository<UserRecord>({
 export const contentRepository = createRepository<ContentRecord>({
   collection: "content",
   endpoint: "cms/content/",
+  seed: seedContent,
 });
 
 export const galleryRepository = createRepository<GalleryItemRecord>({

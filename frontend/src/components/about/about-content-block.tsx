@@ -11,7 +11,7 @@ export function AboutContentBlock({ content }: AboutContentBlockProps) {
   if (!content?.title && !content?.description) {
     return (
       <div className="rounded-[2rem] border border-dashed border-slate-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-3xl bg-emerald-50 text-2xl text-emerald-700">
+        <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-3xl bg-blue-50 text-2xl text-blue-700">
           ◌
         </div>
 

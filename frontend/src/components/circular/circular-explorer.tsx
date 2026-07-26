@@ -74,9 +74,9 @@ export function CircularExplorer({ items, descriptions, variant, initialSlug }: 
             </div>
           </div>
 
-          <div>
+          <div key={activeItem?.id} className="besat-content-swap">
             <div className="mb-5 text-right">
-              <p className="mb-1 text-sm font-black text-emerald-600">
+              <p className="mb-1 text-sm font-black text-blue-600">
                 {variant === "unit" ? "واحد" : "دپارتمان"} انتخاب‌شده
               </p>
               <h2 className="text-2xl font-black leading-[1.5] text-[#062452] sm:text-3xl">
@@ -122,7 +122,7 @@ function Card({ children }: { children: React.ReactNode }) {
 function EmptyBox({ text }: { text: string }) {
   return (
     <div className="rounded-[2rem] border border-dashed border-slate-200 bg-white p-10 text-center shadow-sm">
-      <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-emerald-50 text-2xl text-emerald-700">
+      <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-blue-50 text-2xl text-blue-700">
         ◌
       </div>
       <p className="text-sm font-bold leading-8 text-slate-500">{text}</p>
@@ -133,7 +133,7 @@ function EmptyBox({ text }: { text: string }) {
 function Spinner() {
   return (
     <div className="flex min-h-36 items-center justify-center">
-      <div className="size-9 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-500" />
+      <div className="size-9 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
     </div>
   );
 }
@@ -188,7 +188,7 @@ function ContentTab({
             key={item.id}
             type="button"
             onClick={() => setDetail(item)}
-            className="group w-full rounded-[2rem] border border-slate-200 bg-white p-5 text-right shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md sm:p-6"
+            className="group w-full rounded-[2rem] border border-slate-200 bg-white p-5 text-right shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md sm:p-6"
           >
             <div className="flex items-start gap-4">
               {item.cover_image ? (
@@ -198,12 +198,12 @@ function ContentTab({
                   className="hidden size-16 rounded-2xl object-cover sm:block"
                 />
               ) : (
-                <div className="hidden size-16 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-2xl text-emerald-700 sm:flex">
+                <div className="hidden size-16 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-2xl text-blue-700 sm:flex">
                   ▦
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <h3 className="text-base font-black text-[#062452] group-hover:text-emerald-700 line-clamp-2">
+                <h3 className="text-base font-black text-[#062452] group-hover:text-blue-700 line-clamp-2">
                   {item.title}
                 </h3>
                 {item.summary ? (
@@ -217,7 +217,7 @@ function ContentTab({
                       {new Intl.DateTimeFormat("fa-IR").format(new Date(item.published_at))}
                     </span>
                   ) : null}
-                  <span className="text-xs font-black text-emerald-600">مشاهده کامل ‹</span>
+                  <span className="text-xs font-black text-blue-600">مشاهده کامل ‹</span>
                 </div>
               </div>
             </div>
@@ -259,14 +259,14 @@ function ContentDetailModal({
     <div
       ref={overlayRef}
       dir="rtl"
-      className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/45 p-4 backdrop-blur-sm sm:p-8"
+      className="besat-modal-overlay fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/45 p-4 backdrop-blur-sm sm:p-8"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
-      <article className="w-full max-w-3xl rounded-[2rem] border border-slate-200 bg-white shadow-2xl">
+      <article className="besat-modal-panel w-full max-w-3xl rounded-[2rem] border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-6 sm:p-8">
           <div className="min-w-0 flex-1 text-right">
             {item.category ? (
-              <span className="mb-3 inline-block rounded-xl bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+              <span className="mb-3 inline-block rounded-xl bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
                 {item.category}
               </span>
             ) : null}
@@ -337,7 +337,7 @@ function AchievementsTab({ itemId }: { itemId: string }) {
             key={item.id}
             type="button"
             onClick={() => setDetail(item)}
-            className="group overflow-hidden rounded-[2rem] border border-slate-200 bg-white text-right shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+            className="group overflow-hidden rounded-[2rem] border border-slate-200 bg-white text-right shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
           >
             {item.image ? (
               <div className="aspect-[16/9] overflow-hidden bg-slate-100">
@@ -348,13 +348,13 @@ function AchievementsTab({ itemId }: { itemId: string }) {
                 />
               </div>
             ) : (
-              <div className="flex aspect-[16/9] items-center justify-center bg-emerald-50 text-5xl text-emerald-700">
+              <div className="flex aspect-[16/9] items-center justify-center bg-blue-50 text-5xl text-blue-700">
                 ✦
               </div>
             )}
 
             <div className="p-5">
-              <h3 className="text-base font-black leading-7 text-[#062452] group-hover:text-emerald-700">
+              <h3 className="text-base font-black leading-7 text-[#062452] group-hover:text-blue-700">
                 {item.title}
               </h3>
 
@@ -373,7 +373,7 @@ function AchievementsTab({ itemId }: { itemId: string }) {
                   <span />
                 )}
 
-                <span className="text-xs font-black text-emerald-600">مشاهده کامل ‹</span>
+                <span className="text-xs font-black text-blue-600">مشاهده کامل ‹</span>
               </div>
             </div>
           </button>
@@ -415,13 +415,13 @@ function AchievementDetailModal({
     <div
       ref={overlayRef}
       dir="rtl"
-      className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/45 p-4 backdrop-blur-sm sm:p-8"
+      className="besat-modal-overlay fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/45 p-4 backdrop-blur-sm sm:p-8"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
-      <article className="w-full max-w-3xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl">
+      <article className="besat-modal-panel w-full max-w-3xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-6 sm:p-8">
           <div className="min-w-0 flex-1 text-right">
-            <span className="mb-3 inline-block rounded-xl bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+            <span className="mb-3 inline-block rounded-xl bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
               افتخارات
             </span>
 
@@ -511,10 +511,10 @@ function GalleryTab({ itemId }: { itemId: string }) {
       {lightbox ? (
         <div
           dir="rtl"
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/85 p-4"
+          className="besat-modal-overlay fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/85 p-4"
           onClick={() => setLightbox(null)}
         >
-          <div className="relative max-h-[90vh] max-w-4xl" onClick={(e) => e.stopPropagation()}>
+          <div className="besat-modal-panel relative max-h-[90vh] max-w-4xl" onClick={(e) => e.stopPropagation()}>
             <img src={lightbox.image} alt={lightbox.title} className="max-h-[80vh] w-auto rounded-2xl object-contain" />
             <p className="mt-3 text-center text-sm font-black text-white">{lightbox.title}</p>
             <button

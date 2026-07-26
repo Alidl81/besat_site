@@ -17,7 +17,7 @@ export function AppLink({
   const variantClass =
     variant === "primary"
       ? "besat-navy-button"
-      : "border border-slate-200 bg-white text-slate-800 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700";
+      : "border border-slate-200 bg-white text-slate-800 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700";
 
   return (
     <Link

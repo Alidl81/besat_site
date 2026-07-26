@@ -2,6 +2,7 @@
 import { PublicPageLayout } from "@/components/layout/public-page-layout";
 import { Container } from "@/components/shared/container";
 import { AboutPageContent } from "@/components/about/about-page-content";
+import { AnimatedCounter } from "@/components/shared/animated-counter";
 
 export const metadata: Metadata = {
   title: "درباره ما | مدرسه بعثت",
@@ -10,10 +11,10 @@ export const metadata: Metadata = {
 
 // آمار واقعی (ثابت — از سایت besat-r.com)
 const stats = [
-  { value: "+۳۲", label: "سال سابقه درخشان" },
-  { value: "+۳۰۰۰", label: "دانش‌آموز" },
-  { value: "~۵۰۰", label: "آموزگار، دبیر و کادر" },
-  { value: "۱۳", label: "واحد و دپارتمان" },
+  { target: 32, before: "+", label: "سال سابقه درخشان" },
+  { target: 3000, before: "+", label: "دانش‌آموز" },
+  { target: 500, before: "~", label: "آموزگار، دبیر و کادر" },
+  { target: 13, label: "واحد و دپارتمان" },
 ];
 
 const honors = [
@@ -29,7 +30,7 @@ export default function AboutPage() {
       <section className="relative overflow-hidden border-b border-slate-200 bg-white">
         <Container className="py-14 md:py-20">
           <div className="max-w-3xl text-right">
-            <p className="mb-4 text-sm font-black text-emerald-700">درباره ما</p>
+            <p className="mb-4 text-sm font-black text-blue-700">درباره ما</p>
             <h1 className="text-3xl font-black leading-[1.4] tracking-tight text-[#0f2f4a] md:text-5xl">
               مجتمع تربیتی آموزشی بعثت
             </h1>
@@ -46,7 +47,9 @@ export default function AboutPage() {
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {stats.map((stat) => (
               <div key={stat.label} className="rounded-[1.75rem] border border-slate-200 bg-[#f8fafc] p-6 text-center">
-                <div className="text-3xl font-black text-emerald-600">{stat.value}</div>
+                <div className="text-3xl font-black text-blue-600">
+                  <AnimatedCounter target={stat.target} before={stat.before} duration={1350} />
+                </div>
                 <p className="mt-2 text-xs font-bold leading-6 text-slate-500">{stat.label}</p>
               </div>
             ))}
@@ -61,7 +64,7 @@ export default function AboutPage() {
       <section className="bg-[#f8fafc] py-14 md:py-16">
         <Container>
           <div className="mb-8 text-right">
-            <p className="mb-2 text-sm font-black text-emerald-600">افتخارات</p>
+            <p className="mb-2 text-sm font-black text-blue-600">افتخارات</p>
             <h2 className="text-3xl font-black text-[#062452]">برخی از افتخارات بعثت</h2>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -78,7 +81,7 @@ export default function AboutPage() {
       {/* تماس */}
       <section className="bg-white py-14 md:py-16">
         <Container>
-          <div className="overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-8 text-right shadow-sm sm:p-10">
+          <div className="overflow-hidden rounded-[2rem] border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-8 text-right shadow-sm sm:p-10">
             <h2 className="text-2xl font-black text-[#062452]">ارتباط با ما</h2>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <div className="flex items-center gap-4">
@@ -94,7 +97,7 @@ export default function AboutPage() {
                 <span className="flex size-12 items-center justify-center rounded-2xl bg-white text-xl shadow-sm">📞</span>
                 <div>
                   <p className="text-xs font-black text-slate-400">تلفن</p>
-                  <a href="tel:05138681999" className="mt-1 block text-sm font-black text-[#062452] transition hover:text-emerald-700">
+                  <a href="tel:05138681999" className="mt-1 block text-sm font-black text-[#062452] transition hover:text-blue-700">
                     ۰۵۱-۳۸۶۸۱۹۹۹ (داخلی ۴۰۰)
                   </a>
                 </div>

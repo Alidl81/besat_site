@@ -13,7 +13,7 @@ type UnitCardProps = {
 
 export function UnitCard({ unit }: UnitCardProps) {
   return (
-    <article className="group overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm transition duration-500 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl hover:shadow-slate-200/70">
+    <article className="group overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm transition duration-500 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/70">
       <div className="h-36 bg-[linear-gradient(135deg,#0f2f4a,#16496f)]" />
 
       <div className="p-6 text-right">

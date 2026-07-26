@@ -55,7 +55,7 @@ export function ContactForm() {
             name="name"
             required
             placeholder="نام شما"
-            className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white"
+            className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 focus:bg-white"
           />
         </label>
 
@@ -68,7 +68,7 @@ export function ContactForm() {
             name="phone"
             required
             placeholder="شماره تلفن"
-            className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white"
+            className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 focus:bg-white"
           />
         </label>
 
@@ -78,7 +78,7 @@ export function ContactForm() {
             type="email"
             name="email"
             placeholder="example@email.com"
-            className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white"
+            className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 focus:bg-white"
           />
         </label>
 
@@ -91,7 +91,7 @@ export function ContactForm() {
             name="subject"
             required
             placeholder="موضوع پیام"
-            className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white"
+            className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 focus:bg-white"
           />
         </label>
 
@@ -104,7 +104,7 @@ export function ContactForm() {
             required
             rows={5}
             placeholder="پیام خود را بنویسید..."
-            className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold text-[#062452] outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white"
+            className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold text-[#062452] outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-blue-400 focus:bg-white"
           />
         </label>
 
@@ -112,7 +112,7 @@ export function ContactForm() {
           <div
             className={`rounded-2xl px-4 py-4 text-right text-sm font-black md:col-span-2 ${
               state === "success"
-                ? "bg-emerald-50 text-emerald-700"
+                ? "bg-blue-50 text-blue-700"
                 : "bg-rose-50 text-rose-700"
             }`}
           >

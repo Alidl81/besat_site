@@ -18,7 +18,7 @@ export const homeIntroContent: HomeIntroContent = {
   eyebrow: "معرفی مجموعه",
   title: "مجتمع تربیتی آموزشی بعثت",
   body: "مجتمع تربیتی آموزشی بعثت با بیش از ۳۲ سال سابقه، دارای واحدهای پسرانه و دخترانه در مقاطع مختلف تحصیلی است و با رویکرد تربیت انقلابی و مذهبی، بالاترین سطح توانمندی‌های آموزشی و اجتماعی را برای دانش‌آموزان فراهم می‌کند.",
-  imageSrc: "/images/home/intro/intro.jpg",
+  imageSrc: "/images/official/units/unit-05.jpg",
   imageAlt: "نمایی از مدرسه بعثت",
   primaryLink: {
     label: "درباره ما",

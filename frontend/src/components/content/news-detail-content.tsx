@@ -57,7 +57,7 @@ export function NewsDetailContent({ slug }: { slug: string }) {
     return (
       <section className="bg-[#f8fafc] py-14">
         <div className="mx-auto flex min-h-56 w-full max-w-4xl items-center justify-center rounded-[2rem] border border-slate-200 bg-white px-4 sm:px-6 lg:px-8">
-          <div className="size-10 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-500" />
+          <div className="size-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
         </div>
       </section>
     );
@@ -92,7 +92,7 @@ export function NewsDetailContent({ slug }: { slug: string }) {
         <div className="p-5 sm:p-8">
           <div className="mb-5 flex flex-wrap items-center gap-3">
             {item.category ? (
-              <span className="rounded-xl bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+              <span className="rounded-xl bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
                 {item.category}
               </span>
             ) : null}

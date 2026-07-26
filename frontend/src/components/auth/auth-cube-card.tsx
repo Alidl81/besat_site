@@ -26,7 +26,7 @@ function Field({
         name={id}
         type={type}
         autoComplete={autoComplete}
-        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold text-[#062452] outline-none transition duration-500 focus:border-emerald-300 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold text-[#062452] outline-none transition duration-500 focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100"
       />
     </div>
   );
@@ -39,7 +39,7 @@ export function AuthCubeCard() {
   return (
     <div className="mx-auto grid w-full max-w-6xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl shadow-slate-200/70 lg:grid-cols-[0.95fr_1.05fr]">
       <section className="relative hidden overflow-hidden bg-[#062452] p-8 text-white lg:block">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(52,211,153,0.28),transparent_28%),radial-gradient(circle_at_80%_15%,rgba(255,255,255,0.14),transparent_32%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(43,111,159,0.3),transparent_28%),radial-gradient(circle_at_80%_15%,rgba(255,255,255,0.14),transparent_32%)]" />
         <div className="absolute bottom-0 left-0 h-40 w-72 rounded-tr-[6rem] bg-white/10" />
 
         <div className="relative z-10 flex h-full min-h-[36rem] flex-col">
@@ -55,7 +55,7 @@ export function AuthCubeCard() {
           </div>
 
           <div className="mt-auto">
-            <p className="text-sm font-black text-emerald-300">
+            <p className="text-sm font-black text-blue-300">
               {isRegister ? "ثبت‌نام" : "ورود"}
             </p>
             <h1 className="mt-4 text-4xl font-black leading-[1.5] text-white">
@@ -116,7 +116,7 @@ export function AuthCubeCard() {
               style={{ backfaceVisibility: "hidden" }}
             >
               <div className="h-full rounded-[1.5rem] bg-white text-right">
-                <p className="mb-3 text-sm font-black text-emerald-700">ورود</p>
+                <p className="mb-3 text-sm font-black text-blue-700">ورود</p>
                 <h2 className="text-3xl font-black leading-[1.4] text-[#062452]">
                   ورود به پنل
                 </h2>
@@ -141,7 +141,7 @@ export function AuthCubeCard() {
                 <div className="mt-6 flex justify-center">
                   <Link
                     href="/"
-                    className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-black text-[#062452] transition duration-500 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                    className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-black text-[#062452] transition duration-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                   >
                     بازگشت به سایت
                   </Link>
@@ -157,7 +157,7 @@ export function AuthCubeCard() {
               }}
             >
               <div className="h-full rounded-[1.5rem] bg-white text-right">
-                <p className="mb-3 text-sm font-black text-emerald-700">ثبت‌نام</p>
+                <p className="mb-3 text-sm font-black text-blue-700">ثبت‌نام</p>
                 <h2 className="text-3xl font-black leading-[1.4] text-[#062452]">
                   ثبت‌نام آنلاین
                 </h2>
@@ -178,7 +178,7 @@ export function AuthCubeCard() {
                 <div className="mt-6 flex justify-center">
                   <Link
                     href="/"
-                    className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-black text-[#062452] transition duration-500 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                    className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-black text-[#062452] transition duration-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                   >
                     بازگشت به سایت
                   </Link>

@@ -60,7 +60,7 @@ export function StudentsManager({ unitId = null }: ScopedProps) {
           <button
             type="button"
             onClick={() => setShowImport((v) => !v)}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-[#062452] transition hover:bg-emerald-50"
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-[#062452] transition hover:bg-blue-50"
           >
             {showImport ? "پنهان کردن" : "نمایش ورود Excel"}
           </button>
@@ -174,7 +174,7 @@ export function StaffManager({ unitId = null }: ScopedProps) {
           <button
             type="button"
             onClick={() => setShowImport((v) => !v)}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-[#062452] transition hover:bg-emerald-50"
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-[#062452] transition hover:bg-blue-50"
           >
             {showImport ? "پنهان کردن" : "نمایش ورود Excel"}
           </button>

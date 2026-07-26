@@ -9,6 +9,8 @@ type HomeUnitsCarouselProps = {
   units: SchoolUnitRecord[];
 };
 
+const autoPlayDelay = 3600;
+
 const genderLabels: Record<string, string> = {
   boys: "پسرانه",
   girls: "دخترانه",
@@ -22,8 +24,24 @@ const kindLabels: Record<string, string> = {
   high_school: "دبیرستان",
 };
 
+const officialUnitImages: Record<string, string> = {
+  "unit-01-02": "/images/official/units/unit-01-02.jpg",
+  "unit-03": "/images/official/units/unit-03.jpg",
+  "unit-04": "/images/official/units/unit-04.jpg",
+  "unit-05": "/images/official/units/unit-05.jpg",
+  "unit-06": "/images/official/units/unit-06.jpg",
+  "unit-07": "/images/official/units/unit-07.jpg",
+  "unit-08": "/images/official/units/unit-08.jpg",
+  "unit-09": "/images/official/units/unit-09.jpg",
+  "unit-10": "/images/official/units/unit-10.jpg",
+  "unit-11": "/images/official/units/unit-11.jpg",
+  "unit-12": "/images/official/units/unit-12.jpg",
+  "unit-13": "/images/official/units/unit-13.jpg",
+};
+
 export function HomeUnitsCarousel({ units }: HomeUnitsCarouselProps) {
   const [active, setActive] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
   const dragStartX = useRef<number | null>(null);
   const total = units.length;
 
@@ -51,6 +69,14 @@ export function HomeUnitsCarousel({ units }: HomeUnitsCarouselProps) {
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, total]);
+
+  useEffect(() => {
+    if (isPaused || total < 2) return;
+    const timer = window.setInterval(() => {
+      setActive((current) => (current + 1) % total);
+    }, autoPlayDelay);
+    return () => window.clearInterval(timer);
+  }, [isPaused, total]);
 
   function onDragStart(clientX: number) {
     dragStartX.current = clientX;
@@ -80,27 +106,40 @@ export function HomeUnitsCarousel({ units }: HomeUnitsCarouselProps) {
   }
 
   return (
-    <section dir="rtl" className="overflow-hidden bg-white px-4 py-16 sm:px-6 lg:px-8">
-      <div className="mx-auto w-full max-w-7xl">
+    <section dir="rtl" className="besat-carousel-enter overflow-hidden bg-white px-5 py-16 sm:px-8 lg:py-20">
+      <div className="mx-auto w-full max-w-[1400px]">
         {/* عنوان */}
-        <div className="mb-10 text-center">
-          <p className="mb-2 text-sm font-black text-emerald-600">مدارس مجموعه آموزشی فرهنگی بعثت</p>
-          <h2 className="text-3xl font-black leading-[1.5] text-[#062452] sm:text-4xl">
+        <div className="mb-7 flex flex-col gap-3 text-right sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="mb-2 flex items-center gap-3 text-sm font-black text-[#c98c3d]">
+              <span className="h-px w-8 bg-[#c98c3d]" />
+              مدارس مجموعه آموزشی فرهنگی بعثت
+            </p>
+            <h2 className="text-3xl font-black leading-[1.5] text-[#0a2848] sm:text-4xl">
             واحدهای آموزشی بعثت
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm font-bold leading-8 text-slate-500">
-            برای مشاهده هر واحد، روی آن کلیک کنید.
-          </p>
+            </h2>
+          </div>
+          <Link href="/units" className="inline-flex items-center gap-2 text-xs font-black text-[#0a2848] transition hover:text-[#c98c3d]">
+            مشاهده همه واحدها
+            <span aria-hidden="true">←</span>
+          </Link>
         </div>
 
         {/* کاروسل coverflow */}
         <div
-          className="relative flex h-[26rem] items-center justify-center select-none sm:h-[30rem]"
-          style={{ perspective: "1600px" }}
+          className="relative flex h-[27rem] items-center justify-center select-none sm:h-[31rem]"
+          style={{ perspective: "1600px", transformStyle: "preserve-3d" }}
           onMouseDown={(e) => onDragStart(e.clientX)}
           onMouseUp={(e) => onDragEnd(e.clientX)}
           onTouchStart={(e) => onDragStart(e.touches[0].clientX)}
           onTouchEnd={(e) => onDragEnd(e.changedTouches[0].clientX)}
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={(e) => {
+            setIsPaused(false);
+            onDragEnd(e.clientX);
+          }}
+          onFocusCapture={() => setIsPaused(true)}
+          onBlurCapture={() => setIsPaused(false)}
         >
           {units.map((unit, index) => {
             const pos = relativePosition(index);
@@ -109,16 +148,17 @@ export function HomeUnitsCarousel({ units }: HomeUnitsCarouselProps) {
 
             // فاصله افقی، مقیاس، چرخش و شفافیت بر اساس فاصله از مرکز
             const translateX = pos * 58; // درصد
-            const scale = isActive ? 1 : Math.max(0.7, 1 - Math.abs(pos) * 0.18);
-            const rotateY = pos * -22;
-            const opacity = isVisible ? (isActive ? 1 : 0.55) : 0;
+            const scale = isActive ? 1 : Math.max(0.72, 1 - Math.abs(pos) * 0.16);
+            const rotateY = pos * -18;
+            const opacity = isVisible ? (isActive ? 1 : Math.max(0.5, 0.76 - Math.abs(pos) * 0.12)) : 0;
             const zIndex = 20 - Math.abs(pos);
-            const blur = isActive ? 0 : Math.min(Math.abs(pos) * 1.5, 4);
+            const blur = isActive ? 0 : Math.min(Math.abs(pos) * 0.55, 1.1);
 
             return (
               <div
                 key={unit.id}
-                className="absolute transition-all duration-700 ease-out"
+                data-carousel-position={pos}
+                className="absolute will-change-transform transition-[transform,opacity,filter] duration-[680ms] ease-[cubic-bezier(.22,1,.36,1)]"
                 style={{
                   transform: `translateX(${translateX}%) scale(${scale}) rotateY(${rotateY}deg)`,
                   opacity,
@@ -141,17 +181,17 @@ export function HomeUnitsCarousel({ units }: HomeUnitsCarouselProps) {
             type="button"
             onClick={prev}
             aria-label="واحد قبلی"
-            className="absolute right-2 top-1/2 z-30 flex size-12 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-xl font-black text-[#062452] shadow-lg transition hover:bg-emerald-50 hover:text-emerald-700 sm:right-6"
+            className="group absolute right-1 top-1/2 z-30 flex size-11 -translate-y-1/2 items-center justify-center rounded-full border border-[#0a2848]/10 bg-[#0a2848] text-xl font-black text-white shadow-lg transition-all duration-300 hover:scale-110 hover:bg-[#153b60] active:scale-90 sm:right-6"
           >
-            ‹
+            <span className="transition-transform duration-300 group-hover:translate-x-1">‹</span>
           </button>
           <button
             type="button"
             onClick={next}
             aria-label="واحد بعدی"
-            className="absolute left-2 top-1/2 z-30 flex size-12 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-xl font-black text-[#062452] shadow-lg transition hover:bg-emerald-50 hover:text-emerald-700 sm:left-6"
+            className="group absolute left-1 top-1/2 z-30 flex size-11 -translate-y-1/2 items-center justify-center rounded-full border border-[#0a2848]/10 bg-[#0a2848] text-xl font-black text-white shadow-lg transition-all duration-300 hover:scale-110 hover:bg-[#153b60] active:scale-90 sm:left-6"
           >
-            ›
+            <span className="transition-transform duration-300 group-hover:-translate-x-1">›</span>
           </button>
         </div>
 
@@ -164,10 +204,17 @@ export function HomeUnitsCarousel({ units }: HomeUnitsCarouselProps) {
               aria-label={`نمایش ${getOfficialUnitShortTitle(unit)}`}
               onClick={() => goTo(index)}
               className={`h-2.5 rounded-full transition-all duration-500 ${
-                index === active ? "w-8 bg-emerald-500" : "w-2.5 bg-slate-300 hover:bg-slate-400"
+                index === active ? "w-8 bg-[#c98c3d]" : "w-2.5 bg-slate-300 hover:bg-slate-400"
               }`}
             />
           ))}
+        </div>
+        <div className="mx-auto mt-4 h-0.5 w-24 overflow-hidden rounded-full bg-slate-200" aria-hidden="true">
+          <span
+            key={active}
+            className="besat-carousel-progress block h-full origin-right rounded-full bg-[#c98c3d]"
+            style={{ animationPlayState: isPaused ? "paused" : "running" }}
+          />
         </div>
       </div>
     </section>
@@ -183,26 +230,23 @@ function UnitCard({
   isActive: boolean;
   onClick: () => void;
 }) {
+  const imageSrc = unit.cover_image || officialUnitImages[unit.id] || "/images/official/hero/besat-main.jpg";
   const cardInner = (
     <div
-      className={`relative h-[24rem] w-[18rem] overflow-hidden rounded-[2rem] border shadow-2xl transition-all duration-500 sm:h-[28rem] sm:w-[22rem] ${
-        isActive ? "border-emerald-300" : "border-slate-200"
+      className={`relative h-[24rem] w-[18rem] overflow-hidden rounded-[1.5rem] border shadow-2xl transition-[border-color,box-shadow] duration-500 sm:h-[28rem] sm:w-[21rem] ${
+        isActive ? "border-[#d7a457]" : "border-slate-200"
       }`}
     >
       {/* تصویر یا گرادیان */}
-      {unit.cover_image ? (
-        <img
-          src={unit.cover_image}
-          alt={getOfficialUnitShortTitle(unit)}
-          className="absolute inset-0 h-full w-full object-cover"
-          draggable={false}
-        />
-      ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-[#143e61] via-[#0d3157] to-[#062452]" />
-      )}
+      <img
+        src={imageSrc}
+        alt={getOfficialUnitShortTitle(unit)}
+        className={`absolute inset-0 h-full w-full object-cover transition-transform duration-[680ms] ease-[cubic-bezier(.22,1,.36,1)] ${isActive ? "scale-100" : "scale-[1.055]"}`}
+        draggable={false}
+      />
 
       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-transparent" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(52,211,153,0.18),transparent_45%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(226,174,91,0.2),transparent_45%)]" />
 
       {/* محتوا */}
       <div className="absolute inset-x-0 bottom-0 p-6 text-right text-white">
@@ -210,7 +254,7 @@ function UnitCard({
           <span className="rounded-xl bg-white/15 px-3 py-1 text-xs font-black text-white backdrop-blur">
             {kindLabels[unit.kind] ?? unit.kind}
           </span>
-          <span className="rounded-xl bg-emerald-500/30 px-3 py-1 text-xs font-black text-emerald-100 backdrop-blur">
+          <span className="rounded-xl bg-[#d6a153]/35 px-3 py-1 text-xs font-black text-[#fff2d7] backdrop-blur">
             {genderLabels[unit.gender] ?? unit.gender}
           </span>
         </div>
@@ -222,7 +266,7 @@ function UnitCard({
         ) : null}
 
         {isActive ? (
-          <span className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-5 py-2.5 text-sm font-black text-white shadow-lg transition hover:bg-emerald-600">
+          <span className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#d6a153] px-5 py-2.5 text-sm font-black text-[#0b213c] shadow-lg transition hover:bg-[#e2b870]">
             <span>مشاهده واحد</span>
             <span>←</span>
           </span>
@@ -246,4 +290,3 @@ function UnitCard({
     </button>
   );
 }
-

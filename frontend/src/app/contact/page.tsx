@@ -28,7 +28,7 @@ export default function ContactPage() {
       <section className="relative overflow-hidden border-b border-slate-200 bg-white">
         <Container className="py-14 md:py-20">
           <div className="max-w-3xl text-right">
-            <p className="mb-4 text-sm font-black text-emerald-700">تماس با ما</p>
+            <p className="mb-4 text-sm font-black text-blue-700">تماس با ما</p>
             <h1 className="text-3xl font-black leading-[1.4] tracking-tight text-[#0f2f4a] md:text-5xl">
               راه‌های ارتباطی مدرسه بعثت
             </h1>
@@ -52,7 +52,7 @@ export default function ContactPage() {
                   className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm"
                 >
                   <div className="flex items-start gap-4 text-right">
-                    <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-xl">
+                    <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-xl">
                       {item.icon}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -60,7 +60,7 @@ export default function ContactPage() {
                       {item.href ? (
                         <a
                           href={item.href}
-                          className="mt-1 block text-sm font-black text-[#062452] transition hover:text-emerald-700"
+                          className="mt-1 block text-sm font-black text-[#062452] transition hover:text-blue-700"
                         >
                           {item.value}
                         </a>
@@ -82,7 +82,7 @@ export default function ContactPage() {
                     href="https://eitaa.com/besatpr"
                     target="_blank"
                     rel="noreferrer"
-                    className="flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-black text-[#062452] transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                    className="flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-black text-[#062452] transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                   >
                     <img src="/icons/social/eitaa.svg" alt="ایتا" className="size-5" />
                     <span>ایتا</span>
@@ -91,7 +91,7 @@ export default function ContactPage() {
                     href="https://t.me/besat_hs"
                     target="_blank"
                     rel="noreferrer"
-                    className="flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-black text-[#062452] transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                    className="flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-black text-[#062452] transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                   >
                     <img src="/icons/social/telegram.svg" alt="تلگرام" className="size-5" />
                     <span>تلگرام</span>

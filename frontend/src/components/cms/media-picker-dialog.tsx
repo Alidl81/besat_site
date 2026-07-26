@@ -170,7 +170,7 @@ export function MediaPickerDialog({
       <div className="w-full max-w-5xl overflow-hidden rounded-[2.25rem] border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5 sm:p-7">
           <div className="text-right">
-            <p className="text-xs font-black text-emerald-600">کتابخانه مدیا</p>
+            <p className="text-xs font-black text-blue-600">کتابخانه مدیا</p>
             <h2 className="mt-1 text-xl font-black text-[#062452]">
               افزودن یا انتخاب عکس و ویدیو
             </h2>
@@ -199,7 +199,7 @@ export function MediaPickerDialog({
                   onClick={() => setActiveTab(tab.key)}
                   className={`h-11 rounded-xl px-5 text-sm font-black transition ${
                     activeTab === tab.key
-                      ? "bg-white text-emerald-700 shadow-sm"
+                      ? "bg-white text-blue-700 shadow-sm"
                       : "text-slate-500 hover:text-[#062452]"
                   }`}
                 >
@@ -218,7 +218,7 @@ export function MediaPickerDialog({
                 onDrop={handleDrop}
                 className={`rounded-[2rem] border-2 border-dashed p-8 text-center transition ${
                   isDragging
-                    ? "border-emerald-400 bg-emerald-50"
+                    ? "border-blue-400 bg-blue-50"
                     : "border-slate-200 bg-slate-50"
                 }`}
               >
@@ -230,7 +230,7 @@ export function MediaPickerDialog({
                   onChange={(event) => handleFile(event.target.files?.[0] ?? null)}
                 />
 
-                <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-white text-2xl text-emerald-700 shadow-sm">
+                <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-white text-2xl text-blue-700 shadow-sm">
                   ⤴
                 </div>
 
@@ -242,7 +242,7 @@ export function MediaPickerDialog({
                 </p>
 
                 {fileName ? (
-                  <p className="mt-4 text-xs font-black text-emerald-700">
+                  <p className="mt-4 text-xs font-black text-blue-700">
                     فایل انتخاب‌شده: {fileName}
                   </p>
                 ) : null}
@@ -266,7 +266,7 @@ export function MediaPickerDialog({
                   value={selectedUrl}
                   onChange={(event) => setSelectedUrl(event.target.value)}
                   dir="ltr"
-                  className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-left text-sm font-bold text-slate-700 outline-none transition focus:border-emerald-400"
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-left text-sm font-bold text-slate-700 outline-none transition focus:border-blue-400"
                 />
                 <p className="text-right text-xs font-bold leading-6 text-slate-400">
                   لینک می‌تواند مسیر داخلی سایت یا URL کامل باشد.
@@ -278,7 +278,7 @@ export function MediaPickerDialog({
               <div>
                 {libraryItems === null ? (
                   <div className="flex h-44 items-center justify-center">
-                    <div className="size-9 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-500" />
+                    <div className="size-9 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
                   </div>
                 ) : libraryItems.length === 0 ? (
                   <div className="rounded-[2rem] border border-dashed border-slate-200 p-10 text-center text-sm font-bold text-slate-500">
@@ -296,8 +296,8 @@ export function MediaPickerDialog({
                           onClick={() => setSelectedUrl(item.image)}
                           className={`overflow-hidden rounded-3xl border bg-white text-right transition ${
                             selected
-                              ? "border-emerald-400 ring-4 ring-emerald-100"
-                              : "border-slate-200 hover:border-emerald-200"
+                              ? "border-blue-400 ring-4 ring-blue-100"
+                              : "border-slate-200 hover:border-blue-200"
                           }`}
                         >
                           <MediaPreview src={item.image} title={item.title} />
@@ -339,7 +339,7 @@ export function MediaPickerDialog({
                 type="button"
                 onClick={confirmSelection}
                 disabled={!canConfirm}
-                className="h-12 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="h-12 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
                 انتخاب مدیا
               </button>

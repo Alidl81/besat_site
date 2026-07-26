@@ -112,7 +112,7 @@ export function RegistrationUnitSelector({
                 aria-expanded={isMobileOpen}
                 className={`relative flex h-[3.7rem] w-full items-center justify-between rounded-2xl border bg-white px-4 pl-14 pr-4 text-right text-sm font-black text-[#062452] outline-none transition-all duration-300 ease-out ${
                   isMobileOpen
-                    ? "border-emerald-400 shadow-[0_14px_35px_rgba(16,185,129,0.14)]"
+                    ? "border-blue-400 shadow-[0_14px_35px_rgba(43,111,159,0.16)]"
                     : "border-slate-200 shadow-sm"
                 }`}
               >
@@ -149,14 +149,14 @@ export function RegistrationUnitSelector({
                         }}
                         className={`flex w-full items-center justify-between px-4 py-3 text-right text-sm font-black transition duration-200 ${
                           isActive
-                            ? "bg-emerald-50 text-emerald-700"
+                            ? "bg-blue-50 text-blue-700"
                             : "text-[#062452] hover:bg-slate-50"
                         }`}
                       >
                         <span>{title}</span>
 
                         {isActive ? (
-                          <span className="rounded-full bg-emerald-100 px-2 py-1 text-[0.65rem] font-black text-emerald-700">
+                          <span className="rounded-full bg-blue-100 px-2 py-1 text-[0.65rem] font-black text-blue-700">
                             انتخاب شده
                           </span>
                         ) : null}
@@ -174,7 +174,7 @@ export function RegistrationUnitSelector({
         <div className={display === "desktop" ? "block" : "hidden lg:block"}>
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.05] px-3 py-4">
             <div className="mb-3 text-right">
-              <p className="text-sm font-black text-emerald-300">
+              <p className="text-sm font-black text-blue-300">
                 واحد مورد نظر
               </p>
               <p className="mt-1 text-xs font-bold leading-6 text-white/70">

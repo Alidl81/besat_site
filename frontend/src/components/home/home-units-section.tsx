@@ -19,7 +19,7 @@ export function HomeUnitsSection() {
 
   if (units === null) {
     // در حال بارگذاری — فضای رزرو برای جلوگیری از پرش layout
-    return <div className="bg-white py-16" />;
+    return <div className="min-h-[36rem] bg-white py-16" aria-hidden="true" />;
   }
 
   if (units.length === 0) return null;

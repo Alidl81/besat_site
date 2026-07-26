@@ -61,7 +61,7 @@ export function DashboardGuard({ segment, children }: DashboardGuardProps) {
         className="flex min-h-screen items-center justify-center bg-[#f3f7f9]"
       >
         <div className="flex flex-col items-center gap-4 text-center">
-          <div className="size-12 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-500" />
+          <div className="size-12 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
           <p className="text-sm font-black text-slate-500">
             در حال بررسی دسترسی...
           </p>

@@ -39,7 +39,7 @@ function Field({
         type={type}
         autoComplete={autoComplete}
         required={required}
-        className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
+        className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
       />
     </label>
   );
@@ -127,15 +127,15 @@ export function PreregistrationCard() {
       className="mx-auto grid w-full max-w-7xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white text-right shadow-[0_24px_80px_rgba(15,23,42,0.10)] lg:grid-cols-[1.08fr_0.92fr]"
     >
       <aside className="relative hidden min-h-[48rem] overflow-hidden bg-[#062452] px-6 py-8 text-white lg:block">
-        <div className="absolute -right-16 -top-16 size-44 rounded-full bg-emerald-400/20 blur-2xl" />
+        <div className="absolute -right-16 -top-16 size-44 rounded-full bg-blue-400/20 blur-2xl" />
         <div className="absolute -bottom-20 -left-20 size-52 rounded-full bg-white/10 blur-2xl" />
 
         <div className="relative z-10 flex h-full flex-col">
           <div className="flex items-center gap-4">
-            <BesatLogoMark size="lg" />
+            <BesatLogoMark size="lg" tone="light" />
 
             <div>
-              <p className="text-sm font-black text-emerald-300">مدرسه بعثت</p>
+              <p className="text-sm font-black text-blue-300">مدرسه بعثت</p>
               <h1 className="mt-1 text-2xl font-black">پیش‌ثبت‌نام آنلاین</h1>
             </div>
           </div>
@@ -159,7 +159,7 @@ export function PreregistrationCard() {
         <div className="mb-7 flex items-center gap-3 lg:hidden">
           <BesatLogoMark size="md" />
           <div>
-            <p className="text-sm font-black text-emerald-600">پیش‌ثبت‌نام</p>
+            <p className="text-sm font-black text-blue-600">پیش‌ثبت‌نام</p>
             <h1 className="text-xl font-black text-[#062452]">
               پیش‌ثبت‌نام آنلاین
             </h1>
@@ -167,19 +167,19 @@ export function PreregistrationCard() {
         </div>
 
         {state === "success" ? (
-          <div className="rounded-[1.7rem] border border-emerald-100 bg-emerald-50 p-6 text-right">
-            <h2 className="text-xl font-black text-emerald-700">
+          <div className="rounded-[1.7rem] border border-blue-100 bg-blue-50 p-6 text-right">
+            <h2 className="text-xl font-black text-blue-700">
               درخواست ثبت شد!
             </h2>
 
-            <p className="mt-3 text-sm font-bold leading-8 text-emerald-800">
+            <p className="mt-3 text-sm font-bold leading-8 text-blue-800">
               {message}
             </p>
 
             <button
               type="button"
               onClick={() => setState("idle")}
-              className="mt-5 rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-black text-white transition hover:bg-emerald-700"
+              className="mt-5 rounded-2xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white transition hover:bg-blue-700"
             >
               ثبت درخواست جدید
             </button>
@@ -187,7 +187,7 @@ export function PreregistrationCard() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <p className="text-sm font-black text-emerald-600">پیش‌ثبت‌نام</p>
+              <p className="text-sm font-black text-blue-600">پیش‌ثبت‌نام</p>
               <h2 className="mt-2 text-2xl font-black text-[#062452]">
                 ثبت درخواست پیش‌ثبت‌نام
               </h2>
@@ -232,7 +232,7 @@ export function PreregistrationCard() {
                   id="description"
                   name="description"
                   rows={4}
-                  className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold leading-7 text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
+                  className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold leading-7 text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
                 />
               </label>
             </div>
@@ -256,7 +256,7 @@ export function PreregistrationCard() {
         <div className="mt-6 flex justify-center">
           <Link
             href="/"
-            className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-black text-[#062452] transition duration-500 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+            className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-black text-[#062452] transition duration-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
           >
             بازگشت به سایت
           </Link>

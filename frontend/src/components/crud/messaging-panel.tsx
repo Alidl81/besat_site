@@ -109,7 +109,7 @@ export function MessagingPanel() {
         >
           <span>📥 صندوق ورودی</span>
           {unreadCount > 0 ? (
-            <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-xs text-white">
+            <span className="rounded-full bg-blue-500 px-2 py-0.5 text-xs text-white">
               {unreadCount}
             </span>
           ) : null}
@@ -129,11 +129,11 @@ export function MessagingPanel() {
       <div className="rounded-[1.8rem] border border-slate-200 bg-white shadow-sm overflow-hidden">
         {loading ? (
           <div className="flex min-h-40 items-center justify-center">
-            <div className="size-9 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-500" />
+            <div className="size-9 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
           </div>
         ) : displayed.length === 0 ? (
           <div className="flex min-h-40 flex-col items-center justify-center gap-3 p-8 text-center">
-            <span className="flex size-12 items-center justify-center rounded-2xl bg-emerald-50 text-2xl text-emerald-700">
+            <span className="flex size-12 items-center justify-center rounded-2xl bg-blue-50 text-2xl text-blue-700">
               ✉
             </span>
             <p className="text-sm font-bold text-slate-500">
@@ -150,13 +150,13 @@ export function MessagingPanel() {
                     type="button"
                     onClick={() => markRead(msg)}
                     className={`flex w-full items-start gap-4 px-5 py-4 text-right transition hover:bg-slate-50 sm:px-6 ${
-                      isUnread ? "bg-emerald-50/50" : ""
+                      isUnread ? "bg-blue-50/50" : ""
                     }`}
                   >
                     {/* نقطه خوانده‌نشده */}
                     <span className="mt-1.5 flex size-2.5 shrink-0 items-center justify-center">
                       {isUnread ? (
-                        <span className="size-2.5 rounded-full bg-emerald-500" />
+                        <span className="size-2.5 rounded-full bg-blue-500" />
                       ) : null}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -308,7 +308,7 @@ function ComposeForm({
           value={recipientId}
           onChange={(e) => setRecipientId(e.target.value)}
           required
-          className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
+          className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
         >
           <option value="">— انتخاب گیرنده —</option>
           {users
@@ -330,7 +330,7 @@ function ComposeForm({
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           required
-          className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
+          className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
         />
       </label>
 
@@ -343,7 +343,7 @@ function ComposeForm({
           onChange={(e) => setBody(e.target.value)}
           required
           rows={6}
-          className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
+          className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
         />
       </label>
 

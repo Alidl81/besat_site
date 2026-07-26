@@ -270,7 +270,7 @@ export function RegistrationGradeSelector({
           disabled={isDisabled}
           className={`relative flex h-[3.7rem] w-full items-center justify-between rounded-2xl border bg-white px-4 pl-14 pr-4 text-right text-sm font-black outline-none transition-all duration-300 ease-out ${
             isOpen
-              ? "border-emerald-400 text-[#062452] shadow-[0_14px_35px_rgba(16,185,129,0.14)]"
+              ? "border-blue-400 text-[#062452] shadow-[0_14px_35px_rgba(43,111,159,0.16)]"
               : "border-slate-200 text-[#062452] shadow-sm"
           } ${isDisabled ? "cursor-not-allowed opacity-60" : ""}`}
         >
@@ -309,14 +309,14 @@ export function RegistrationGradeSelector({
                     }}
                     className={`flex w-full items-center justify-between px-4 py-3 text-right text-sm font-black transition duration-200 ${
                       isActive
-                        ? "bg-emerald-50 text-emerald-700"
+                        ? "bg-blue-50 text-blue-700"
                         : "text-[#062452] hover:bg-slate-50"
                     }`}
                   >
                     <span>{option.label}</span>
 
                     {isActive ? (
-                      <span className="rounded-full bg-emerald-100 px-2 py-1 text-[0.65rem] font-black text-emerald-700">
+                      <span className="rounded-full bg-blue-100 px-2 py-1 text-[0.65rem] font-black text-blue-700">
                         انتخاب شده
                       </span>
                     ) : null}

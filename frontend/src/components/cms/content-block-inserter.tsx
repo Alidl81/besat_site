@@ -92,9 +92,9 @@ function buildQuoteBlock(text: string, source: string) {
   const safeSource = escapeHtml(source);
 
   return `
-<blockquote data-besat-block="quote" class="my-8 rounded-[2rem] border-r-4 border-emerald-500 bg-emerald-50 p-6 text-right">
+<blockquote data-besat-block="quote" class="my-8 rounded-[2rem] border-r-4 border-blue-500 bg-blue-50 p-6 text-right">
   <p class="text-lg font-black leading-9 text-[#062452]">${safeText}</p>
-  ${safeSource ? `<cite class="mt-4 block text-sm font-bold not-italic text-emerald-700">${safeSource}</cite>` : ""}
+  ${safeSource ? `<cite class="mt-4 block text-sm font-bold not-italic text-blue-700">${safeSource}</cite>` : ""}
 </blockquote>`;
 }
 
@@ -367,7 +367,7 @@ export function ContentBlockInserter({
               key={type.key}
               type="button"
               onClick={() => openDialog(type.key)}
-              className="rounded-2xl border border-slate-200 bg-white p-4 text-right transition hover:border-emerald-300 hover:bg-emerald-50"
+              className="rounded-2xl border border-slate-200 bg-white p-4 text-right transition hover:border-blue-300 hover:bg-blue-50"
             >
               <span className="block text-sm font-black text-[#062452]">{type.title}</span>
               <span className="mt-1 block text-xs font-bold leading-6 text-slate-500">
@@ -389,7 +389,7 @@ export function ContentBlockInserter({
           <div className="w-full max-w-6xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5 sm:p-6">
               <div className="text-right">
-                <p className="text-xs font-black text-emerald-600">بلوک محتوا</p>
+                <p className="text-xs font-black text-blue-600">بلوک محتوا</p>
                 <h2 className="mt-1 text-xl font-black text-[#062452]">
                   افزودن بلوک {blockTypes.find((item) => item.key === activeType)?.title}
                 </h2>
@@ -443,7 +443,7 @@ export function ContentBlockInserter({
                         <input
                           value={directTitle}
                           onChange={(event) => setDirectTitle(event.target.value)}
-                          className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-right text-sm font-bold text-[#062452] outline-none focus:border-emerald-400"
+                          className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-right text-sm font-bold text-[#062452] outline-none focus:border-blue-400"
                         />
                       </label>
 
@@ -455,7 +455,7 @@ export function ContentBlockInserter({
                           value={directUrl}
                           onChange={(event) => setDirectUrl(event.target.value)}
                           dir="ltr"
-                          className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-left text-sm font-bold text-[#062452] outline-none focus:border-emerald-400"
+                          className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-left text-sm font-bold text-[#062452] outline-none focus:border-blue-400"
                         />
                       </label>
 
@@ -472,7 +472,7 @@ export function ContentBlockInserter({
                   <div>
                     {libraryItems === null ? (
                       <div className="flex h-44 items-center justify-center">
-                        <div className="size-9 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-500" />
+                        <div className="size-9 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
                       </div>
                     ) : allMediaItems.length === 0 ? (
                       <div className="rounded-[2rem] border border-dashed border-slate-200 p-10 text-center text-sm font-bold text-slate-500">
@@ -490,8 +490,8 @@ export function ContentBlockInserter({
                               onClick={() => toggleMedia(item.id)}
                               className={`overflow-hidden rounded-3xl border bg-white p-3 text-right transition ${
                                 selected
-                                  ? "border-emerald-400 ring-4 ring-emerald-100"
-                                  : "border-slate-200 hover:border-emerald-200"
+                                  ? "border-blue-400 ring-4 ring-blue-100"
+                                  : "border-slate-200 hover:border-blue-200"
                               }`}
                             >
                               {isVideoSource(item.src) ? (
@@ -521,7 +521,7 @@ export function ContentBlockInserter({
                                 <span
                                   className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-black ${
                                     selected
-                                      ? "bg-emerald-600 text-white"
+                                      ? "bg-blue-600 text-white"
                                       : "bg-slate-100 text-slate-400"
                                   }`}
                                 >
@@ -547,7 +547,7 @@ export function ContentBlockInserter({
                       value={quoteText}
                       onChange={(event) => setQuoteText(event.target.value)}
                       rows={5}
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold leading-7 text-[#062452] outline-none focus:border-emerald-400 focus:bg-white"
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold leading-7 text-[#062452] outline-none focus:border-blue-400 focus:bg-white"
                     />
                   </label>
 
@@ -558,7 +558,7 @@ export function ContentBlockInserter({
                     <input
                       value={quoteSource}
                       onChange={(event) => setQuoteSource(event.target.value)}
-                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none focus:border-emerald-400 focus:bg-white"
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none focus:border-blue-400 focus:bg-white"
                     />
                   </label>
                 </div>
@@ -573,7 +573,7 @@ export function ContentBlockInserter({
                     <input
                       value={highlightTitle}
                       onChange={(event) => setHighlightTitle(event.target.value)}
-                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none focus:border-emerald-400 focus:bg-white"
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none focus:border-blue-400 focus:bg-white"
                     />
                   </label>
 
@@ -585,7 +585,7 @@ export function ContentBlockInserter({
                       value={highlightBody}
                       onChange={(event) => setHighlightBody(event.target.value)}
                       rows={5}
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold leading-7 text-[#062452] outline-none focus:border-emerald-400 focus:bg-white"
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold leading-7 text-[#062452] outline-none focus:border-blue-400 focus:bg-white"
                     />
                   </label>
                 </div>
@@ -609,7 +609,7 @@ export function ContentBlockInserter({
                   type="button"
                   onClick={insertSelectedBlock}
                   disabled={insertDisabled}
-                  className="h-12 rounded-2xl bg-emerald-600 px-6 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  className="h-12 rounded-2xl bg-blue-600 px-6 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
                   درج بلوک
                 </button>

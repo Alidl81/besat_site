@@ -128,7 +128,7 @@ export function ExcelImport<T extends { id: string; created_at: string; updated_
             a.click();
             URL.revokeObjectURL(url);
           }}
-          className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-[#062452] transition hover:bg-emerald-50 hover:text-emerald-700"
+          className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-[#062452] transition hover:bg-blue-50 hover:text-blue-700"
         >
           <span>⬇</span>
           <span>دانلود فایل نمونه</span>
@@ -137,7 +137,7 @@ export function ExcelImport<T extends { id: string; created_at: string; updated_
 
       {/* آپلود */}
       <div
-        className="flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-white p-6 text-center transition hover:border-emerald-400 hover:bg-emerald-50/40"
+        className="flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-white p-6 text-center transition hover:border-blue-400 hover:bg-blue-50/40"
         onClick={() => fileRef.current?.click()}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
@@ -164,7 +164,7 @@ export function ExcelImport<T extends { id: string; created_at: string; updated_
             state === "error"
               ? "bg-rose-50 text-rose-700"
               : state === "done"
-              ? "bg-emerald-50 text-emerald-700"
+              ? "bg-blue-50 text-blue-700"
               : "bg-slate-50 text-slate-700"
           }`}
         >
@@ -227,7 +227,7 @@ export function ExcelImport<T extends { id: string; created_at: string; updated_
 
       {state === "importing" ? (
         <div className="flex items-center justify-center gap-3 py-4">
-          <div className="size-6 animate-spin rounded-full border-3 border-slate-200 border-t-emerald-500" />
+          <div className="size-6 animate-spin rounded-full border-3 border-slate-200 border-t-blue-500" />
           <span className="text-sm font-black text-slate-500">در حال وارد کردن...</span>
         </div>
       ) : null}

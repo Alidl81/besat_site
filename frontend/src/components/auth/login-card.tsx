@@ -52,7 +52,7 @@ export function LoginCard() {
     >
       <aside className="relative min-h-72 overflow-hidden bg-gradient-to-br from-[#143e61] via-[#0d3157] to-[#062452] p-8 text-white lg:min-h-full lg:p-12">
         <div className="relative z-10 flex items-center justify-start gap-4 text-right">
-          <BesatLogoMark size="lg" />
+          <BesatLogoMark size="lg" tone="light" />
           <div>
             <h2 className="text-2xl font-black">مدرسه بعثت</h2>
             <p className="mt-2 text-sm font-black text-white/70">ورود به حساب کاربری</p>
@@ -60,19 +60,19 @@ export function LoginCard() {
         </div>
 
         <div className="relative z-10 mt-20 text-right lg:absolute lg:bottom-12 lg:right-12 lg:mt-0">
-          <p className="text-sm font-black text-emerald-300">ورود</p>
+          <p className="text-sm font-black text-blue-300">ورود</p>
           <h1 className="mt-4 text-4xl font-black leading-[1.5] text-white lg:text-5xl">
             ورود به حساب
           </h1>
         </div>
 
         <div className="absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-white/10" />
-        <div className="absolute -left-24 top-24 h-64 w-64 rounded-full bg-emerald-300/10 blur-2xl" />
+        <div className="absolute -left-24 top-24 h-64 w-64 rounded-full bg-blue-300/10 blur-2xl" />
       </aside>
 
       <div className="flex items-center justify-center p-6 sm:p-10 lg:p-12">
         <div className="w-full max-w-xl text-right">
-          <p className="text-sm font-black text-emerald-600">ورود</p>
+          <p className="text-sm font-black text-blue-600">ورود</p>
           <h1 className="mt-3 text-3xl font-black text-[#062452] sm:text-4xl">
             ورود به حساب کاربری
           </h1>
@@ -88,7 +88,7 @@ export function LoginCard() {
                 name="username"
                 autoComplete="username"
                 required
-                className="h-[3.5rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
+                className="h-[3.5rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
               />
             </label>
 
@@ -102,7 +102,7 @@ export function LoginCard() {
                 name="password"
                 autoComplete="current-password"
                 required
-                className="h-[3.5rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-emerald-400 focus:bg-white"
+                className="h-[3.5rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
               />
             </label>
 
@@ -123,7 +123,7 @@ export function LoginCard() {
             {!isApiMode() ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-right">
                 <p className="mb-2 text-xs font-black text-slate-400">
-                  حساب‌های تستی (حالت بدون بک‌اند) — رمز همه: <span className="text-emerald-600">1234</span>
+                  حساب‌های تستی (حالت بدون بک‌اند) — رمز همه: <span className="text-blue-600">1234</span>
                 </p>
                 <ul className="space-y-1 text-xs font-bold text-slate-500">
                   <li>مدیر کل: <span className="text-[#062452]">admin</span></li>
@@ -136,7 +136,7 @@ export function LoginCard() {
             <div className="flex justify-center">
               <Link
                 href="/"
-                className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 text-sm font-black text-[#062452] transition hover:border-emerald-200 hover:bg-emerald-50"
+                className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 text-sm font-black text-[#062452] transition hover:border-blue-200 hover:bg-blue-50"
               >
                 بازگشت به سایت
               </Link>

@@ -37,7 +37,7 @@ export function ParentChildrenView() {
     <CrudSection title="فرزندان من" description="اطلاعات فرزندان شما در این بخش نمایش داده می‌شود.">
       {loading ? (
         <div className="flex min-h-32 items-center justify-center">
-          <div className="size-9 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-500" />
+          <div className="size-9 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
         </div>
       ) : children.length === 0 ? (
         <EmptyState text="اطلاعات فرزندی برای نمایش وجود ندارد." />
@@ -45,7 +45,7 @@ export function ParentChildrenView() {
         <div className="grid gap-4 sm:grid-cols-2">
           {children.map((child) => (
             <div key={child.id} className="rounded-2xl border border-slate-200 bg-white p-5 text-right shadow-sm">
-              <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-emerald-50 text-xl">
+              <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-blue-50 text-xl">
                 👤
               </div>
               <h3 className="text-base font-black text-[#062452]">{child.full_name}</h3>
@@ -88,7 +88,7 @@ export function ParentProgramsView({ showAnnouncements = false }: { showAnnounce
     return (
       <CrudSection title={showAnnouncements ? "اطلاعیه‌ها" : "برنامه‌ها"}>
         <div className="flex min-h-32 items-center justify-center">
-          <div className="size-9 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-500" />
+          <div className="size-9 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
         </div>
       </CrudSection>
     );
@@ -125,7 +125,7 @@ export function ParentProgramsView({ showAnnouncements = false }: { showAnnounce
                 <h3 className="text-base font-black text-[#062452]">{p.title}</h3>
                 {p.description ? <p className="mt-1 text-sm font-bold text-slate-500">{p.description}</p> : null}
               </div>
-              {p.date ? <span className="shrink-0 text-xs font-black text-emerald-700">{p.date}</span> : null}
+              {p.date ? <span className="shrink-0 text-xs font-black text-blue-700">{p.date}</span> : null}
             </div>
           ))}
         </div>

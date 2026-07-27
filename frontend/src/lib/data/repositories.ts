@@ -69,7 +69,7 @@ export const homeSlidesRepository = createRepository<HomeSlideRecord>({
 
 export const registrationsRepository = createRepository<RegistrationRequestRecord>({
   collection: "registrations",
-  endpoint: "cms/registrations-requests/",
+  endpoint: "cms/registration-requests/",
 });
 
 export const messagesRepository = createRepository<ContactMessageRecord>({

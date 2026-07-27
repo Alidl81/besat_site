@@ -95,10 +95,30 @@ export function createRepository<T extends BaseRecord>(
   // ---- پیاده‌سازی API واقعی (آماده بک) ----
   const remote: Repository<T> = {
     async list() {
-      const res = await apiRequest<T[] | { results: T[] }>(endpoint, {
-        token: authToken(),
-      });
-      return Array.isArray(res) ? res : res.results;
+      const token = authToken();
+      const records: T[] = [];
+      const visitedPages = new Set<string>();
+      let nextPage: string | null = endpoint;
+
+      while (nextPage && !visitedPages.has(nextPage)) {
+        visitedPages.add(nextPage);
+
+        const res: T[] | { results: T[]; next?: string | null } =
+          await apiRequest<T[] | { results: T[]; next?: string | null }>(
+            nextPage,
+            { token },
+          );
+
+        if (Array.isArray(res)) {
+          records.push(...res);
+          break;
+        }
+
+        records.push(...res.results);
+        nextPage = res.next ?? null;
+      }
+
+      return records;
     },
     async get(id) {
       return apiRequest<T>(`${endpoint}${id}/`, { token: authToken() });

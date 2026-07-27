@@ -27,6 +27,7 @@ services:
       - ./backend/.env
     environment:
       DATABASE_URL: postgres://besat_user:besat_password@db:5432/besat_site
+      SEED_PUBLIC_DATA: "1"
     ports:
       - "8000:8000"
     volumes:
@@ -48,8 +49,10 @@ services:
     container_name: besat_frontend
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_BASE_URL: api
-      NEXT_PUBLISH_DATA_SOURCE: http://localhost:8000/api
+      NEXT_PUBLIC_DATA_SOURCE: api
+      # Browser requests use the host-published backend port; server-rendered
+      # requests use Docker's internal service DNS below.
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api
       NEXT_SERVER_API_BASE_URL: http://backend:8000/api
       WATCHPACK_POLLING: "true"
     ports:
@@ -60,7 +63,7 @@ services:
       - frontend_next:/app/.next
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
     command: ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
 
 volumes:

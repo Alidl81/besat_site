@@ -79,11 +79,13 @@ class MeSerializer(AbsoluteMediaURLMixin, serializers.Serializer):
     role = serializers.CharField(read_only=True)
     role_display = serializers.CharField(read_only=True)
     redirect_path = serializers.CharField(read_only=True)
+    unit_id = serializers.IntegerField(read_only=True, allow_null=True)
     is_staff = serializers.BooleanField(read_only=True)
     is_superuser = serializers.BooleanField(read_only=True)
 
     def to_representation(self, user):
         profile = get_or_create_user_profile(user)
+        units = get_user_units_payload(user)
 
         return {
             "id": user.id,
@@ -95,6 +97,7 @@ class MeSerializer(AbsoluteMediaURLMixin, serializers.Serializer):
             "role": profile.role,
             "role_display": profile.get_role_display(),
             "redirect_path": get_role_redirect_path(profile.role),
+            "unit_id": units[0]["id"] if len(units) == 1 else None,
             "is_staff": user.is_staff,
             "is_superuser": user.is_superuser,
         }

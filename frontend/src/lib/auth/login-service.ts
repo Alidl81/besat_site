@@ -30,7 +30,10 @@ export async function performLogin(
           fullName: response.user.full_name,
           role: response.user.role,
           redirectPath: response.redirect_path,
-          unitId: null,
+          unitId:
+            response.user.unit_id === null
+              ? null
+              : String(response.user.unit_id),
         },
       };
     } catch {

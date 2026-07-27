@@ -9,12 +9,15 @@ export function HomeUnitsSection() {
   const [units, setUnits] = useState<SchoolUnitRecord[] | null>(null);
 
   useEffect(() => {
-    unitsRepository.list().then((all) => {
-      const active = all
-        .filter((u) => u.is_active)
-        .sort((a, b) => a.order - b.order);
-      setUnits(active);
-    });
+    unitsRepository
+      .list()
+      .then((all) => {
+        const active = all
+          .filter((u) => u.is_active)
+          .sort((a, b) => a.order - b.order);
+        setUnits(active);
+      })
+      .catch(() => setUnits([]));
   }, []);
 
   if (units === null) {

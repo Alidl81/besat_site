@@ -139,6 +139,9 @@ class FrontendBackendContractTests(TestCase):
     def test_missing_cms_repository_paths_support_crud(self):
         self.authenticate_manager()
 
+        registration_alias = self.client.get("/api/cms/registrations-requests/")
+        self.assertEqual(registration_alias.status_code, 200, registration_alias.data)
+
         department = self.client.post(
             "/api/cms/departments/",
             {
@@ -227,6 +230,10 @@ class FrontendBackendContractTests(TestCase):
 
     def test_frontend_password_confirmation_name_is_supported(self):
         self.authenticate_manager()
+        me_response = self.client.get("/api/me/")
+        self.assertEqual(me_response.status_code, 200, me_response.data)
+        self.assertIn("unit_id", me_response.data)
+
         response = self.client.post(
             "/api/me/change-password/",
             {

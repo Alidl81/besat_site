@@ -11,6 +11,7 @@ export type PublishStatus =
   | "draft"
   | "waiting_review"
   | "approved"
+  | "scheduled"
   | "published"
   | "rejected";
 

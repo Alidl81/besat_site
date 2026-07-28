@@ -185,23 +185,7 @@ export function SiteHeader() {
   return <>
     <header dir="rtl" className={`besat-site-header z-50 w-full text-white ${isHome ? "absolute inset-x-0 top-0 bg-gradient-to-b from-[#06172c]/95 via-[#06172c]/55 to-transparent" : "sticky top-0 border-b border-white/10 bg-[#081d35]/95 shadow-lg backdrop-blur-xl"}`}>
       <div className="mx-auto hidden w-full max-w-[1840px] px-6 xl:block 2xl:px-10">
-        <div className="flex h-8 items-center justify-between border-b border-white/12 px-1 text-[11px] font-bold text-white/78 2xl:text-[12px]">
-          <span className="whitespace-nowrap text-white/82">مجتمع آموزشی، تربیتی و فرهنگی بعثت</span>
-          <div className="flex items-center gap-2.5" dir="ltr">
-            <a href="tel:05138688881" className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition hover:bg-white/10 hover:text-[#f2c77c]">
-              <PhoneIcon />
-              <span>05138688881</span>
-            </a>
-            <a href="mailto:info@besat.org" className="hidden items-center gap-1.5 rounded-full px-2.5 py-1 transition hover:bg-white/10 hover:text-[#f2c77c] 2xl:inline-flex">
-              <MailIcon />
-              <span>info@besat.org</span>
-            </a>
-            <span dir="rtl" className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-white/82">
-              <PinIcon />
-              مشهد، بلوار معلم، معلم ۶۹
-            </span>
-          </div>
-        </div>
+       
         <div className="grid h-[72px] grid-cols-[minmax(180px,1fr)_auto_minmax(180px,1fr)] items-center gap-3 2xl:grid-cols-[minmax(235px,1fr)_auto_minmax(235px,1fr)] 2xl:gap-5">
           <div className="flex min-w-0 justify-start"><Logo /></div>
           <nav className="flex min-w-0 items-center justify-center gap-0.5 rounded-xl border border-white/16 bg-white/[.075] px-2.5 py-1.5 shadow-[0_10px_35px_rgba(2,12,27,.2)] backdrop-blur-xl 2xl:gap-1 2xl:px-3">

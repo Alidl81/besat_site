@@ -1,4 +1,5 @@
-﻿import { redirect } from "next/navigation";
-export default function PageRedirect() {
+import { redirect } from "next/navigation";
+
+export default function Page() {
   redirect("/dashboard/unit-manager/content");
 }

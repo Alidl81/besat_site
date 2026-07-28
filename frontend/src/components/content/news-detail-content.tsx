@@ -73,7 +73,7 @@ export function NewsDetailContent({ slug }: { slug: string }) {
     );
   }
 
-  const dateLabel = formatDate(item.published_at ?? item.created_at);
+  const dateLabel = formatDate(item.published_at);
   const coverImage = normalizeMediaSrc(item.cover_image);
 
   return (

@@ -1,5 +1,5 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 
-export default function UnitManagerRedirect() {
-  redirect("/dashboard/unit-manager/classes");
+export default function RemovedUnitClassesAlias() {
+  redirect("/dashboard/unit-manager");
 }

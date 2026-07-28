@@ -1,135 +1,70 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CrudSection, EmptyState } from "@/components/crud/crud-ui";
+import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import {
-  contentRepository,
-  programsRepository,
-  studentsRepository,
-} from "@/lib/data/repositories";
-import { readBesatSession } from "@/lib/auth/auth-session";
-import type {
-  ContentRecord,
-  ProgramRecord,
-  StudentRecord,
-} from "@/lib/data/domain-types";
+  PanelEmpty,
+  PanelError,
+  PanelLoading,
+} from "@/components/dashboard/panel-request-state";
+import { usePanelRequest } from "@/hooks/use-panel-request";
+import { panelService } from "@/services/panel-service";
 
-// والدین فقط مشاهده می‌کنند (read-only)
+function formatDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : new Intl.DateTimeFormat("fa-IR", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(date);
+}
 
 export function ParentChildrenView() {
-  const [children, setChildren] = useState<StudentRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const session = readBesatSession();
-    studentsRepository.list().then((all) => {
-      // در حالت واقعی، بک براساس parent_id فیلتر می‌کند.
-      // اینجا برای تست همه را نشان می‌دهیم اگر parent مشخص نباشد.
-      const mine = session
-        ? all.filter((s) => s.parent_id === null || s.unit_id === session.unitId)
-        : all;
-      setChildren(mine);
-      setLoading(false);
-    });
-  }, []);
+  const request = usePanelRequest(() => panelService.parentChildren(), []);
+  if (request.loading) return <PanelLoading label="در حال دریافت فرزندان..." />;
+  if (request.error) return <PanelError message={request.error} onRetry={request.reload} />;
+  if (!request.data?.length) return <PanelEmpty title="فرزندی به حساب شما متصل نشده است." />;
 
   return (
-    <CrudSection title="فرزندان من" description="اطلاعات فرزندان شما در این بخش نمایش داده می‌شود.">
-      {loading ? (
-        <div className="flex min-h-32 items-center justify-center">
-          <div className="size-9 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
-        </div>
-      ) : children.length === 0 ? (
-        <EmptyState text="اطلاعات فرزندی برای نمایش وجود ندارد." />
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {children.map((child) => (
-            <div key={child.id} className="rounded-2xl border border-slate-200 bg-white p-5 text-right shadow-sm">
-              <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-blue-50 text-xl">
-                👤
-              </div>
-              <h3 className="text-base font-black text-[#062452]">{child.full_name}</h3>
-              <p className="mt-1 text-sm font-bold text-slate-500">کلاس: {child.class_title ?? "—"}</p>
-            </div>
-          ))}
-        </div>
-      )}
-    </CrudSection>
+    <section className="grid gap-4 sm:grid-cols-2">
+      {request.data.map((child) => (
+        <article key={child.id} className="panel-card">
+          {child.avatar_url ? <Image src={child.avatar_url} alt="" width={48} height={48} className="size-12 rounded-full object-cover" /> : <span className="flex size-12 items-center justify-center rounded-full bg-blue-50 font-black text-blue-700">{child.full_name.slice(0, 1)}</span>}
+          <h2 className="mt-3 text-base font-black text-[#062452]">{child.full_name}</h2>
+          <p className="mt-1 text-sm font-bold text-slate-500">{[child.grade_title, child.class_title].filter(Boolean).join(" · ") || "اطلاعات کلاس ثبت نشده"}</p>
+        </article>
+      ))}
+    </section>
   );
 }
 
-export function ParentProgramsView({ showAnnouncements = false }: { showAnnouncements?: boolean }) {
-  const [programs, setPrograms] = useState<ProgramRecord[]>([]);
-  const [announcements, setAnnouncements] = useState<ContentRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const session = readBesatSession();
-    Promise.all([programsRepository.list(), contentRepository.list()]).then(
-      ([progs, content]) => {
-        const scopedProgs = session?.unitId
-          ? progs.filter((p) => p.unit_id === session.unitId || p.unit_id === null)
-          : progs;
-        setPrograms(scopedProgs);
-
-        const anns = content.filter(
-          (c) =>
-            c.kind === "announcement" &&
-            c.status === "published" &&
-            (c.scope === "school" || c.unit_id === session?.unitId),
-        );
-        setAnnouncements(anns);
-        setLoading(false);
-      },
-    );
-  }, []);
-
-  if (loading) {
-    return (
-      <CrudSection title={showAnnouncements ? "اطلاعیه‌ها" : "برنامه‌ها"}>
-        <div className="flex min-h-32 items-center justify-center">
-          <div className="size-9 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
-        </div>
-      </CrudSection>
-    );
-  }
-
-  if (showAnnouncements) {
-    return (
-      <CrudSection title="اطلاعیه‌ها" description="اطلاعیه‌های مربوط به فرزند شما در این بخش نمایش داده می‌شود.">
-        {announcements.length === 0 ? (
-          <EmptyState text="اطلاعیه‌ای برای نمایش وجود ندارد." />
-        ) : (
-          <div className="space-y-3">
-            {announcements.map((a) => (
-              <div key={a.id} className="rounded-2xl border border-slate-200 bg-white p-5 text-right shadow-sm">
-                <h3 className="text-base font-black text-[#062452]">{a.title}</h3>
-                {a.summary ? <p className="mt-2 text-sm font-bold text-slate-500">{a.summary}</p> : null}
-              </div>
-            ))}
-          </div>
-        )}
-      </CrudSection>
-    );
-  }
+export function ParentProgramsView() {
+  const searchParams = useSearchParams();
+  const child = searchParams.get("child");
+  const academicYear = searchParams.get("academic_year");
+  const request = usePanelRequest(
+    () => panelService.parentPrograms({ child, academic_year: academicYear }),
+    [child, academicYear],
+  );
+  if (request.loading) return <PanelLoading label="در حال دریافت برنامه‌ها..." />;
+  if (request.error) return <PanelError message={request.error} onRetry={request.reload} />;
+  if (!request.data?.results.length) return <PanelEmpty title="برنامه‌ای برای این فرزند و سال تحصیلی ثبت نشده است." />;
 
   return (
-    <CrudSection title="برنامه‌ها" description="برنامه‌های آموزشی فرزند شما در این بخش نمایش داده می‌شود.">
-      {programs.length === 0 ? (
-        <EmptyState text="برنامه‌ای برای نمایش وجود ندارد." />
-      ) : (
-        <div className="space-y-3">
-          {programs.map((p) => (
-            <div key={p.id} className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-right shadow-sm">
-              <div>
-                <h3 className="text-base font-black text-[#062452]">{p.title}</h3>
-                {p.description ? <p className="mt-1 text-sm font-bold text-slate-500">{p.description}</p> : null}
-              </div>
-              {p.date ? <span className="shrink-0 text-xs font-black text-blue-700">{p.date}</span> : null}
+    <section className="panel-card">
+      <div className="space-y-3">
+        {request.data.results.map((program) => (
+          <article key={program.id} className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 p-5">
+            <div>
+              <h2 className="text-base font-black text-[#062452]">{program.title}</h2>
+              {program.description ? <p className="mt-1 text-sm font-bold text-slate-500">{program.description}</p> : null}
+              {program.location ? <p className="mt-2 text-xs font-bold text-slate-400">{program.location}</p> : null}
             </div>
-          ))}
-        </div>
-      )}
-    </CrudSection>
+            <time className="shrink-0 text-xs font-black text-blue-700">{formatDate(program.starts_at)}</time>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }

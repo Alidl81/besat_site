@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { PanelIcon } from "@/components/dashboard/panel-icons";
 
 // ---------- Modal ----------
 type ModalProps = {
@@ -29,7 +30,7 @@ export function Modal({ open, onClose, title, children, size = "lg" }: ModalProp
   return (
     <div
       dir="rtl"
-      className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/40 p-4 backdrop-blur-sm sm:p-8"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 p-4 backdrop-blur-sm sm:p-8"
     >
       <button
         type="button"
@@ -38,7 +39,7 @@ export function Modal({ open, onClose, title, children, size = "lg" }: ModalProp
         className="fixed inset-0 -z-10"
       />
       <div
-        className={`relative w-full ${widthClass} rounded-[1.8rem] border border-slate-200 bg-white shadow-2xl`}
+        className={`relative w-full ${widthClass} rounded-xl border border-slate-200 bg-white shadow-2xl`}
       >
         <div className="flex items-center justify-between gap-4 border-b border-slate-100 p-5 sm:p-6">
           <h2 className="text-xl font-black text-[#062452]">{title}</h2>
@@ -46,9 +47,9 @@ export function Modal({ open, onClose, title, children, size = "lg" }: ModalProp
             type="button"
             onClick={onClose}
             aria-label="بستن"
-            className="flex size-10 items-center justify-center rounded-2xl bg-slate-100 text-lg font-black text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
+            className="panel-icon-button bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600"
           >
-            ✕
+            <PanelIcon name="plus" className="size-5 rotate-45" />
           </button>
         </div>
         <div className="p-5 sm:p-6">{children}</div>
@@ -71,11 +72,11 @@ export function ConfirmDialog({ open, title, description, onConfirm, onCancel }:
   return (
     <div
       dir="rtl"
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
     >
-      <div className="w-full max-w-md rounded-[1.8rem] border border-slate-200 bg-white p-6 text-right shadow-2xl">
-        <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-rose-50 text-2xl text-rose-600">
-          ⚠
+      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 text-right shadow-2xl">
+        <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+          <PanelIcon name="trash" className="size-6" />
         </div>
         <h3 className="text-lg font-black text-[#062452]">{title}</h3>
         <p className="mt-2 text-sm font-bold leading-7 text-slate-500">{description}</p>
@@ -120,8 +121,7 @@ export function Field({ label, children, required, className = "" }: FieldProps)
   );
 }
 
-const inputClass =
-  "h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white";
+const inputClass = "panel-input";
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${inputClass} ${props.className ?? ""}`} />;
@@ -131,7 +131,7 @@ export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   return (
     <textarea
       {...props}
-      className={`w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white ${props.className ?? ""}`}
+      className={`panel-textarea ${props.className ?? ""}`}
     />
   );
 }
@@ -140,7 +140,7 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className={`h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white ${props.className ?? ""}`}
+      className={`panel-select ${props.className ?? ""}`}
     />
   );
 }
@@ -150,7 +150,7 @@ export function PrimaryButton(props: React.ButtonHTMLAttributes<HTMLButtonElemen
   return (
     <button
       {...props}
-      className={`besat-navy-button inline-flex h-[3.25rem] items-center justify-center gap-2 rounded-2xl bg-[#12395b] px-6 text-sm font-black transition hover:bg-[#0d2f4d] disabled:cursor-not-allowed disabled:opacity-70 ${props.className ?? ""}`}
+      className={`panel-primary-button disabled:cursor-not-allowed disabled:opacity-60 ${props.className ?? ""}`}
     />
   );
 }
@@ -159,7 +159,7 @@ export function GhostButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>
   return (
     <button
       {...props}
-      className={`inline-flex h-[3.25rem] items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 text-sm font-black text-[#062452] transition hover:bg-slate-50 ${props.className ?? ""}`}
+      className={`panel-secondary-button ${props.className ?? ""}`}
     />
   );
 }
@@ -194,7 +194,7 @@ type CrudSectionProps = {
 
 export function CrudSection({ title, description, action, children }: CrudSectionProps) {
   return (
-    <section className="mt-5 rounded-[1.8rem] border border-slate-200 bg-white p-5 text-right shadow-sm sm:p-6">
+    <section className="panel-card">
       <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-black text-[#062452]">{title}</h2>
@@ -213,8 +213,8 @@ export function CrudSection({ title, description, action, children }: CrudSectio
 export function EmptyState({ text }: { text: string }) {
   return (
     <div className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-7 text-center">
-      <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-white text-xl text-blue-700 shadow-sm">
-        ◌
+      <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-white text-blue-700 shadow-sm">
+        <PanelIcon name="file" className="size-6" />
       </div>
       <p className="text-sm font-bold leading-7 text-slate-500">{text}</p>
     </div>

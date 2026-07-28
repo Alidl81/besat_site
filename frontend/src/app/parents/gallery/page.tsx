@@ -1,5 +1,5 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 
-export default function ParentsRedirect() {
-  redirect("/dashboard/parents/gallery");
+export default function RemovedParentGalleryAlias() {
+  redirect("/dashboard/parents");
 }

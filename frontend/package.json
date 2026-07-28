@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "next start --hostname 0.0.0.0",
+    "lint": "eslint",
+    "mock:reset": "node scripts/reset-mock-db.mjs"
   },
   "dependencies": {
     "@tiptap/extension-image": "^3.27.1",

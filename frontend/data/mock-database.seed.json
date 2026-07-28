@@ -1,0 +1,1332 @@
+{
+  "_meta": {
+    "name": "Besat Mashhad temporary development database",
+    "schema_version": 1,
+    "seeded_at": "2026-07-28T00:00:00.000Z",
+    "notice": "اطلاعات عمومی مدارس از منابع رسمی بعثت گرفته شده است. رکوردهای دانش‌آموز، والد، ثبت‌نام، پیام و کاربران با برچسب آزمایشی ساخته شده‌اند و متعلق به شخص واقعی نیستند.",
+    "sources": [
+      {
+        "title": "روابط عمومی مدارس بعثت",
+        "url": "https://besat-r.com/home.axd",
+        "retrieved_at": "2026-07-28"
+      },
+      {
+        "title": "واحدهای پیش‌دبستانی و دبستان پسرانه",
+        "url": "https://besat-r.com/boys-school.axd",
+        "retrieved_at": "2026-07-28"
+      },
+      {
+        "title": "واحدهای پیش‌دبستانی و دبستان دخترانه",
+        "url": "https://besat-r.com/girls-school.axd",
+        "retrieved_at": "2026-07-28"
+      },
+      {
+        "title": "دبیرستان‌های پسرانه بعثت",
+        "url": "https://besat-r.com/boys-highschool.axd",
+        "retrieved_at": "2026-07-28"
+      },
+      {
+        "title": "دبیرستان دخترانه بعثت",
+        "url": "https://besat-r.com/girls-highschool.axd",
+        "retrieved_at": "2026-07-28"
+      },
+      {
+        "title": "آرشیو اخبار رسمی بعثت",
+        "url": "https://besat-r.com/blog-archive.axd",
+        "retrieved_at": "2026-07-28"
+      },
+      {
+        "title": "وب‌سایت رسمی دبیرستان بعثت دوره دوم",
+        "url": "https://www.besat-hs.ir/",
+        "retrieved_at": "2026-07-28"
+      }
+    ]
+  },
+  "site_settings": {
+    "school_name": "مجتمع تربیتی آموزشی بعثت",
+    "slogan": "بصیرت دینی، اقتدار علمی",
+    "logo": "/images/official/brand/besat-logo.svg",
+    "phone": "05138681999",
+    "email": "info@besat-hs.com",
+    "address": "مشهد، بلوار معلم، معلم ۶۹، مجتمع آموزشی بعثت",
+    "students_public_count": 4000,
+    "staff_public_count": 900,
+    "national_titles_public_count": 200,
+    "years_public_count": 33,
+    "source_url": "https://besat-r.com/home.axd"
+  },
+  "settings": {
+    "school_name": "مجتمع تربیتی آموزشی بعثت",
+    "current_academic_year_id": "year-1405-1406",
+    "default_unit_id": "unit-07",
+    "notify_new_registration": true,
+    "show_published_on_home": true,
+    "autosave_forms": true,
+    "internal_messages_enabled": true,
+    "academic_years": [
+      {
+        "id": "year-1405-1406",
+        "title": "۱۴۰۵–۱۴۰۶"
+      },
+      {
+        "id": "year-1404-1405",
+        "title": "۱۴۰۴–۱۴۰۵"
+      }
+    ]
+  },
+  "accounts": [
+    {
+      "id": "account-admin",
+      "username": "admin",
+      "password": "BesatDemo1405!",
+      "full_name": "مدیر آزمایشی مجموعه",
+      "email": "demo-admin@local.test",
+      "phone": null,
+      "role": "general_manager",
+      "role_display": "مدیر مجموعه (آزمایشی)",
+      "unit_id": null,
+      "redirect_path": "/dashboard/admin",
+      "avatar": null,
+      "is_active": true,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "account-unit",
+      "username": "unit_manager",
+      "password": "BesatDemo1405!",
+      "full_name": "مدیر آزمایشی واحد ۷",
+      "email": "demo-unit@local.test",
+      "phone": null,
+      "role": "unit_manager",
+      "role_display": "مدیر واحد (آزمایشی)",
+      "unit_id": "unit-07",
+      "redirect_path": "/dashboard/unit-manager",
+      "avatar": null,
+      "is_active": true,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "account-media",
+      "username": "media",
+      "password": "BesatDemo1405!",
+      "full_name": "مسئول رسانه آزمایشی",
+      "email": "demo-media@local.test",
+      "phone": null,
+      "role": "unit_media",
+      "role_display": "مسئول رسانه (آزمایشی)",
+      "unit_id": "unit-07",
+      "redirect_path": "/dashboard/media",
+      "avatar": null,
+      "is_active": true,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "account-parent",
+      "username": "parent",
+      "password": "BesatDemo1405!",
+      "full_name": "والد آزمایشی",
+      "email": "demo-parent@local.test",
+      "phone": null,
+      "role": "parent",
+      "role_display": "والد (آزمایشی)",
+      "unit_id": "unit-07",
+      "redirect_path": "/dashboard/parents",
+      "avatar": null,
+      "is_active": true,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "units": [
+    {
+      "id": "unit-01-02",
+      "title": "واحد ۱ و ۲",
+      "slug": "boys-preschool-elementary-1-2",
+      "kind": "elementary",
+      "gender": "boys",
+      "description": "پیش ۲ تا پایه دوم، نبش آزادی ۷",
+      "address": "مشهد، نبش آزادی ۷",
+      "phone": "05136012090",
+      "cover_image": "/images/official/units/unit-01-02.jpg",
+      "is_active": true,
+      "order": 1,
+      "source_url": "https://besat-r.com/boys-school.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "unit-03",
+      "title": "واحد ۳",
+      "slug": "boys-elementary-3",
+      "kind": "elementary",
+      "gender": "boys",
+      "description": "پایه سوم تا ششم، نبش ملک‌آباد ۳",
+      "address": "مشهد، نبش ملک‌آباد ۳",
+      "phone": "0513609079",
+      "cover_image": "/images/official/units/unit-03.jpg",
+      "is_active": true,
+      "order": 2,
+      "source_url": "https://besat-r.com/boys-school.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "unit-04",
+      "title": "واحد ۴",
+      "slug": "boys-preschool-elementary-4",
+      "kind": "elementary",
+      "gender": "boys",
+      "description": "پیش ۱ و ۲ و پایه اول، مدرسه شکوفه‌های بعثت",
+      "address": "مشهد، بین وکیل‌آباد ۴۳ و ۴۵",
+      "phone": "05138676329",
+      "cover_image": "/images/official/units/unit-04.jpg",
+      "is_active": true,
+      "order": 3,
+      "source_url": "https://besat-r.com/boys-school.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "unit-05",
+      "title": "واحد ۵",
+      "slug": "boys-elementary-5",
+      "kind": "elementary",
+      "gender": "boys",
+      "description": "پایه دوم تا ششم، بین ستاری ۱۳ و ۱۵",
+      "address": "مشهد، بین ستاری ۱۳ و ۱۵",
+      "phone": "05138681999",
+      "cover_image": "/images/official/units/unit-05.jpg",
+      "is_active": true,
+      "order": 4,
+      "source_url": "https://besat-r.com/boys-school.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "unit-06",
+      "title": "واحد ۶",
+      "slug": "boys-middle-school-6",
+      "kind": "middle_school",
+      "gender": "boys",
+      "description": "دبیرستان پسرانه دوره اول؛ پایه هفتم تا نهم",
+      "address": "مشهد، معلم ۶۹",
+      "phone": "05138681999",
+      "cover_image": "/images/official/units/unit-06.jpg",
+      "is_active": true,
+      "order": 5,
+      "source_url": "https://besat-r.com/boys-highschool.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "unit-07",
+      "title": "واحد ۷",
+      "slug": "boys-high-school-7",
+      "kind": "high_school",
+      "gender": "boys",
+      "description": "دبیرستان پسرانه دوره دوم؛ پایه دهم تا دوازدهم",
+      "address": "مشهد، معلم ۶۹",
+      "phone": "05138681999",
+      "cover_image": "/images/official/units/unit-07.jpg",
+      "is_active": true,
+      "order": 6,
+      "source_url": "https://besat-r.com/boys-highschool.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "unit-08",
+      "title": "واحد ۸",
+      "slug": "girls-preschool-elementary-8",
+      "kind": "elementary",
+      "gender": "girls",
+      "description": "پیش ۲ تا پایه دوم",
+      "address": "مشهد، فارغ‌التحصیلان ۵",
+      "phone": "05135019059",
+      "cover_image": "/images/official/units/unit-08.jpg",
+      "is_active": true,
+      "order": 7,
+      "source_url": "https://besat-r.com/girls-school.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "unit-09",
+      "title": "واحد ۹",
+      "slug": "girls-preschool-elementary-9",
+      "kind": "elementary",
+      "gender": "girls",
+      "description": "پیش ۲ تا پایه ششم",
+      "address": "مشهد، ابوذر ۴",
+      "phone": "05138403998",
+      "cover_image": "/images/official/units/unit-09.jpg",
+      "is_active": true,
+      "order": 8,
+      "source_url": "https://besat-r.com/girls-school.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "unit-10",
+      "title": "واحد ۱۰",
+      "slug": "girls-elementary-10",
+      "kind": "elementary",
+      "gender": "girls",
+      "description": "پایه دوم تا ششم",
+      "address": "مشهد، دندانپزشکان ۱۲",
+      "phone": "05135094949",
+      "cover_image": "/images/official/units/unit-10.jpg",
+      "is_active": true,
+      "order": 9,
+      "source_url": "https://besat-r.com/girls-school.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "unit-11",
+      "title": "واحد ۱۱",
+      "slug": "girls-middle-school-11",
+      "kind": "middle_school",
+      "gender": "girls",
+      "description": "دبیرستان دخترانه دوره اول بعثت",
+      "address": "مشهد، نبش وکیل‌آباد ۷۵",
+      "phone": "09372932377",
+      "cover_image": "/images/official/units/unit-11.jpg",
+      "is_active": true,
+      "order": 10,
+      "source_url": "https://besat-r.com/girls-highschool.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "unit-12",
+      "title": "واحد ۱۲",
+      "slug": "girls-elementary-12",
+      "kind": "elementary",
+      "gender": "girls",
+      "description": "پایه پنجم و ششم",
+      "address": "مشهد، بین وکیل‌آباد ۶۳ و ۶۵",
+      "phone": "05135016549",
+      "cover_image": "/images/official/units/unit-12.jpg",
+      "is_active": true,
+      "order": 11,
+      "source_url": "https://besat-r.com/girls-school.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "unit-13",
+      "title": "واحد ۱۳",
+      "slug": "kindergarten-13",
+      "kind": "preschool",
+      "gender": "mixed",
+      "description": "کودکستان شکوفه‌های بعثت",
+      "address": "مشهد، خیابان صدف، صدف ۲، پلاک ۱۸",
+      "phone": "05138908122",
+      "cover_image": "/images/official/units/unit-13.jpg",
+      "is_active": true,
+      "order": 12,
+      "source_url": "https://besat-r.com/boys-school.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "departments": [
+    {
+      "id": "department-education",
+      "title": "معاونت آموزش",
+      "slug": "education",
+      "description": "برنامه‌های آموزشی و پایه‌های دهم، یازدهم و دوازدهم دبیرستان بعثت",
+      "cover_image": "/images/official/hero/besat-hs-banner-03.jpg",
+      "is_active": true,
+      "order": 1,
+      "source_url": "https://www.besat-hs.ir/",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "department-olympiad",
+      "title": "باشگاه المپیاد",
+      "slug": "olympiad",
+      "description": "باشگاه المپیاد و برنامه افتخارات علمی دبیرستان بعثت",
+      "cover_image": null,
+      "is_active": true,
+      "order": 2,
+      "source_url": "https://www.besat-hs.ir/",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "department-research",
+      "title": "باشگاه پژوهش",
+      "slug": "research",
+      "description": "برنامه‌های پژوهشی و افتخارات پژوهشی دانش‌آموزان بعثت",
+      "cover_image": null,
+      "is_active": true,
+      "order": 3,
+      "source_url": "https://www.besat-hs.ir/",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "department-culture",
+      "title": "معاونت فرهنگی",
+      "slug": "culture",
+      "description": "فعالیت‌ها و برنامه‌های فرهنگی دبیرستان بعثت",
+      "cover_image": null,
+      "is_active": true,
+      "order": 4,
+      "source_url": "https://www.besat-hs.ir/",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "department-language",
+      "title": "کانون تخصصی زبان",
+      "slug": "language",
+      "description": "کانون تخصصی زبان مجتمع آموزشی بعثت",
+      "cover_image": null,
+      "is_active": true,
+      "order": 5,
+      "source_url": "https://besat-r.com/home.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "department-computer",
+      "title": "گروه تخصصی رایانه و رباتیک",
+      "slug": "computer-robotics",
+      "description": "گروه تخصصی رایانه و فعالیت‌های رباتیک مجتمع آموزشی بعثت",
+      "cover_image": null,
+      "is_active": true,
+      "order": 6,
+      "source_url": "https://besat-r.com/home.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "users": [
+    {
+      "id": "user-demo-admin",
+      "username": "admin",
+      "full_name": "مدیر آزمایشی مجموعه",
+      "email": "demo-admin@local.test",
+      "phone": null,
+      "role": "general_manager",
+      "unit_id": null,
+      "is_active": true,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "user-demo-unit",
+      "username": "unit_manager",
+      "full_name": "مدیر آزمایشی واحد ۷",
+      "email": "demo-unit@local.test",
+      "phone": null,
+      "role": "unit_manager",
+      "unit_id": "unit-07",
+      "is_active": true,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "user-demo-media",
+      "username": "media",
+      "full_name": "مسئول رسانه آزمایشی",
+      "email": "demo-media@local.test",
+      "phone": null,
+      "role": "unit_media",
+      "unit_id": "unit-07",
+      "is_active": true,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "user-demo-parent",
+      "username": "parent",
+      "full_name": "والد آزمایشی",
+      "email": "demo-parent@local.test",
+      "phone": null,
+      "role": "parent",
+      "unit_id": "unit-07",
+      "is_active": true,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "content": [
+    {
+      "id": "content-firacup-2024",
+      "kind": "news",
+      "title": "مقام جهانی در مسابقات فیراکاپ ۲۰۲۴ برزیل توسط دانش‌آموزان بعثتی",
+      "slug": "firacup-2024-world-title",
+      "summary": "تیم رباتیک دبیرستان دوره دوم بعثت در لیگ نوآوری و کسب‌وکار فیراکاپ ۲۰۲۴ عنوان بهترین اختراع و طرح تجاری را کسب کرد.",
+      "body_html": "<p>دانش‌آموزان تیم رباتیک دبیرستان دوره دوم بعثت در رقابت با تیم‌هایی از ۱۸ کشور، مقام نخست لیگ نوآوری و کسب‌وکار فیراکاپ ۲۰۲۴ برزیل را به دست آوردند.</p>",
+      "body_json": null,
+      "cover_image": "/images/official/hero/besat-main.jpg",
+      "cover_image_url": "/images/official/hero/besat-main.jpg",
+      "scope": "school",
+      "unit_id": "unit-07",
+      "category_id": "category-achievement",
+      "category_title": "افتخار",
+      "status": "published",
+      "author_id": "user-demo-media",
+      "author_role": "unit_media",
+      "scheduled_at": null,
+      "published_at": null,
+      "source_url": "https://besat-r.com/blog-archive.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "content-ijso-bronze",
+      "kind": "news",
+      "title": "کسب مدال برنز مسابقات جهانی المپیاد IJSO",
+      "slug": "ijso-world-bronze-medal",
+      "summary": "دانش‌آموز دبیرستان بعثت در رقابت جهانی IJSO در بانکوک تایلند مدال برنز کسب کرد.",
+      "body_html": "<p>نماینده دبیرستان بعثت به همراه تیم ملی ایران در رقابت جهانی علوم نوجوانان IJSO با حضور ۵۵ کشور به مدال برنز دست یافت.</p>",
+      "body_json": null,
+      "cover_image": "/images/official/hero/besat-hs-banner-03.jpg",
+      "cover_image_url": "/images/official/hero/besat-hs-banner-03.jpg",
+      "scope": "school",
+      "unit_id": "unit-07",
+      "category_id": "category-olympiad",
+      "category_title": "المپیاد",
+      "status": "published",
+      "author_id": "user-demo-media",
+      "author_role": "unit_media",
+      "scheduled_at": null,
+      "published_at": null,
+      "source_url": "https://besat-r.com/blog-archive.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "content-ijso-opening",
+      "kind": "news",
+      "title": "آیین افتتاحیه المپیاد جهانی ۲۰۲۳ IJSO",
+      "slug": "ijso-2023-opening",
+      "summary": "چهار دانش‌آموز دبیرستان بعثت در ترکیب رسمی تیم ملی ایران در المپیاد جهانی علوم نوجوانان حضور داشتند.",
+      "body_html": "<p>آیین افتتاحیه المپیاد جهانی علوم نوجوانان ۲۰۲۳ با حضور ۵۵ کشور در بانکوک برگزار شد و چهار دانش‌آموز دبیرستان بعثت در ترکیب تیم ملی ایران حضور داشتند.</p>",
+      "body_json": null,
+      "cover_image": "/images/official/units/unit-07.jpg",
+      "cover_image_url": "/images/official/units/unit-07.jpg",
+      "scope": "school",
+      "unit_id": "unit-07",
+      "category_id": "category-olympiad",
+      "category_title": "المپیاد",
+      "status": "published",
+      "author_id": "user-demo-media",
+      "author_role": "unit_media",
+      "scheduled_at": null,
+      "published_at": null,
+      "source_url": "https://besat-r.com/blog-archive.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "content-kashef",
+      "kind": "news",
+      "title": "افتخارآفرینی تیم کاشف بعثت",
+      "slug": "kashef-team-achievement",
+      "summary": "تیم رباتیک دبیرستان بعثت در مسابقات بین‌المللی ایران‌اوپن ۲۰۲۳ در جمع سه طرح برگزیده قرار گرفت.",
+      "body_html": "<p>تیم کاشف دبیرستان بعثت در رقابت بین‌المللی ایران‌اوپن ۲۰۲۳ توانست در میان طرح‌های ارائه‌شده، یکی از سه طرح برگزیده باشد.</p>",
+      "body_json": null,
+      "cover_image": "/images/official/units/unit-07.jpg",
+      "cover_image_url": "/images/official/units/unit-07.jpg",
+      "scope": "school",
+      "unit_id": "unit-07",
+      "category_id": "category-robotics",
+      "category_title": "رباتیک",
+      "status": "published",
+      "author_id": "user-demo-media",
+      "author_role": "unit_media",
+      "scheduled_at": null,
+      "published_at": null,
+      "source_url": "https://besat-r.com/blog-archive.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "content-smart-shade",
+      "kind": "news",
+      "title": "تولید ربات سایه‌بان هوشمند توسط پژوهشگران بعثتی",
+      "slug": "smart-shade-robot",
+      "summary": "طرح ربات سایه‌بان هوشمند پژوهشگران بعثتی در مسابقات بین‌المللی ایران‌اوپن ارائه شد.",
+      "body_html": "<p>پژوهشگران دانش‌آموز مجتمع بعثت، ربات سایه‌بان هوشمند را در مسابقات بین‌المللی ایران‌اوپن معرفی کردند.</p>",
+      "body_json": null,
+      "cover_image": "/images/official/units/unit-06.jpg",
+      "cover_image_url": "/images/official/units/unit-06.jpg",
+      "scope": "school",
+      "unit_id": "unit-06",
+      "category_id": "category-research",
+      "category_title": "پژوهش",
+      "status": "published",
+      "author_id": "user-demo-media",
+      "author_role": "unit_media",
+      "scheduled_at": null,
+      "published_at": null,
+      "source_url": "https://besat-r.com/blog-archive.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "content-demo-league",
+      "kind": "news",
+      "title": "کسب مقام سوم لیگ دمو دانش‌آموزی مسابقات بین‌المللی",
+      "slug": "international-demo-league-third-place",
+      "summary": "دانش‌آموزان بعثتی در لیگ دمو مسابقات بین‌المللی روبوکاپ ایران ۲۰۲۳ مقام سوم را کسب کردند.",
+      "body_html": "<p>تیم دانش‌آموزی بعثت در لیگ دمو مسابقات بین‌المللی روبوکاپ ایران ۲۰۲۳ به مقام سوم دست یافت.</p>",
+      "body_json": null,
+      "cover_image": "/images/official/units/unit-07.jpg",
+      "cover_image_url": "/images/official/units/unit-07.jpg",
+      "scope": "school",
+      "unit_id": "unit-07",
+      "category_id": "category-robotics",
+      "category_title": "رباتیک",
+      "status": "published",
+      "author_id": "user-demo-media",
+      "author_role": "unit_media",
+      "scheduled_at": null,
+      "published_at": null,
+      "source_url": "https://besat-r.com/blog-archive.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "announcement-preregistration",
+      "kind": "announcement",
+      "title": "پیش‌ثبت‌نام سال جدید",
+      "slug": "new-year-preregistration",
+      "summary": "پیش‌ثبت‌نام در تمامی مقاطع به‌صورت محدود انجام می‌شود.",
+      "body_html": "<p>سامانه پیش‌ثبت‌نام مدارس بعثت برای مقاطع اعلام‌شده در سایت رسمی فعال است. ثبت‌نام قطعی مطابق شرایط آموزشی هر واحد انجام می‌شود.</p>",
+      "body_json": null,
+      "cover_image": "/images/official/hero/besat-main.jpg",
+      "cover_image_url": "/images/official/hero/besat-main.jpg",
+      "scope": "school",
+      "unit_id": null,
+      "category_id": "category-registration",
+      "category_title": "ثبت‌نام",
+      "status": "published",
+      "author_id": "user-demo-admin",
+      "author_role": "general_manager",
+      "scheduled_at": null,
+      "published_at": null,
+      "source_url": "https://besat-r.com/home.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "announcement-leisure",
+      "kind": "announcement",
+      "title": "ثبت‌نام کلاس‌های اوقات فراغت",
+      "slug": "leisure-classes-registration",
+      "summary": "ثبت‌نام کلاس‌های اوقات فراغت از طریق سایت رسمی روابط عمومی مدارس بعثت انجام می‌شود.",
+      "body_html": "<p>اطلاعات و لینک ثبت‌نام کلاس‌های اوقات فراغت در وب‌سایت رسمی روابط عمومی مدارس بعثت منتشر شده است.</p>",
+      "body_json": null,
+      "cover_image": "/images/official/units/unit-05.jpg",
+      "cover_image_url": "/images/official/units/unit-05.jpg",
+      "scope": "school",
+      "unit_id": null,
+      "category_id": "category-program",
+      "category_title": "برنامه",
+      "status": "published",
+      "author_id": "user-demo-admin",
+      "author_role": "general_manager",
+      "scheduled_at": null,
+      "published_at": null,
+      "source_url": "https://besat-r.com/home.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "content-demo-draft",
+      "kind": "news",
+      "title": "پیش‌نویس آزمایشی برای بررسی عملکرد ادیتور",
+      "slug": "editor-demo-draft",
+      "summary": "این رکورد صرفاً برای تست ذخیره، بازبینی، زمان‌بندی و انتشار ساخته شده است.",
+      "body_html": "<p>این محتوا واقعی نیست و فقط گردش‌کار ادیتور ساده و پیشرفته را آزمایش می‌کند.</p>",
+      "body_json": null,
+      "cover_image": null,
+      "cover_image_url": null,
+      "scope": "unit",
+      "unit_id": "unit-07",
+      "category_id": "category-demo",
+      "category_title": "آزمایشی",
+      "status": "draft",
+      "author_id": "user-demo-media",
+      "author_role": "unit_media",
+      "scheduled_at": null,
+      "published_at": null,
+      "source_url": null,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "content_categories": [
+    {
+      "id": "category-achievement",
+      "title": "افتخار",
+      "slug": "achievement"
+    },
+    {
+      "id": "category-olympiad",
+      "title": "المپیاد",
+      "slug": "olympiad"
+    },
+    {
+      "id": "category-robotics",
+      "title": "رباتیک",
+      "slug": "robotics"
+    },
+    {
+      "id": "category-research",
+      "title": "پژوهش",
+      "slug": "research"
+    },
+    {
+      "id": "category-registration",
+      "title": "ثبت‌نام",
+      "slug": "registration"
+    },
+    {
+      "id": "category-program",
+      "title": "برنامه",
+      "slug": "program"
+    },
+    {
+      "id": "category-demo",
+      "title": "آزمایشی",
+      "slug": "demo"
+    }
+  ],
+  "content_revisions": [
+    {
+      "id": "revision-demo-draft-1",
+      "content_id": "content-demo-draft",
+      "number": 1,
+      "actor_name": "مسئول رسانه آزمایشی",
+      "note": "نسخه اولیه آزمایشی",
+      "snapshot": {
+        "title": "پیش‌نویس آزمایشی برای بررسی عملکرد ادیتور",
+        "body_html": "<p>این محتوا واقعی نیست و فقط گردش‌کار ادیتور ساده و پیشرفته را آزمایش می‌کند.</p>"
+      },
+      "created_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "gallery": [
+    {
+      "id": "gallery-unit-01-02",
+      "title": "تصویر رسمی واحد ۱ و ۲",
+      "image": "/images/official/units/unit-01-02.jpg",
+      "album": "واحدهای آموزشی",
+      "scope": "unit",
+      "unit_id": "unit-01-02",
+      "status": "published",
+      "source_url": "https://besat-r.com/boys-school.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "gallery-unit-03",
+      "title": "تصویر رسمی واحد ۳",
+      "image": "/images/official/units/unit-03.jpg",
+      "album": "واحدهای آموزشی",
+      "scope": "unit",
+      "unit_id": "unit-03",
+      "status": "published",
+      "source_url": "https://besat-r.com/boys-school.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "gallery-unit-05",
+      "title": "تصویر رسمی واحد ۵",
+      "image": "/images/official/units/unit-05.jpg",
+      "album": "واحدهای آموزشی",
+      "scope": "unit",
+      "unit_id": "unit-05",
+      "status": "published",
+      "source_url": "https://besat-r.com/boys-school.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "gallery-unit-07",
+      "title": "تصویر رسمی دبیرستان پسرانه دوره دوم",
+      "image": "/images/official/units/unit-07.jpg",
+      "album": "واحدهای آموزشی",
+      "scope": "unit",
+      "unit_id": "unit-07",
+      "status": "published",
+      "source_url": "https://besat-r.com/boys-highschool.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "gallery-unit-09",
+      "title": "تصویر رسمی واحد ۹",
+      "image": "/images/official/units/unit-09.jpg",
+      "album": "واحدهای آموزشی",
+      "scope": "unit",
+      "unit_id": "unit-09",
+      "status": "published",
+      "source_url": "https://besat-r.com/girls-school.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "gallery-unit-11",
+      "title": "تصویر رسمی دبیرستان دخترانه دوره اول",
+      "image": "/images/official/units/unit-11.jpg",
+      "album": "واحدهای آموزشی",
+      "scope": "unit",
+      "unit_id": "unit-11",
+      "status": "published",
+      "source_url": "https://besat-r.com/girls-highschool.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "achievements": [
+    {
+      "id": "achievement-firacup",
+      "title": "مقام نخست لیگ نوآوری و کسب‌وکار فیراکاپ ۲۰۲۴ برزیل",
+      "description": "بهترین اختراع و طرح تجاری در رقابت با تیم‌هایی از ۱۸ کشور",
+      "image": "/images/official/hero/besat-main.jpg",
+      "scope": "school",
+      "unit_id": "unit-07",
+      "status": "published",
+      "achieved_at": null,
+      "source_url": "https://besat-r.com/blog-archive.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "achievement-ijso",
+      "title": "مدال برنز المپیاد جهانی علوم نوجوانان IJSO",
+      "description": "رقابت جهانی بانکوک با حضور ۵۵ کشور",
+      "image": "/images/official/hero/besat-hs-banner-03.jpg",
+      "scope": "school",
+      "unit_id": "unit-07",
+      "status": "published",
+      "achieved_at": null,
+      "source_url": "https://besat-r.com/blog-archive.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "achievement-kashef",
+      "title": "قرارگرفتن تیم کاشف در جمع سه طرح برگزیده ایران‌اوپن ۲۰۲۳",
+      "description": "افتخار تیم رباتیک دبیرستان بعثت",
+      "image": "/images/official/units/unit-07.jpg",
+      "scope": "school",
+      "unit_id": "unit-07",
+      "status": "published",
+      "achieved_at": null,
+      "source_url": "https://besat-r.com/blog-archive.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "home_slides": [
+    {
+      "id": "slide-main",
+      "image": "/images/official/hero/besat-main.jpg",
+      "title": "مجتمع تربیتی آموزشی بعثت",
+      "subtitle": "بصیرت دینی، اقتدار علمی",
+      "href": "/about",
+      "is_active": true,
+      "order": 1,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "slide-high-school",
+      "image": "/images/official/hero/besat-hs-banner-03.jpg",
+      "title": "دبیرستان بعثت دوره دوم",
+      "subtitle": "آموزش، پژوهش و المپیاد",
+      "href": "/units/boys-high-school-7",
+      "is_active": true,
+      "order": 2,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "registration_requests": [
+    {
+      "id": "registration-demo-1",
+      "request_code": "DEMO-1405-001",
+      "student_full_name": "دانش‌آموز آزمایشی ۱",
+      "student_avatar_url": null,
+      "student_national_code": null,
+      "requested_grade_id": "grade-10",
+      "requested_grade_title": "پایه دهم",
+      "requested_unit_id": "unit-07",
+      "parent_full_name": "والد آزمایشی",
+      "parent_phone": null,
+      "parent_email": "demo-parent@local.test",
+      "description": "رکورد آزمایشی؛ فاقد اطلاعات شخص واقعی",
+      "status": "reviewing",
+      "documents": [
+        {
+          "id": "document-demo-1",
+          "title": "کارنامه سال قبل",
+          "status": "pending",
+          "file_url": null
+        }
+      ],
+      "timeline": [
+        {
+          "id": "timeline-demo-1",
+          "title": "ثبت درخواست آزمایشی",
+          "created_at": "2026-07-28T00:00:00.000Z",
+          "actor_name": "سامانه موقت"
+        }
+      ],
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "registration-demo-2",
+      "request_code": "DEMO-1405-002",
+      "student_full_name": "دانش‌آموز آزمایشی ۲",
+      "student_avatar_url": null,
+      "student_national_code": null,
+      "requested_grade_id": "grade-7",
+      "requested_grade_title": "پایه هفتم",
+      "requested_unit_id": "unit-06",
+      "parent_full_name": "والد آزمایشی دوم",
+      "parent_phone": null,
+      "parent_email": "demo-parent-2@local.test",
+      "description": "رکورد آزمایشی برای بررسی وضعیت مدارک",
+      "status": "needs_documents",
+      "documents": [
+        {
+          "id": "document-demo-2",
+          "title": "تصویر شناسنامه",
+          "status": "missing",
+          "file_url": null
+        }
+      ],
+      "timeline": [
+        {
+          "id": "timeline-demo-2",
+          "title": "درخواست تکمیل مدارک آزمایشی",
+          "created_at": "2026-07-28T00:00:00.000Z",
+          "actor_name": "مدیر آزمایشی"
+        }
+      ],
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "contact_messages": [
+    {
+      "id": "contact-demo-1",
+      "name": "پیام آزمایشی سامانه",
+      "phone": null,
+      "email": "demo@local.test",
+      "subject": "بررسی عملکرد صندوق پیام",
+      "message": "این پیام واقعی نیست و برای تست رابط مدیریت پیام‌ها ایجاد شده است.",
+      "is_read": false,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "students": [
+    {
+      "id": "student-demo-1",
+      "full_name": "دانش‌آموز آزمایشی ۱",
+      "avatar_url": null,
+      "student_code": "DEMO-ST-001",
+      "national_code": null,
+      "unit_id": "unit-07",
+      "grade_id": "grade-10",
+      "grade_title": "پایه دهم",
+      "class_id": "class-demo-10-a",
+      "class_title": "کلاس آزمایشی دهم",
+      "major": "ریاضی و فیزیک",
+      "profile_status": "complete",
+      "education_status": "active",
+      "guardian_id": "account-parent",
+      "guardian_full_name": "والد آزمایشی",
+      "guardian_phone": null,
+      "guardian_email": "demo-parent@local.test",
+      "enrolled_at": "2026-07-28T00:00:00.000Z",
+      "parent_id": "account-parent",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "student-demo-2",
+      "full_name": "دانش‌آموز آزمایشی ۲",
+      "avatar_url": null,
+      "student_code": "DEMO-ST-002",
+      "national_code": null,
+      "unit_id": "unit-07",
+      "grade_id": "grade-11",
+      "grade_title": "پایه یازدهم",
+      "class_id": "class-demo-11-a",
+      "class_title": "کلاس آزمایشی یازدهم",
+      "major": "علوم تجربی",
+      "profile_status": "incomplete",
+      "education_status": "active",
+      "guardian_id": null,
+      "guardian_full_name": "والد آزمایشی دوم",
+      "guardian_phone": null,
+      "guardian_email": null,
+      "enrolled_at": "2026-07-28T00:00:00.000Z",
+      "parent_id": null,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "student-demo-3",
+      "full_name": "دانش‌آموز آزمایشی ۳",
+      "avatar_url": null,
+      "student_code": "DEMO-ST-003",
+      "national_code": null,
+      "unit_id": "unit-06",
+      "grade_id": "grade-8",
+      "grade_title": "پایه هشتم",
+      "class_id": "class-demo-8-a",
+      "class_title": "کلاس آزمایشی هشتم",
+      "major": null,
+      "profile_status": "complete",
+      "education_status": "active",
+      "guardian_id": null,
+      "guardian_full_name": "والد آزمایشی سوم",
+      "guardian_phone": null,
+      "guardian_email": null,
+      "enrolled_at": "2026-07-28T00:00:00.000Z",
+      "parent_id": null,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "classes": [
+    {
+      "id": "class-demo-10-a",
+      "title": "کلاس آزمایشی دهم",
+      "unit_id": "unit-07",
+      "grade": "پایه دهم",
+      "capacity": 0,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "class-demo-11-a",
+      "title": "کلاس آزمایشی یازدهم",
+      "unit_id": "unit-07",
+      "grade": "پایه یازدهم",
+      "capacity": 0,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "class-demo-8-a",
+      "title": "کلاس آزمایشی هشتم",
+      "unit_id": "unit-06",
+      "grade": "پایه هشتم",
+      "capacity": 0,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "staff": [
+    {
+      "id": "staff-demo-1",
+      "full_name": "عضو کادر آزمایشی ۱",
+      "role_title": "دبیر آزمایشی",
+      "unit_id": "unit-07",
+      "phone": null,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "staff-demo-2",
+      "full_name": "عضو کادر آزمایشی ۲",
+      "role_title": "مسئول آموزشی آزمایشی",
+      "unit_id": "unit-06",
+      "phone": null,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "programs": [
+    {
+      "id": "program-preregistration",
+      "title": "پیش‌ثبت‌نام سال جدید",
+      "description": "پیش‌ثبت‌نام محدود در مقاطع اعلام‌شده در سایت رسمی",
+      "unit_id": null,
+      "date": null,
+      "source_url": "https://besat-r.com/home.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "program-leisure",
+      "title": "کلاس‌های اوقات فراغت",
+      "description": "ثبت‌نام کلاس‌های اوقات فراغت مجتمع آموزشی بعثت",
+      "unit_id": null,
+      "date": null,
+      "source_url": "https://besat-r.com/home.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "program-teacher-signature",
+      "title": "جشنواره امضای معلم",
+      "description": "جشنواره معرفی‌شده در سایت رسمی روابط عمومی مدارس بعثت",
+      "unit_id": null,
+      "date": null,
+      "source_url": "https://besat-r.com/home.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "events": [
+    {
+      "id": "event-demo-editorial",
+      "title": "رویداد آزمایشی تقویم محتوا",
+      "description": "این رویداد برای تست ایجاد، ویرایش و نمایش تقویم ساخته شده است.",
+      "location": "محیط آزمایشی",
+      "starts_at": "2026-08-05T08:00:00.000Z",
+      "ends_at": "2026-08-05T10:00:00.000Z",
+      "unit_id": "unit-07",
+      "is_demo": true,
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "services": [
+    {
+      "id": "service-preregistration",
+      "title": "پیش‌ثبت‌نام مدارس بعثت",
+      "description": "سامانه رسمی پیش‌ثبت‌نام واحدهای آموزشی",
+      "icon": "registration",
+      "url": "https://besat-r.com/home.axd",
+      "is_external": true,
+      "audience": "all"
+    },
+    {
+      "id": "service-public-relations",
+      "title": "روابط عمومی مدارس بعثت",
+      "description": "اخبار، فعالیت‌ها و اطلاعیه‌های رسمی مجموعه",
+      "icon": "news",
+      "url": "https://besat-r.com/",
+      "is_external": true,
+      "audience": "all"
+    },
+    {
+      "id": "service-high-school",
+      "title": "وب‌سایت دبیرستان بعثت دوره دوم",
+      "description": "آموزش، پژوهش، المپیاد و معاونت فرهنگی دبیرستان",
+      "icon": "globe",
+      "url": "https://www.besat-hs.ir/",
+      "is_external": true,
+      "audience": "all"
+    },
+    {
+      "id": "service-lms",
+      "title": "سامانه آموزش دبیرستان دوره اول",
+      "description": "سامانه آموزش مجازی دبیرستان پسرانه دوره اول بعثت",
+      "icon": "services",
+      "url": "https://besat.goldlms.ir/",
+      "is_external": true,
+      "audience": "all"
+    }
+  ],
+  "internal_messages": [
+    {
+      "id": "message-demo-welcome",
+      "sender_id": "account-admin",
+      "sender_name": "سامانه موقت",
+      "sender_role": "general_manager",
+      "recipient_id": "account-media",
+      "recipient_name": "مسئول رسانه آزمایشی",
+      "recipient_role": "unit_media",
+      "subject": "خوش‌آمدگویی به محیط آزمایشی",
+      "body": "این پیام برای تست صندوق ورودی، خواندن و حذف پیام ساخته شده است.",
+      "is_read": false,
+      "unit_id": "unit-07",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "id": "message-demo-parent",
+      "sender_id": "account-admin",
+      "sender_name": "سامانه موقت",
+      "sender_role": "general_manager",
+      "recipient_id": "account-parent",
+      "recipient_name": "والد آزمایشی",
+      "recipient_role": "parent",
+      "subject": "اطلاع درباره داده‌های آزمایشی",
+      "body": "اطلاعات تحصیلی این پنل ساختگی است و به دانش‌آموز واقعی تعلق ندارد.",
+      "is_read": false,
+      "unit_id": "unit-07",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "static_pages": [
+    {
+      "id": "page-about",
+      "slug": "about",
+      "title": "درباره مجتمع آموزشی بعثت",
+      "body_html": "<p>مجتمع تربیتی آموزشی بعثت دارای واحدهای پسرانه و دخترانه در مقاطع مختلف تحصیلی است و در کنار واحدهای آموزشی، کانون تخصصی زبان و گروه تخصصی رایانه را اداره می‌کند.</p>",
+      "meta_description": "معرفی مجتمع تربیتی آموزشی بعثت مشهد",
+      "is_published": true,
+      "source_url": "https://besat-r.com/home.axd",
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "parent_children": [
+    {
+      "id": "student-demo-1",
+      "parent_id": "account-parent",
+      "full_name": "دانش‌آموز آزمایشی ۱",
+      "avatar_url": null,
+      "grade_title": "پایه دهم",
+      "class_title": "کلاس آزمایشی دهم",
+      "major": "ریاضی و فیزیک",
+    "unit_title": "واحد ۷",
+    "unit_id": "unit-07",
+    "is_active": true,
+    "is_demo": true,
+      "average": 18.75,
+      "class_rank": "آزمایشی",
+      "grade_rank": "آزمایشی",
+      "teachers": [
+        {
+          "id": "teacher-demo-1",
+          "full_name": "دبیر آزمایشی ریاضی",
+          "avatar_url": null,
+          "subject": "ریاضی"
+        },
+        {
+          "id": "teacher-demo-2",
+          "full_name": "دبیر آزمایشی فیزیک",
+          "avatar_url": null,
+          "subject": "فیزیک"
+        }
+      ],
+      "latest_grades": [
+        {
+          "id": "grade-demo-1",
+          "subject": "ریاضی",
+          "score": 19,
+          "status_label": "داده آزمایشی",
+          "recorded_at": "2026-07-20T00:00:00.000Z"
+        },
+        {
+          "id": "grade-demo-2",
+          "subject": "فیزیک",
+          "score": 18.5,
+          "status_label": "داده آزمایشی",
+          "recorded_at": "2026-07-18T00:00:00.000Z"
+        }
+      ],
+      "attendance": {
+        "attendance_percent": 95,
+        "present_days": 19,
+        "excused_absence_days": 1,
+        "unexcused_absence_days": 0,
+        "late_days": 0
+      },
+      "exams": [
+        {
+          "id": "exam-demo-1",
+          "title": "آزمون آزمایشی ریاضی",
+          "subject": "ریاضی",
+          "starts_at": "2026-08-02T08:00:00.000Z"
+        }
+      ],
+      "assignments": [
+        {
+          "id": "assignment-demo-1",
+          "title": "تکلیف آزمایشی فصل اول",
+          "subject": "ریاضی",
+          "due_at": "2026-08-01T18:00:00.000Z",
+          "status": "در حال انجام"
+        }
+      ],
+      "schedule": [
+        {
+          "id": "schedule-demo-1",
+          "order": 1,
+          "title": "ریاضی",
+          "starts_at": "08:00",
+          "ends_at": "09:30"
+        },
+        {
+          "id": "schedule-demo-2",
+          "order": 2,
+          "title": "فیزیک",
+          "starts_at": "09:45",
+          "ends_at": "11:15"
+        }
+      ],
+      "counselor_message": {
+        "id": "counselor-demo-1",
+        "title": "پیام آزمایشی مشاور",
+        "description": "این پیام صرفاً برای تست رابط پنل والد ساخته شده است.",
+        "timestamp": "2026-07-28T00:00:00.000Z",
+        "status": "demo",
+        "href": null,
+        "avatar_url": null
+      },
+      "quick_links": [
+        {
+          "id": "quick-demo-1",
+          "title": "برنامه هفتگی",
+          "href": "/dashboard/parents/children"
+        },
+        {
+          "id": "quick-demo-2",
+          "title": "پیام‌ها",
+          "href": "/dashboard/parents/messages"
+        }
+      ],
+      "created_at": "2026-07-28T00:00:00.000Z",
+      "updated_at": "2026-07-28T00:00:00.000Z"
+    }
+  ],
+  "parent_registrations": [
+    {
+      "id": "parent-registration-demo-1",
+      "parent_id": "account-parent",
+      "child_id": "student-demo-1",
+      "academic_year": {
+        "id": "year-1405-1406",
+        "title": "۱۴۰۵–۱۴۰۶"
+      },
+      "status": "در حال تکمیل آزمایشی",
+      "progress_percent": 50,
+      "next_action_url": "/dashboard/parents/registration",
+      "steps": [
+        {
+          "id": "step-demo-1",
+          "title": "ثبت درخواست آزمایشی",
+          "status": "complete"
+        },
+        {
+          "id": "step-demo-2",
+          "title": "بررسی مدارک آزمایشی",
+          "status": "current"
+        },
+        {
+          "id": "step-demo-3",
+          "title": "تأیید نهایی آزمایشی",
+          "status": "pending"
+        }
+      ]
+    }
+  ]
+}

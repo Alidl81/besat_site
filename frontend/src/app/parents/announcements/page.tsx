@@ -1,5 +1,5 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 
-export default function ParentsRedirect() {
-  redirect("/dashboard/parents/announcements");
+export default function RemovedParentAnnouncementsAlias() {
+  redirect("/dashboard/parents");
 }

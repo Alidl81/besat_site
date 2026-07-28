@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# فرانت مجتمع آموزشی بعثت
 
-## Getting Started
+پروژه Next.js سایت عمومی و پنل‌های مدیر مجموعه، مدیر واحد، مسئول رسانه و
+والدین است. تمام صفحات فقط از REST API داده می‌خوانند. در توسعه، همان API
+به یک دیتابیس JSON موقت متصل است و در استقرار می‌تواند بدون تغییر
+کامپوننت‌ها به بک‌اند اصلی وصل شود.
 
-First, run the development server:
+## اجرا
 
 ```bash
+cp .env.example .env.local
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+سرور توسعه روی تمام رابط‌های شبکه (`0.0.0.0`) اجرا می‌شود و از دستگاه‌های
+شبکه محلی با آدرس `http://IP-SERVER:3000` قابل دسترسی است. مبدأهای توسعه
+`192.168.10.65` و `192.168.10.71` برای HMR مجاز شده‌اند. پس از تغییر
+`next.config.ts` سرور توسعه را حتماً دوباره راه‌اندازی کنید.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+متغیرهای لازم:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```dotenv
+NEXT_PUBLIC_API_BASE_URL=/api/backend
+BESAT_BACKEND_API_URL=mock://local
+NEXT_SERVER_API_BASE_URL=http://127.0.0.1:3000/api/backend
+```
 
-## Learn More
+فرانت در `http://localhost:3000` اجرا می‌شود. حالت موقت به بک‌اند جداگانه
+نیاز ندارد. حساب‌های آزمایشی:
 
-To learn more about Next.js, take a look at the following resources:
+| نقش | نام کاربری | رمز عبور |
+|---|---|---|
+| مدیر مجموعه | `admin` | `BesatDemo1405!` |
+| مدیر واحد | `unit_manager` | `BesatDemo1405!` |
+| مسئول رسانه | `media` | `BesatDemo1405!` |
+| والد | `parent` | `BesatDemo1405!` |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+اطلاعات عمومی واحدها، آمار، اخبار و بخش‌های آموزشی از سایت‌های رسمی بعثت
+ثبت شده‌اند. اطلاعات خصوصی مانند دانش‌آموز، والد، پیام و ثبت‌نام ساختگی و
+در خود داده با عنوان «آزمایشی» مشخص شده‌اند؛ هیچ داده شخصی واقعی در پروژه
+قرار نگرفته است.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+تمام درخواست‌های مرورگر به `/api/backend/*` ارسال می‌شوند و Route Handler
+آن‌ها را بدون تغییر method، query، بدنه، فایل و توکن به
+`BESAT_BACKEND_API_URL` می‌فرستد. بنابراین برای انتقال از endpoint موقت به
+بک‌اند اصلی فقط همین متغیر را در محیط استقرار تغییر دهید؛ سرویس‌ها و
+کامپوننت‌های فرانت نیاز به ویرایش ندارند. اگر SSR باید از آدرس داخلی جداگانه
+استفاده کند، `NEXT_SERVER_API_BASE_URL` را به‌صورت اختیاری تعریف کنید.
 
-## Deploy on Vercel
+برای اتصال به بک‌اند اصلی:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```dotenv
+BESAT_BACKEND_API_URL=https://api.example.com/api
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+بک‌اند باید endpointهای
+[قرارداد API](docs/BACKEND_API_CONTRACT.md) را پیاده کند. جزئیات دیتابیس
+موقت، منابع داده و محدودیت‌ها در
+[راهنمای دیتابیس موقت](docs/MOCK_DATABASE.md) آمده است.
+
+برای برگرداندن تمام تغییرات آزمایشی دیتابیس به داده اولیه:
+
+```bash
+npm run mock:reset
+```
+
+## کنترل کیفیت
+
+```bash
+npx tsc --noEmit
+npm run build
+```
+
+## نکات اتصال
+
+- احراز هویت JWT و endpointهای پنل برای ساختار Django REST Framework طراحی
+  شده‌اند.
+- access token در تمام درخواست‌های پنل ارسال می‌شود.
+- در حالت `mock://local`، Route Handler همان قرارداد را روی دیتابیس JSON
+  اجرا می‌کند. در حالت URL واقعی، پراکسی پاسخ بک‌اند را بدون ساخت fallback
+  عبور می‌دهد و در قطع ارتباط پاسخ استاندارد `502` برمی‌گرداند.
+- permission، محدودسازی واحد/فرزند، workflow محتوا و تغییر وضعیت ثبت‌نام
+  باید در بک‌اند enforce شوند.
+- ادیتور محتوا `body_json` (سند Tiptap) و `body_html` (خروجی نمایش) را با هم
+  ذخیره می‌کند.
+- PHP برای اجرای این فرانت لازم نیست. اگر WordPress در معماری باقی بماند باید
+  از همین API به‌عنوان مصرف‌کننده یا مقصد انتشار استفاده کند.

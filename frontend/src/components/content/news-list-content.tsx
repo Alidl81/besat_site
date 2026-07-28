@@ -74,7 +74,7 @@ export function NewsListContent() {
       {items.map((item) => {
         const href = `/news/${encodeURIComponent(item.slug)}`;
         const summary = item.summary || stripHtml(item.body_html).slice(0, 150);
-        const dateLabel = formatDate(item.published_at ?? item.created_at);
+        const dateLabel = formatDate(item.published_at);
         const coverImage = normalizeMediaSrc(item.cover_image);
 
         return (

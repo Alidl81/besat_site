@@ -1,68 +1,76 @@
 ﻿import Link from "next/link";
-import { BesatLogoMark } from "@/components/shared/besat-logo";
-import { DashboardSectionContent } from "@/components/dashboard/dashboard-section-content";
 import { PanelLogoutButton } from "@/components/auth/panel-logout-button";
+import { BesatLogoMark } from "@/components/shared/besat-logo";
+import { DashboardOverview } from "@/components/dashboard/panel-overviews";
+import { DashboardSectionContent } from "@/components/dashboard/dashboard-section-content";
+import { DashboardTopbar } from "@/components/dashboard/dashboard-topbar";
+import { PanelIcon } from "@/components/dashboard/panel-icons";
 import type { DashboardPageData, DashboardPageKey } from "@/components/dashboard/dashboard-data";
 
 type DashboardShellProps = {
   data: DashboardPageData;
   activeKey?: DashboardPageKey;
-  /** نام پنل برای نگاشت محتوای CRUD */
   panel: "admin" | "unitManager" | "media" | "parents";
 };
+
+function SidebarMenu({
+  data,
+  activeKey,
+  mobile = false,
+}: {
+  data: DashboardPageData;
+  activeKey: string;
+  mobile?: boolean;
+}) {
+  return (
+    <nav
+      className={
+        mobile
+          ? "grid max-h-[65vh] gap-1 overflow-y-auto p-3"
+          : "besat-panel-menu-scroll min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 pb-3"
+      }
+      aria-label="منوی پنل"
+    >
+      {data.menu.map((item) => {
+        const isActive = item.key === activeKey;
+        return (
+          <div key={item.key} className={item.dividerBefore ? "border-t border-white/16 pt-3" : ""}>
+            <Link
+              href={item.href}
+              aria-current={isActive ? "page" : undefined}
+              className={`dashboard-sidebar-link ${isActive ? "is-active" : ""} ${
+                mobile ? "!text-[#0a2b50] hover:!bg-[#f6f0e7]" : ""
+              }`}
+            >
+              <PanelIcon name={item.icon} className="size-[1.35rem] shrink-0" />
+              <span>{item.label}</span>
+            </Link>
+          </div>
+        );
+      })}
+    </nav>
+  );
+}
 
 function Sidebar({ data, activeKey }: { data: DashboardPageData; activeKey: string }) {
   return (
     <aside className="hidden xl:block">
-      <div className="sticky top-0 flex h-dvh min-h-0 flex-col overflow-hidden bg-[#062452] px-4 py-5 text-white">
-        <div className="mb-5 flex shrink-0 items-center justify-between gap-3">
-          <div className="text-right">
-            <p className="text-xl font-black text-white">مدرسه بعثت</p>
-            <p className="mt-1 text-xs font-bold text-white/65">سیستم مدیریت مدرسه</p>
-          </div>
-          <BesatLogoMark size="sm" tone="light" className="!h-14 !w-14 shrink-0" />
-        </div>
+      <div className="besat-dashboard-sidebar sticky top-0 flex h-dvh min-h-0 flex-col overflow-hidden text-white">
+        <Link href="/" className="mx-4 mb-3 mt-5 flex shrink-0 flex-col items-center border-b border-white/18 pb-5 text-center">
+          <BesatLogoMark size="md" tone="light" className="!h-20 !w-20" />
+          <span className="mt-2 text-base font-black text-white">مجتمع آموزشی بعثت</span>
+        </Link>
 
-        <div className="mb-4 shrink-0 rounded-[1.4rem] border border-white/10 bg-white/10 p-3">
-          <p className="text-xs font-bold text-white/65">نقش کاربری</p>
-          <div className="mt-2 flex items-center justify-between">
-            <p className="text-base font-black text-white">{data.roleTitle}</p>
-            <span className="flex size-10 items-center justify-center rounded-2xl bg-white/10 text-xl text-white">
-              ▾
-            </span>
-          </div>
-        </div>
+        <SidebarMenu data={data} activeKey={activeKey} />
 
-        <nav className="besat-panel-menu-scroll min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain pl-1">
-          {data.menu.map((item) => {
-            const isActive = item.key === activeKey;
-            return (
-              <Link
-                key={item.key}
-                href={item.href}
-                className={`flex items-center justify-between rounded-2xl px-3.5 py-2.5 text-sm font-black transition duration-500 ${
-                  isActive
-                    ? "bg-blue-500 text-white shadow-xl shadow-blue-900/20"
-                    : "text-white/82 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                <span>{item.label}</span>
-                <span className="text-xl">{item.icon}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="mt-4 shrink-0 space-y-2">
-          <Link
-            href="/"
-            className="flex items-center justify-between rounded-2xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-black text-white transition duration-500 hover:bg-white hover:text-[#062452]"
-          >
+        <div className="shrink-0 border-t border-white/16 p-3">
+          <Link href="/" className="dashboard-sidebar-link">
+            <PanelIcon name="globe" className="size-[1.35rem]" />
             <span>بازگشت به سایت</span>
-            <span>←</span>
           </Link>
-          <PanelLogoutButton />
-          <p className="pt-2 text-center text-xs font-bold text-white/45">تمامی حقوق محفوظ است.</p>
+          <div className="mt-1">
+            <PanelLogoutButton />
+          </div>
         </div>
       </div>
     </aside>
@@ -71,162 +79,61 @@ function Sidebar({ data, activeKey }: { data: DashboardPageData; activeKey: stri
 
 function MobileMenuDropdown({ data, activeKey }: { data: DashboardPageData; activeKey: string }) {
   return (
-    <details className="xl:hidden">
-      <summary className="list-none cursor-pointer rounded-2xl bg-[#062452] px-5 py-3 text-sm font-black text-white">
-        منو
+    <details className="group relative xl:hidden">
+      <summary className="panel-icon-button list-none cursor-pointer" aria-label="باز کردن منو">
+        <PanelIcon name="dashboard" />
       </summary>
-      <nav className="absolute right-4 top-20 z-50 grid max-h-[70vh] w-[min(24rem,calc(100vw-2rem))] gap-2 overflow-y-auto rounded-[1.8rem] border border-slate-200 bg-white p-3 shadow-2xl">
-        {data.menu.map((item) => (
-          <Link
-            key={item.key}
-            href={item.href}
-            className={`rounded-2xl px-4 py-3 text-center text-sm font-black transition duration-500 ${
-              item.key === activeKey ? "besat-navy-button" : "besat-tab-link"
-            }`}
-          >
-            {item.label}
-          </Link>
-        ))}
-        <Link href="/" className="besat-navy-button rounded-2xl px-4 py-3 text-center text-sm font-black">
-          بازگشت به سایت
-        </Link>
-      </nav>
-    </details>
-  );
-}
-
-function TopBar({ data, activeKey }: { data: DashboardPageData; activeKey: string }) {
-  const profileItem = data.menu.find((item) => item.key === "profile");
-  const profileHref = profileItem?.href ?? data.currentPath;
-
-  return (
-    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-      <div className="flex min-h-20 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <MobileMenuDropdown data={data} activeKey={activeKey} />
-
-        <div className="hidden min-w-0 flex-1 lg:flex">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-black text-slate-500">
-            {data.accent}
+      <div className="absolute right-0 top-14 z-50 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+        <div className="flex items-center gap-3 border-b border-slate-100 bg-[#082f57] p-4 text-white">
+          <BesatLogoMark size="sm" tone="light" className="!h-12 !w-12" />
+          <div>
+            <p className="text-sm font-black">مجتمع آموزشی بعثت</p>
+            <p className="mt-1 text-[11px] font-bold text-white/65">{data.roleTitle}</p>
           </div>
         </div>
-
-        <Link
-          href={profileHref}
-          className="mr-auto flex size-12 items-center justify-center rounded-2xl bg-slate-100 text-lg font-black text-[#062452] transition hover:bg-blue-50 hover:text-blue-700"
-          aria-label="پروفایل"
-        >
-          ب
-        </Link>
+        <SidebarMenu data={data} activeKey={activeKey} mobile />
       </div>
-    </header>
-  );
-}
-
-/**
- * نمای کلی (overview) — فقط آمار و دسترسی‌های سریع.
- * بخش‌های پنل تکرار نمی‌شوند چون در sidebar موجودند.
- */
-function OverviewContent({ data }: { data: DashboardPageData }) {
-  const quickActions = data.menu.filter((item) => item.key !== "overview").slice(0, 6);
-
-  return (
-    <>
-      <section className="mt-5 grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
-        {data.cards.map((card) => (
-          <article
-            key={card.title}
-            className="group rounded-[1.8rem] border border-slate-200 bg-white p-5 text-right shadow-sm transition duration-500 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/70"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-black text-slate-500">{card.title}</p>
-                <div className="mt-4 text-4xl font-black text-[#062452]">
-                  {card.value === null ? "—" : card.value}
-                </div>
-              </div>
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-blue-50 text-2xl text-blue-700 transition duration-500 group-hover:scale-105">
-                {card.icon}
-              </div>
-            </div>
-            <div className="mt-5 border-t border-slate-100 pt-4">
-              <p className="text-sm leading-7 text-slate-600">{card.detail}</p>
-            </div>
-          </article>
-        ))}
-      </section>
-
-      <section className="mt-5 rounded-[1.8rem] border border-slate-200 bg-white p-5 text-right shadow-sm sm:p-6">
-        <h2 className="mb-5 text-xl font-black text-[#062452]">دسترسی سریع</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {quickActions.map((action) => (
-            <Link
-              key={action.key}
-              href={action.href}
-              className="group rounded-2xl border border-slate-200 bg-slate-50 p-5 text-center transition duration-500 hover:-translate-y-1 hover:border-blue-200 hover:bg-blue-50"
-            >
-              <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-white text-2xl text-[#062452] shadow-sm transition duration-500 group-hover:text-blue-700">
-                {action.icon}
-              </div>
-              <p className="text-sm font-black text-[#062452]">{action.label}</p>
-            </Link>
-          ))}
-        </div>
-      </section>
-    </>
+    </details>
   );
 }
 
 export function DashboardShell({ data, activeKey = "overview", panel }: DashboardShellProps) {
   const activeItem = data.menu.find((item) => item.key === activeKey) ?? data.menu[0];
-  const quickActions = data.menu.filter((item) => item.key !== "overview").slice(0, 3);
+  const profileItem = data.menu.find((item) => item.key === "profile");
   const isOverview = activeItem.key === "overview";
 
   return (
-    <main className="min-h-screen bg-[#f3f7f9] text-slate-900" dir="rtl">
-      <div className="grid min-h-screen xl:grid-cols-[17.5rem_1fr]">
+    <main className="besat-dashboard min-h-screen bg-[#fbfaf7] text-slate-900" dir="rtl">
+      <a href="#dashboard-content" className="sr-only z-50 rounded-md bg-white px-4 py-3 text-sm font-black text-[#102b4a] focus:not-sr-only focus:fixed focus:right-4 focus:top-4">
+        رفتن به محتوای اصلی
+      </a>
+      <div className="grid min-h-screen xl:grid-cols-[17rem_minmax(0,1fr)]">
         <Sidebar data={data} activeKey={activeItem.key} />
 
         <section className="min-w-0">
-          <TopBar data={data} activeKey={activeItem.key} />
+          <DashboardTopbar
+            panel={panel}
+            profileHref={profileItem?.href ?? data.currentPath}
+            mobileMenu={<MobileMenuDropdown data={data} activeKey={activeItem.key} />}
+          />
 
-          <div className="px-4 py-5 sm:px-6 lg:px-8">
-            <section className="relative overflow-hidden rounded-[2rem] bg-[#062452] p-6 text-white shadow-2xl shadow-slate-300/70 md:p-8">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(43,111,159,0.3),transparent_28%),radial-gradient(circle_at_85%_10%,rgba(255,255,255,0.12),transparent_32%)]" />
-              <div className="absolute bottom-0 left-0 h-28 w-56 rounded-tr-[5rem] bg-white/10" />
-
-              <div className="relative z-10 grid gap-7 lg:grid-cols-[1fr_22rem] lg:items-center">
-                <div className="text-right">
-                  <p className="mb-4 text-sm font-black text-blue-300">{data.accent}</p>
-                  <h1 className="text-3xl font-black leading-[1.45] text-white md:text-5xl">
+          <div id="dashboard-content" tabIndex={-1} className="mx-auto w-full max-w-[112rem] px-4 py-6 sm:px-6 lg:px-7 lg:py-7">
+            <header className="mb-5 flex flex-wrap items-end justify-between gap-4 text-right">
+              <div>
+                <div className="flex items-center gap-2">
+                  {!isOverview ? <PanelIcon name={activeItem.icon} className="size-6 text-[#0c4479]" /> : null}
+                  <h1 className="text-2xl font-black tracking-tight text-[#102b4a] sm:text-[1.65rem]">
                     {isOverview ? data.title : activeItem.label}
                   </h1>
-                  <p className="mt-5 max-w-3xl text-sm leading-8 text-white/80 md:text-base">
-                    {isOverview ? data.description : activeItem.description}
-                  </p>
                 </div>
-
-                {isOverview ? (
-                  <div className="rounded-[1.6rem] border border-white/10 bg-white/10 p-5 backdrop-blur">
-                    <p className="text-sm font-black text-white">دسترسی‌های سریع</p>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                      {quickActions.map((action) => (
-                        <Link
-                          key={action.key}
-                          href={action.href}
-                          className="dashboard-quick-link flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-black transition duration-500"
-                        >
-                          <span>{action.label}</span>
-                          <span>{action.icon}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
+                <p className="mt-2 max-w-3xl text-sm font-bold leading-7 text-slate-500">
+                  {isOverview ? data.description : activeItem.description}
+                </p>
               </div>
-            </section>
+            </header>
 
             {isOverview ? (
-              <OverviewContent data={data} />
+              <DashboardOverview panel={panel} data={data} />
             ) : (
               <DashboardSectionContent
                 panel={panel}

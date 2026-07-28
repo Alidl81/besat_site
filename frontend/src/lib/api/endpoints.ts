@@ -1,4 +1,4 @@
-﻿export const apiEndpoints = {
+export const apiEndpoints = {
   me: "me/",
   myPermissions: "me/permissions/",
   myUnits: "me/units/",
@@ -15,15 +15,16 @@
   staff: "staff/",
   contact: "contact/",
   registration: "registration/",
+  content: "content/",
+  messages: "messages/",
+  registrationRequests: "registration-requests/",
   dashboard: {
+    context: "dashboard/context/",
     generalManager: "dashboard/general-manager/",
     unitManager: "dashboard/unit-manager/",
     media: "dashboard/media/",
     parents: "dashboard/parents/",
   },
-  content: "content/",
-  messages: "messages/",
-  registrationRequests: "registration-requests/",
   auth: {
     login: "auth/login/",
     refresh: "auth/refresh/",
@@ -32,6 +33,7 @@
   },
   cms: {
     units: "cms/units/",
+    departments: "cms/departments/",
     news: "cms/news/",
     announcements: "cms/announcements/",
     gallery: "cms/gallery/",
@@ -41,5 +43,21 @@
     messages: "cms/messages/",
     registrationRequests: "cms/registration-requests/",
     homeSlides: "cms/home-slides/",
+    students: "cms/students/",
+    content: "cms/content/",
+    contentCategories: "cms/content/categories/",
+    media: "cms/media/",
+    internalMessages: "cms/internal-messages/",
+    programs: "cms/programs/",
+    services: "cms/services/",
+    reports: "cms/reports/",
+    settings: "cms/settings/",
+    users: "cms/users/",
+    staticPages: "cms/static-pages/",
+  },
+  parents: {
+    children: "parents/children/",
+    programs: "parents/programs/",
+    registrations: "parents/registrations/",
   },
 } as const;

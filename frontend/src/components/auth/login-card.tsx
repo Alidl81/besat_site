@@ -5,7 +5,6 @@ import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { performLogin } from "@/lib/auth/login-service";
 import { writeBesatSession } from "@/lib/auth/auth-session";
-import { isApiMode } from "@/lib/data/repository";
 import { BesatLogoMark } from "@/components/shared/besat-logo";
 
 function getNextPath(): string | null {
@@ -119,19 +118,6 @@ export function LoginCard() {
             >
               {isSubmitting ? "در حال ورود" : "ورود"}
             </button>
-
-            {!isApiMode() ? (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-right">
-                <p className="mb-2 text-xs font-black text-slate-400">
-                  حساب‌های تستی (حالت بدون بک‌اند) — رمز همه: <span className="text-blue-600">1234</span>
-                </p>
-                <ul className="space-y-1 text-xs font-bold text-slate-500">
-                  <li>مدیر کل: <span className="text-[#062452]">admin</span></li>
-                  <li>مدیر واحد: <span className="text-[#062452]">unit_boys</span></li>
-                  <li>همکار رسانه: <span className="text-[#062452]">media</span></li>
-                </ul>
-              </div>
-            ) : null}
 
             <div className="flex justify-center">
               <Link

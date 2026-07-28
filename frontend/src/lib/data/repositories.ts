@@ -1,14 +1,6 @@
-// تعریف repository های مشخص هر موجودیت.
-// هنگام اتصال به بک، فقط endpoint ها مهم‌اند (با NEXT_PUBLIC_DATA_SOURCE=api).
+// repositoryهای API برای موجودیت‌های پنل و محتوای سایت.
 
 import { createRepository } from "@/lib/data/repository";
-import {
-  seedDepartments,
-  seedContent,
-  seedHomeSlides,
-  seedUnits,
-  seedUsers,
-} from "@/lib/data/seed-data";
 import type {
   AchievementRecord,
   ClassRecord,
@@ -30,25 +22,21 @@ import type {
 export const unitsRepository = createRepository<SchoolUnitRecord>({
   collection: "units",
   endpoint: "cms/units/",
-  seed: seedUnits,
 });
 
 export const departmentsRepository = createRepository<DepartmentRecord>({
   collection: "departments",
   endpoint: "cms/departments/",
-  seed: seedDepartments,
 });
 
 export const usersRepository = createRepository<UserRecord>({
   collection: "users",
   endpoint: "cms/users/",
-  seed: seedUsers,
 });
 
 export const contentRepository = createRepository<ContentRecord>({
   collection: "content",
   endpoint: "cms/content/",
-  seed: seedContent,
 });
 
 export const galleryRepository = createRepository<GalleryItemRecord>({
@@ -64,12 +52,11 @@ export const achievementsRepository = createRepository<AchievementRecord>({
 export const homeSlidesRepository = createRepository<HomeSlideRecord>({
   collection: "home_slides",
   endpoint: "cms/home-slides/",
-  seed: seedHomeSlides,
 });
 
 export const registrationsRepository = createRepository<RegistrationRequestRecord>({
   collection: "registrations",
-  endpoint: "cms/registrations-requests/",
+  endpoint: "cms/registration-requests/",
 });
 
 export const messagesRepository = createRepository<ContactMessageRecord>({
@@ -102,24 +89,7 @@ export const internalMessagesRepository = createRepository<InternalMessageRecord
   endpoint: "cms/internal-messages/",
 });
 
-// صفحه seed "about"
-const aboutPageSeed: StaticPageRecord[] = [
-  {
-    id: "page-about",
-    slug: "about",
-    title: "درباره مجتمع تربیتی آموزشی بعثت",
-    body_html: `<h2>معرفی مجموعه</h2>
-<p>مجتمع تربیتی آموزشی بعثت با بیش از ۳۲ سال سابقه، دارای واحدهای پسرانه و دخترانه در مقاطع مختلف تحصیلی می‌باشد. این مجتمع با رویکرد تربیت انقلابی و مذهبی تلاش کرده بالاترین سطح توانمندی‌های آموزشی و اجتماعی را برای مخاطبین خود فراهم نماید.</p>
-<p>هم‌اکنون مجتمع بعثت با حضور حدود ۵۰۰ نفر آموزگار، دبیر و کادر اداری-آموزشی و با ظرفیت ده واحد آموزشی، کانون تخصصی زبان، گروه تخصصی رایانه و امکانات تفریحی همچون استخر، به بیش از ۳۰۰۰ دانش‌آموز خدمات ارائه می‌نماید.</p>`,
-    meta_description: "مجتمع تربیتی آموزشی بعثت با بیش از ۳۲ سال سابقه",
-    is_published: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
-
 export const staticPagesRepository = createRepository<StaticPageRecord>({
   collection: "static_pages",
   endpoint: "cms/static-pages/",
-  seed: aboutPageSeed,
 });

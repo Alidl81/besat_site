@@ -125,8 +125,14 @@ export function ExcelImport<T extends { id: string; created_at: string; updated_
             const a = document.createElement("a");
             a.href = url;
             a.download = "template.csv";
+            a.style.display = "none";
+            document.body.appendChild(a);
             a.click();
-            URL.revokeObjectURL(url);
+            a.remove();
+
+            // Releasing the object URL immediately can cancel the browser's
+            // queued download. Let the click's default action begin first.
+            window.setTimeout(() => URL.revokeObjectURL(url), 0);
           }}
           className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-[#062452] transition hover:bg-blue-50 hover:text-blue-700"
         >

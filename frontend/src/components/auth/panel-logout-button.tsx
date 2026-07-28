@@ -5,6 +5,7 @@ import { useState } from "react";
 import { logoutAccount } from "@/lib/api/account-api";
 import { isApiMode } from "@/lib/data/repository";
 import { clearBesatSession, readBesatSession } from "@/lib/auth/auth-session";
+import { PanelIcon } from "@/components/dashboard/panel-icons";
 
 export function PanelLogoutButton() {
   const router = useRouter();
@@ -32,10 +33,10 @@ export function PanelLogoutButton() {
       type="button"
       onClick={handleLogout}
       disabled={loading}
-      className="flex w-full items-center justify-between rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm font-black text-rose-200 transition duration-500 hover:bg-rose-500/20 disabled:opacity-60"
+      className="dashboard-sidebar-link w-full disabled:opacity-60"
     >
-      <span>{loading ? "خروج..." : "خروج از حساب"}</span>
-      <span>⎋</span>
+      <PanelIcon name="chevron" className="size-[1.35rem] rotate-180" />
+      <span>{loading ? "در حال خروج..." : "خروج از حساب"}</span>
     </button>
   );
 }

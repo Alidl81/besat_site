@@ -3,7 +3,13 @@
 
 export type EntityId = string;
 
-export type PublishStatus = "draft" | "waiting_review" | "published" | "rejected";
+export type PublishStatus =
+  | "draft"
+  | "waiting_review"
+  | "approved"
+  | "scheduled"
+  | "published"
+  | "rejected";
 
 export type ContentScope = "school" | "unit";
 

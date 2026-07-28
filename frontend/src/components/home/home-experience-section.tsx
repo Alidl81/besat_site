@@ -48,10 +48,10 @@ function BadgeIcon() {
 }
 
 const stats = [
-  { target: 32, before: "بیش از", after: "سال", label: "تجربه درخشان آموزشی", icon: <BadgeIcon /> },
-  { target: 3000, before: "+", label: "دانش‌آموز در حال تحصیل", icon: <UsersIcon /> },
-  { target: 500, before: "+", label: "کادر آموزشی و اجرایی", icon: <MentorIcon /> },
-  { target: 13, after: "واحد", label: "در مقاطع مختلف تحصیلی", icon: <TrophyIcon /> },
+  { target: 33, after: "سال", label: "سابقه فعالیت آموزشی", icon: <BadgeIcon /> },
+  { target: 4000, before: "+", label: "دانش‌آموز", icon: <UsersIcon /> },
+  { target: 900, before: "+", label: "معلم و نیروی اجرایی", icon: <MentorIcon /> },
+  { target: 200, before: "+", label: "عنوان کشوری", icon: <TrophyIcon /> },
 ];
 
 export function HomeExperienceSection() {

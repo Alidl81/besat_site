@@ -1,6 +1,6 @@
 "use client";
 
-import { Node as TiptapNode, mergeAttributes } from "@tiptap/core";
+import { Node as TiptapNode, mergeAttributes, type JSONContent } from "@tiptap/core";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -9,10 +9,13 @@ import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
 import { useEffect, useRef, type ReactNode } from "react";
+import { PanelIcon } from "@/components/dashboard/panel-icons";
 
 type RichEditorProps = {
   value: string;
   onChange: (html: string) => void;
+  jsonValue?: JSONContent | null;
+  onJsonChange?: (json: JSONContent) => void;
   placeholder?: string;
 };
 
@@ -511,10 +514,10 @@ function Toolbar({ editor }: { editor: Editor }) {
       <Divider />
 
       <ToolbarButton title="لینک" active={editor.isActive("link")} onClick={setLink}>
-        🔗
+        <PanelIcon name="link" className="size-4" />
       </ToolbarButton>
       <ToolbarButton title="تصویر" onClick={addImage}>
-        🖼
+        <PanelIcon name="image" className="size-4" />
       </ToolbarButton>
 
       <Divider />
@@ -537,7 +540,13 @@ function Toolbar({ editor }: { editor: Editor }) {
   );
 }
 
-export function RichEditor({ value, onChange, placeholder }: RichEditorProps) {
+export function RichEditor({
+  value,
+  onChange,
+  jsonValue,
+  onJsonChange,
+  placeholder,
+}: RichEditorProps) {
   const isInternalUpdate = useRef(false);
 
   const editor = useEditor({
@@ -553,7 +562,7 @@ export function RichEditor({ value, onChange, placeholder }: RichEditorProps) {
         placeholder: placeholder ?? "متن محتوای خود را اینجا بنویسید...",
       }),
     ],
-    content: value,
+    content: jsonValue ?? value,
     editorProps: {
       attributes: {
         dir: "rtl",
@@ -564,6 +573,7 @@ export function RichEditor({ value, onChange, placeholder }: RichEditorProps) {
     onUpdate({ editor: ed }) {
       isInternalUpdate.current = true;
       onChange(ed.getHTML());
+      onJsonChange?.(ed.getJSON());
     },
   });
 
@@ -573,10 +583,14 @@ export function RichEditor({ value, onChange, placeholder }: RichEditorProps) {
       isInternalUpdate.current = false;
       return;
     }
-    if (value !== editor.getHTML()) {
+    if (jsonValue) {
+      if (JSON.stringify(jsonValue) !== JSON.stringify(editor.getJSON())) {
+        editor.commands.setContent(jsonValue, { emitUpdate: false });
+      }
+    } else if (value !== editor.getHTML()) {
       editor.commands.setContent(value, { emitUpdate: false });
     }
-  }, [value, editor]);
+  }, [value, jsonValue, editor]);
 
   if (!editor) {
     return (

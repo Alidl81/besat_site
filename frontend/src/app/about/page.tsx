@@ -6,15 +6,15 @@ import { AnimatedCounter } from "@/components/shared/animated-counter";
 
 export const metadata: Metadata = {
   title: "درباره ما | مدرسه بعثت",
-  description: "مجتمع تربیتی آموزشی بعثت با بیش از ۳۲ سال سابقه در مقاطع مختلف تحصیلی.",
+  description: "مجتمع تربیتی آموزشی بعثت با ۳۳ سال سابقه در مقاطع مختلف تحصیلی.",
 };
 
 // آمار واقعی (ثابت — از سایت besat-r.com)
-const stats = [
-  { target: 32, before: "+", label: "سال سابقه درخشان" },
-  { target: 3000, before: "+", label: "دانش‌آموز" },
-  { target: 500, before: "~", label: "آموزگار، دبیر و کادر" },
-  { target: 13, label: "واحد و دپارتمان" },
+const stats: Array<{ target: number; label: string; before?: string }> = [
+  { target: 33, label: "سال سابقه درخشان" },
+  { target: 4000, label: "دانش‌آموز" },
+  { target: 900, label: "معلم و پرسنل" },
+  { target: 200, label: "عنوان کشوری" },
 ];
 
 const honors = [
@@ -35,7 +35,7 @@ export default function AboutPage() {
               مجتمع تربیتی آموزشی بعثت
             </h1>
             <p className="mt-5 text-base leading-9 text-slate-600 md:text-lg">
-              با بیش از ۳۲ سال سابقه درخشان در عرصه تعلیم و تربیت
+              با ۳۳ سال سابقه درخشان در عرصه تعلیم و تربیت
             </p>
           </div>
         </Container>

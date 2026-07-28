@@ -1,4 +1,4 @@
-﻿export type ApiRequestOptions = RequestInit & {
+export type ApiRequestOptions = RequestInit & {
   token?: string;
   next?: {
     revalidate?: number;
@@ -6,163 +6,131 @@
   };
 };
 
-import {
-  clearBesatSession,
-  readBesatSession,
-  writeBesatSession,
-} from "@/lib/auth/auth-session";
+export type ApiFieldErrors = Record<string, string[]>;
 
-type ApiErrorPayload = {
-  detail?: string;
-  message?: string;
-  code?: string;
-  [key: string]: unknown;
-};
-
-export class ApiRequestError extends Error {
-  readonly status: number;
-  readonly url: string;
-  readonly payload: ApiErrorPayload | string | null;
+export class ApiError extends Error {
+  status: number;
+  code: string | null;
+  fieldErrors: ApiFieldErrors;
+  requestId: string | null;
+  detail: unknown;
 
   constructor({
+    message,
     status,
-    url,
-    payload,
+    code = null,
+    fieldErrors = {},
+    requestId = null,
+    detail = null,
   }: {
+    message: string;
     status: number;
-    url: string;
-    payload: ApiErrorPayload | string | null;
+    code?: string | null;
+    fieldErrors?: ApiFieldErrors;
+    requestId?: string | null;
+    detail?: unknown;
   }) {
-    const detail =
-      typeof payload === "object" && payload
-        ? payload.detail ?? payload.message
-        : typeof payload === "string"
-          ? payload
-          : null;
-
-    super(detail || `Request failed with status ${status}.`);
-    this.name = "ApiRequestError";
+    super(message);
+    this.name = "ApiError";
     this.status = status;
-    this.url = url;
-    this.payload = payload;
+    this.code = code;
+    this.fieldErrors = fieldErrors;
+    this.requestId = requestId;
+    this.detail = detail;
   }
 }
 
 function getApiBaseUrl() {
-  const publicApiBaseUrl =
-    process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api";
-
   if (typeof window === "undefined") {
-    return process.env.NEXT_SERVER_API_BASE_URL ?? publicApiBaseUrl;
+    const backendApiUrl =
+      process.env.BESAT_BACKEND_API_URL ?? "mock://local";
+
+    if (backendApiUrl === "mock://local") {
+      return (
+        process.env.NEXT_SERVER_API_BASE_URL ??
+        "http://127.0.0.1:3000/api/backend"
+      );
+    }
+
+    return (
+      process.env.NEXT_SERVER_API_BASE_URL ??
+      backendApiUrl
+    );
   }
 
-  return publicApiBaseUrl;
+  return process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/backend";
 }
 
-function normalizeEndpoint(endpoint: string) {
+export function normalizeEndpoint(endpoint: string) {
   if (endpoint.startsWith("http://") || endpoint.startsWith("https://")) {
     return endpoint;
   }
 
   const baseUrl = getApiBaseUrl().replace(/\/$/, "");
   const cleanEndpoint = endpoint.replace(/^\//, "");
-
   return `${baseUrl}/${cleanEndpoint}`;
 }
 
-let refreshPromise: Promise<string | null> | null = null;
+function normalizeFieldErrors(payload: unknown): ApiFieldErrors {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return {};
 
-function tokenNeedsRefresh(accessToken: string): boolean {
-  try {
-    const parts = accessToken.split(".");
-    if (parts.length !== 3) {
-      return true;
-    }
-
-    const encodedPayload = parts[1]
-      .replace(/-/g, "+")
-      .replace(/_/g, "/")
-      .padEnd(Math.ceil(parts[1].length / 4) * 4, "=");
-    const payload = JSON.parse(atob(encodedPayload)) as { exp?: unknown };
-
-    return (
-      typeof payload.exp !== "number" ||
-      payload.exp <= Math.floor(Date.now() / 1000) + 30
-    );
-  } catch {
-    return true;
-  }
+  return Object.fromEntries(
+    Object.entries(payload as Record<string, unknown>)
+      .filter(([key]) => !["detail", "message", "code", "request_id"].includes(key))
+      .map(([key, value]) => [
+        key,
+        Array.isArray(value)
+          ? value.map(String)
+          : value && typeof value === "object"
+            ? [JSON.stringify(value)]
+            : [String(value)],
+      ]),
+  );
 }
 
-async function refreshAccessToken(staleAccessToken: string): Promise<string | null> {
-  const session = readBesatSession();
-
-  if (!session) {
-    return null;
-  }
-
-  if (tokenNeedsRefresh(session.refreshToken)) {
-    return null;
-  }
-
-  // Another request may already have refreshed the shared session.
-  if (session.accessToken !== staleAccessToken) {
-    return session.accessToken;
-  }
-
-  if (!refreshPromise) {
-    refreshPromise = (async () => {
-      try {
-        const response = await fetch(normalizeEndpoint("auth/refresh/"), {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ refresh: session.refreshToken }),
-        });
-
-        if (!response.ok) {
-          return null;
-        }
-
-        const payload = (await response.json()) as { access?: unknown };
-
-        if (typeof payload.access !== "string" || !payload.access) {
-          return null;
-        }
-
-        writeBesatSession({
-          ...session,
-          accessToken: payload.access,
-        });
-
-        return payload.access;
-      } catch {
-        return null;
-      }
-    })().finally(() => {
-      refreshPromise = null;
-    });
-  }
-
-  return refreshPromise;
-}
-
-async function readErrorPayload(
-  response: Response,
-): Promise<ApiErrorPayload | string | null> {
-  const text = await response.text();
-
-  if (!text) {
-    return null;
-  }
+async function createApiError(response: Response) {
+  const requestId =
+    response.headers.get("x-request-id") ??
+    response.headers.get("x-correlation-id");
+  const contentType = response.headers.get("content-type") ?? "";
+  let detail: unknown = null;
 
   try {
-    return JSON.parse(text) as ApiErrorPayload;
+    detail = contentType.includes("application/json")
+      ? await response.json()
+      : await response.text();
   } catch {
-    return text;
+    detail = null;
   }
+
+  const payload =
+    detail && typeof detail === "object" && !Array.isArray(detail)
+      ? (detail as Record<string, unknown>)
+      : {};
+  const message =
+    typeof payload.detail === "string"
+      ? payload.detail
+      : typeof payload.message === "string"
+        ? payload.message
+        : response.status === 401
+          ? "نشست شما منقضی شده است. دوباره وارد شوید."
+          : response.status === 403
+            ? "برای انجام این عملیات دسترسی ندارید."
+            : response.status === 404
+              ? "اطلاعات درخواستی پیدا نشد."
+              : response.status >= 500
+                ? "بک‌اند در دسترس نیست. کمی بعد دوباره تلاش کنید."
+                : "درخواست توسط بک‌اند پذیرفته نشد.";
+
+  return new ApiError({
+    message,
+    status: response.status,
+    code: typeof payload.code === "string" ? payload.code : null,
+    fieldErrors: normalizeFieldErrors(detail),
+    requestId:
+      typeof payload.request_id === "string" ? payload.request_id : requestId,
+    detail,
+  });
 }
 
 export async function apiRequest<T>(
@@ -170,67 +138,54 @@ export async function apiRequest<T>(
   options: ApiRequestOptions = {},
 ): Promise<T> {
   const { token, headers, ...requestOptions } = options;
-  const url = normalizeEndpoint(endpoint);
-
-  const performRequest = (accessToken?: string) => {
-    const requestHeaders: HeadersInit = {
-      Accept: "application/json",
-      ...(requestOptions.body instanceof FormData
-        ? {}
-        : { "Content-Type": "application/json" }),
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...headers,
-    };
-
-    return fetch(url, {
-      ...requestOptions,
-      headers: requestHeaders,
-    });
+  const requestHeaders: HeadersInit = {
+    Accept: "application/json",
+    ...(requestOptions.body instanceof FormData
+      ? {}
+      : { "Content-Type": "application/json" }),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...headers,
   };
 
-  let accessToken = token;
+  const response = await fetch(normalizeEndpoint(endpoint), {
+    ...requestOptions,
+    headers: requestHeaders,
+  });
 
-  if (accessToken && tokenNeedsRefresh(accessToken)) {
-    const refreshedAccessToken = await refreshAccessToken(accessToken);
-
-    if (refreshedAccessToken) {
-      accessToken = refreshedAccessToken;
-    } else {
-      clearBesatSession();
-      accessToken = undefined;
-    }
-  }
-
-  let response = await performRequest(accessToken);
-
-  if (response.status === 401 && accessToken) {
-    const refreshedAccessToken = await refreshAccessToken(accessToken);
-
-    if (refreshedAccessToken) {
-      response = await performRequest(refreshedAccessToken);
-    } else {
-      clearBesatSession();
-
-      // Invalid authentication must not break endpoints that are intentionally
-      // public. Unsafe requests are never replayed without credentials.
-      const method = (requestOptions.method ?? "GET").toUpperCase();
-      if (method === "GET" || method === "HEAD") {
-        response = await performRequest();
-      }
-    }
-  }
-
-  if (!response.ok) {
-    throw new ApiRequestError({
-      status: response.status,
-      url,
-      payload: await readErrorPayload(response),
-    });
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
+  if (!response.ok) throw await createApiError(response);
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
+}
+
+export async function apiDownload(
+  endpoint: string,
+  options: ApiRequestOptions = {},
+) {
+  const { token, headers, ...requestOptions } = options;
+  const response = await fetch(normalizeEndpoint(endpoint), {
+    ...requestOptions,
+    headers: {
+      Accept: "*/*",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
+    },
+  });
+
+  if (!response.ok) throw await createApiError(response);
+
+  return {
+    blob: await response.blob(),
+    filename:
+      response.headers
+        .get("content-disposition")
+        ?.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1] ?? null,
+  };
+}
+
+export function getApiErrorMessage(error: unknown) {
+  return error instanceof ApiError
+    ? error.message
+    : error instanceof Error
+      ? error.message
+      : "خطای پیش‌بینی‌نشده‌ای رخ داد.";
 }

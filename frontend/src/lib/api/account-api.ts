@@ -15,8 +15,8 @@ export type AccountUser = {
   avatar: string | null;
   role: AccountRole;
   role_display: string;
+  unit_id?: string | number | null;
   redirect_path: string;
-  unit_id: number | null;
   is_staff: boolean;
   is_superuser: boolean;
 };

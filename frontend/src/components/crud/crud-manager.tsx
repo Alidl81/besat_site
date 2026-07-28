@@ -12,6 +12,7 @@ import {
 } from "@/components/crud/crud-ui";
 import type { Repository } from "@/lib/data/repository";
 import type { WithoutSystemFields } from "@/lib/data/domain-types";
+import { PanelIcon } from "@/components/dashboard/panel-icons";
 
 type BaseRecord = { id: string; created_at: string; updated_at: string };
 
@@ -105,7 +106,7 @@ export function CrudManager<T extends BaseRecord>({
       action={
         canCreate ? (
           <PrimaryButton type="button" onClick={openCreate}>
-            <span>＋</span>
+            <PanelIcon name="plus" className="size-4" />
             <span>{addLabel}</span>
           </PrimaryButton>
         ) : null
@@ -124,33 +125,32 @@ export function CrudManager<T extends BaseRecord>({
       ) : items.length === 0 ? (
         <EmptyState text={emptyText} />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[40rem] border-collapse text-right">
+        <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <table className="panel-table min-w-[40rem]">
             <thead>
-              <tr className="border-b border-slate-200">
+              <tr>
                 {columns.map((col) => (
                   <th
                     key={col.key}
-                    className="px-4 py-3 text-xs font-black text-slate-400"
                   >
                     {col.header}
                   </th>
                 ))}
-                <th className="px-4 py-3 text-xs font-black text-slate-400">عملیات</th>
+                <th>عملیات</th>
               </tr>
             </thead>
             <tbody>
               {items.map((item) => (
                 <tr
                   key={item.id}
-                  className="border-b border-slate-100 transition hover:bg-slate-50/60"
+                  className="transition"
                 >
                   {columns.map((col) => (
-                    <td key={col.key} className="px-4 py-3 text-sm font-bold text-[#062452]">
+                    <td key={col.key}>
                       {col.render(item)}
                     </td>
                   ))}
-                  <td className="px-4 py-3">
+                  <td>
                     <div className="flex items-center justify-end gap-2">
                       {rowActions ? rowActions(item, { update }) : null}
                       {canEdit ? (

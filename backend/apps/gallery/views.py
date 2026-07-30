@@ -6,13 +6,15 @@ from rest_framework import filters, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError as DRFValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from apps.accounts.models import UserUnitMembership
+from apps.units.models import SchoolUnit
 
-from .models import GalleryItem
+from .models import GalleryItem, MediaAsset
 from .permissions import (
     HasGalleryCMSPermission,
     get_accessible_unit_ids,
@@ -26,11 +28,57 @@ from .permissions import (
 from .serializers import (
     CMSGalleryItemDetailSerializer,
     CMSGalleryItemWriteSerializer,
+    MediaAssetSerializer,
     CMSGalleryItemListSerializer,
     GalleryItemDetailSerializer,
     GalleryItemListSerializer,
     GalleryWorkflowActionSerializer,
 )
+
+
+class CMSMediaAssetViewSet(ModelViewSet):
+    serializer_class = MediaAssetSerializer
+    permission_classes = (IsAuthenticated,)
+    parser_classes = (MultiPartParser, FormParser)
+    http_method_names = ("get", "post", "delete", "head", "options")
+
+    def get_queryset(self):
+        queryset = MediaAsset.objects.select_related("unit", "uploaded_by")
+        if is_general_manager(self.request.user):
+            return queryset
+        if not (is_unit_manager(self.request.user) or is_unit_media(self.request.user)):
+            return queryset.none()
+        return queryset.filter(
+            Q(unit_id__in=get_accessible_unit_ids(self.request.user))
+            | Q(uploaded_by=self.request.user)
+        ).distinct()
+
+    def perform_create(self, serializer):
+        if not (
+            is_general_manager(self.request.user)
+            or is_unit_manager(self.request.user)
+            or is_unit_media(self.request.user)
+        ):
+            raise PermissionDenied("اجازه بارگذاری رسانه را ندارید.")
+        unit = serializer.validated_data.get("unit")
+        if not is_general_manager(self.request.user):
+            unit_ids = get_accessible_unit_ids(self.request.user)
+            if unit is None and len(unit_ids) == 1:
+                unit = SchoolUnit.objects.get(pk=unit_ids[0])
+            if unit is None or unit.id not in unit_ids:
+                raise PermissionDenied("واحد رسانه در محدوده دسترسی شما نیست.")
+        serializer.save(uploaded_by=self.request.user, unit=unit)
+
+    def perform_destroy(self, instance):
+        if is_general_manager(self.request.user):
+            instance.delete()
+            return
+        if is_unit_manager(self.request.user) and instance.unit_id in get_accessible_unit_ids(self.request.user):
+            instance.delete()
+            return
+        if instance.uploaded_by_id != self.request.user.id:
+            raise PermissionDenied("فقط بارگذارنده می‌تواند این رسانه را حذف کند.")
+        instance.delete()
 
 
 
@@ -51,6 +99,9 @@ def raise_drf_validation_error(error: DjangoValidationError):
             OpenApiParameter("unit_id", int, required=False),
             OpenApiParameter("status", str, required=False),
             OpenApiParameter("search", str, required=False),
+            OpenApiParameter("album", str, required=False),
+            OpenApiParameter("date_from", str, required=False),
+            OpenApiParameter("date_to", str, required=False),
             OpenApiParameter("featured", bool, required=False),
             OpenApiParameter("ordering", str, required=False),
         ],
@@ -139,6 +190,18 @@ class GalleryItemViewSet(ReadOnlyModelViewSet):
                 scope=GalleryItem.Scope.UNIT,
                 unit_id=unit_id,
             )
+
+        album = self.request.query_params.get("album")
+        if album:
+            queryset = queryset.filter(album=album.strip())
+
+        date_from = self.request.query_params.get("date_from")
+        if date_from:
+            queryset = queryset.filter(event_date__gte=date_from)
+
+        date_to = self.request.query_params.get("date_to")
+        if date_to:
+            queryset = queryset.filter(event_date__lte=date_to)
 
         featured = self.request.query_params.get("featured")
 
@@ -484,6 +547,13 @@ class CMSGalleryItemViewSet(ModelViewSet):
 
         if not is_general_manager(request.user):
             raise PermissionDenied("فقط مدیر کل اجازه انتشار آیتم گالری را دارد.")
+
+        if item.status != GalleryItem.Status.APPROVED:
+            raise DRFValidationError(
+                {
+                    "status": "فقط آیتم تأییدشده قابل انتشار است.",
+                }
+            )
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)

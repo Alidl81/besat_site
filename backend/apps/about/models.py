@@ -39,6 +39,42 @@ class AboutPage(TimeStampedModel, ActiveModel):
         blank=True,
         verbose_name="توضیحات متا",
     )
+    history = models.TextField(null=True, blank=True, verbose_name="تاریخچه")
+    founders = models.JSONField(default=list, blank=True, verbose_name="بنیان‌گذاران")
+    key_people = models.JSONField(default=list, blank=True, verbose_name="افراد کلیدی")
+    mission = models.TextField(null=True, blank=True, verbose_name="ماموریت")
+    values = models.JSONField(default=list, blank=True, verbose_name="ارزش‌ها")
+    goals = models.JSONField(default=list, blank=True, verbose_name="اهداف")
+    images = models.JSONField(default=list, blank=True, verbose_name="تصاویر تکمیلی")
+    video_url = models.URLField(
+        max_length=2000,
+        null=True,
+        blank=True,
+        verbose_name="نشانی ویدیو",
+    )
+    video_poster_url = models.URLField(
+        max_length=2000,
+        null=True,
+        blank=True,
+        verbose_name="پوستر ویدیو",
+    )
+    video_title = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name="عنوان ویدیو",
+    )
+    video_description = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name="توضیح ویدیو",
+    )
+    video_caption = models.CharField(
+        max_length=500,
+        null=True,
+        blank=True,
+        verbose_name="زیرنویس ویدیو",
+    )
 
     class Meta:
         verbose_name = "صفحه درباره ما"
@@ -55,6 +91,13 @@ class AboutPage(TimeStampedModel, ActiveModel):
             "title",
             "description",
             "meta_description",
+            "history",
+            "mission",
+            "video_url",
+            "video_poster_url",
+            "video_title",
+            "video_description",
+            "video_caption",
         )
 
         for field_name in nullable_text_fields:
@@ -63,6 +106,12 @@ class AboutPage(TimeStampedModel, ActiveModel):
             if isinstance(value, str):
                 value = normalize_text(value)
                 setattr(self, field_name, value or None)
+
+        for field_name in ("founders", "key_people", "values", "goals", "images"):
+            if getattr(self, field_name) is None:
+                setattr(self, field_name, [])
+            if not isinstance(getattr(self, field_name), list):
+                raise ValidationError({field_name: "این مقدار باید به صورت فهرست ارسال شود."})
 
         if self.is_active:
             active_queryset = AboutPage.objects.filter(is_active=True)

@@ -61,10 +61,12 @@ class CMSUserViewSet(GenericViewSet):
     serializer_class = CMSUserCompatibilitySerializer
 
     def list(self, request):
+        self._ensure_manager(request.user)
         users = User.objects.all().order_by("id")
         return Response([serialize_cms_user(user) for user in users])
 
     def retrieve(self, request, pk=None):
+        self._ensure_manager(request.user)
         return Response(serialize_cms_user(self._get_user(pk)))
 
     @transaction.atomic

@@ -463,14 +463,10 @@ class CMSEventViewSet(ModelViewSet):
         if not is_general_manager(request.user):
             raise PermissionDenied("فقط مدیر کل اجازه انتشار رویداد را دارد.")
 
-        if event.status not in (
-            Event.Status.APPROVED,
-            Event.Status.WAITING_REVIEW,
-            Event.Status.DRAFT,
-        ):
+        if event.status != Event.Status.APPROVED:
             raise DRFValidationError(
                 {
-                    "status": "این رویداد در وضعیت قابل انتشار نیست.",
+                    "status": "فقط رویداد تأییدشده قابل انتشار است.",
                 }
             )
 

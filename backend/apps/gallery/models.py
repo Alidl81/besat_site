@@ -25,6 +25,52 @@ def gallery_image_upload_to(instance, filename):
 
     return f"gallery/items/{today:%Y/%m}/{uuid4().hex}{extension}"
 
+def media_asset_upload_to(instance, filename):
+    today = timezone.localdate()
+    extension = Path(filename).suffix.lower()
+    return f"cms/media/{today:%Y/%m}/{uuid4().hex}{extension}"
+
+
+class MediaAsset(TimeStampedModel):
+    class MediaType(models.TextChoices):
+        IMAGE = "image", "تصویر"
+        VIDEO = "video", "ویدئو"
+
+    title = models.CharField(max_length=255, verbose_name="عنوان")
+    file = models.FileField(upload_to=media_asset_upload_to, verbose_name="فایل")
+    media_type = models.CharField(
+        max_length=20,
+        choices=MediaType.choices,
+        db_index=True,
+    )
+    content_type = models.CharField(max_length=100)
+    size = models.PositiveBigIntegerField()
+    alt_text = models.CharField(max_length=255, blank=True)
+    caption = models.CharField(max_length=500, blank=True)
+    unit = models.ForeignKey(
+        "units.SchoolUnit",
+        on_delete=models.CASCADE,
+        related_name="media_assets",
+        null=True,
+        blank=True,
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="uploaded_media_assets",
+        null=True,
+    )
+
+    class Meta:
+        ordering = ("-created_at", "-id")
+        indexes = [
+            models.Index(fields=("unit", "media_type")),
+            models.Index(fields=("uploaded_by", "created_at")),
+        ]
+
+    def __str__(self):
+        return self.title
+
 
 class GalleryItem(
     TimeStampedModel,

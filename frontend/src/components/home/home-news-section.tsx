@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { ContentRecord } from "@/lib/data/domain-types";
-import { contentRepository } from "@/lib/data/repositories";
+import { getPublicNews } from "@/services/public-content-service";
+import type { PublicNewsItem } from "@/types/public-content";
 
 function formatDate(value: string | null) {
   if (!value) return "";
@@ -14,31 +14,42 @@ function formatDate(value: string | null) {
   }
 }
 
-function getNewsTime(item: ContentRecord) {
-  return new Date(item.published_at ?? item.created_at).getTime();
+function getNewsTime(item: PublicNewsItem) {
+  return new Date(item.published_at).getTime();
 }
 
 export function HomeNewsSection() {
-  const [news, setNews] = useState<ContentRecord[] | null>(null);
+  const [news, setNews] = useState<PublicNewsItem[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [requestKey, setRequestKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
-    contentRepository
-      .list()
-      .then((items) => {
+    getPublicNews({ page_size: 12 })
+      .then(({ results }) => {
         if (!mounted) return;
+        setFailed(false);
         setNews(
-          items
-            .filter((item) => item.kind === "news" && item.status === "published")
-            .sort((a, b) => getNewsTime(b) - getNewsTime(a))
+          results
+            .sort(
+              (a, b) =>
+                Number(b.is_featured) - Number(a.is_featured) ||
+                Number(b.is_important) - Number(a.is_important) ||
+                b.priority - a.priority ||
+                getNewsTime(b) - getNewsTime(a),
+            )
             .slice(0, 4),
         );
       })
-      .catch(() => setNews([]));
+      .catch(() => {
+        if (!mounted) return;
+        setNews([]);
+        setFailed(true);
+      });
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [requestKey]);
 
   return (
     <section dir="rtl" className="bg-[#fbfaf7] px-5 pb-16 pt-4 sm:px-8 lg:pb-20 lg:pt-5">
@@ -69,6 +80,23 @@ export function HomeNewsSection() {
               </div>
             ))}
           </div>
+        ) : failed ? (
+          <div className="border border-rose-200 bg-white px-6 py-10 text-center">
+            <p className="text-sm font-bold text-rose-700">
+              دریافت خبرها با خطا روبه‌رو شد.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setNews(null);
+                setFailed(false);
+                setRequestKey((value) => value + 1);
+              }}
+              className="mt-4 min-h-11 border border-[#0a2848] px-5 text-sm font-black text-[#0a2848]"
+            >
+              تلاش دوباره
+            </button>
+          </div>
         ) : news.length > 0 ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {news.map((item, index) => (
@@ -88,7 +116,7 @@ export function HomeNewsSection() {
                   <div className="absolute inset-0 bg-gradient-to-t from-[#06182b]/42 via-transparent to-transparent" />
                   {item.category ? (
                     <span className="absolute right-3 top-3 rounded-lg bg-[#0a2848]/85 px-3 py-1 text-[10px] font-black text-white backdrop-blur-sm">
-                      {item.category}
+                      {item.category.title}
                     </span>
                   ) : null}
                 </div>

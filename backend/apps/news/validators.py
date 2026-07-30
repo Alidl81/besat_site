@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 
 
 ALLOWED_NEWS_IMAGE_CONTENT_TYPES = {
-    "image/jepg",
+    "image/jpeg",
     "image/png",
     "image/webp",
 }

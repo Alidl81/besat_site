@@ -246,8 +246,11 @@ export function RegistrationGradeSelector({
   const isDisabled = !selectedUnit || options.length === 0;
 
   useEffect(() => {
-    setSelectedGrade("");
-    setIsOpen(false);
+    const frame = window.requestAnimationFrame(() => {
+      setSelectedGrade("");
+      setIsOpen(false);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [selectedUnitId]);
 
   return (

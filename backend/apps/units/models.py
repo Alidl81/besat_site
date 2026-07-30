@@ -92,6 +92,51 @@ class SchoolUnit(TimeStampedModel, ActiveModel, OrderedModel):
         blank=True,
         verbose_name="پایه‌های تحصیلی",
     )
+    address = models.TextField(null=True, blank=True, verbose_name="نشانی")
+    phone = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        verbose_name="شماره تماس اصلی",
+    )
+    phone_secondary = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        verbose_name="شماره تماس دوم",
+    )
+    email = models.EmailField(null=True, blank=True, verbose_name="ایمیل")
+    office_hours = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name="ساعات پاسخ‌گویی",
+    )
+    map_url = models.URLField(
+        max_length=1000,
+        null=True,
+        blank=True,
+        verbose_name="لینک نقشه",
+    )
+    latitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        null=True,
+        blank=True,
+        verbose_name="عرض جغرافیایی",
+    )
+    longitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        null=True,
+        blank=True,
+        verbose_name="طول جغرافیایی",
+    )
+    accepts_registration = models.BooleanField(
+        default=True,
+        db_index=True,
+        verbose_name="پیش‌ثبت‌نام فعال است؟",
+    )
 
     objects = SchoolUnitManager()
 
@@ -115,6 +160,12 @@ class SchoolUnit(TimeStampedModel, ActiveModel, OrderedModel):
             "cover_image_url",
             "age_range",
             "grade_range",
+            "address",
+            "phone",
+            "phone_secondary",
+            "email",
+            "office_hours",
+            "map_url",
         )
 
         for field_name in nullable_text_fields:

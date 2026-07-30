@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { EditorJsContentRenderer } from "@/components/content/editorjs-content-renderer";
 import { EmptyState } from "@/components/page/empty-state";
-import { RichContentRenderer } from "@/components/content/rich-content-renderer";
-import { contentRepository } from "@/lib/data/repositories";
-import type { ContentRecord } from "@/lib/data/domain-types";
+import { safePublicMediaUrl } from "@/lib/media/safe-url";
+import { getPublicNewsDetail } from "@/services/public-content-service";
+import type { PublicNewsDetail } from "@/types/public-content";
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "";
@@ -21,37 +22,29 @@ function formatDate(dateStr: string | null): string {
   }
 }
 
-function normalizeMediaSrc(src: string | null) {
-  if (!src) return null;
-
-  if (
-    src.startsWith("/") ||
-    src.startsWith("http://") ||
-    src.startsWith("https://") ||
-    src.startsWith("data:")
-  ) {
-    return src;
-  }
-
-  return `/${src}`;
-}
-
 export function NewsDetailContent({ slug }: { slug: string }) {
-  const [item, setItem] = useState<ContentRecord | null | undefined>(undefined);
+  const [item, setItem] = useState<PublicNewsDetail | null | undefined>(undefined);
+  const [failed, setFailed] = useState(false);
+  const [requestKey, setRequestKey] = useState(0);
 
   useEffect(() => {
-    contentRepository.list().then((records) => {
-      const found =
-        records.find(
-          (record) =>
-            record.kind === "news" &&
-            record.status === "published" &&
-            record.slug === slug,
-        ) ?? null;
-
-      setItem(found);
-    });
-  }, [slug]);
+    let active = true;
+    getPublicNewsDetail(slug)
+      .then((record) => {
+        if (active) {
+          setFailed(false);
+          setItem(record);
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        setItem(null);
+        setFailed(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [requestKey, slug]);
 
   if (item === undefined) {
     return (
@@ -67,14 +60,29 @@ export function NewsDetailContent({ slug }: { slug: string }) {
     return (
       <section className="bg-[#f8fafc] py-14">
         <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-8">
-          <EmptyState title="خبر مورد نظر پیدا نشد." />
+          <EmptyState
+            title={failed ? "دریافت خبر با خطا روبه‌رو شد." : "خبر مورد نظر پیدا نشد."}
+          />
+          {failed ? (
+            <button
+              type="button"
+              onClick={() => {
+                setFailed(false);
+                setItem(undefined);
+                setRequestKey((value) => value + 1);
+              }}
+              className="mx-auto mt-4 block min-h-11 border border-[#062452] px-5 text-sm font-black text-[#062452]"
+            >
+              تلاش دوباره
+            </button>
+          ) : null}
         </div>
       </section>
     );
   }
 
   const dateLabel = formatDate(item.published_at);
-  const coverImage = normalizeMediaSrc(item.cover_image);
+  const coverImage = safePublicMediaUrl(item.cover_image);
 
   return (
     <section className="bg-[#f8fafc] py-14">
@@ -93,7 +101,7 @@ export function NewsDetailContent({ slug }: { slug: string }) {
           <div className="mb-5 flex flex-wrap items-center gap-3">
             {item.category ? (
               <span className="rounded-xl bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
-                {item.category}
+                      {item.category.title}
               </span>
             ) : null}
 
@@ -114,7 +122,7 @@ export function NewsDetailContent({ slug }: { slug: string }) {
             </p>
           ) : null}
 
-          <RichContentRenderer html={item.body_html} />
+          <EditorJsContentRenderer content={item.content_json} />
 
           <div className="mt-10 border-t border-slate-100 pt-5">
             <Link

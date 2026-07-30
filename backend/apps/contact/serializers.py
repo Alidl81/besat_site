@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from apps.units.models import SchoolUnit
+
 from .models import ContactInfo, ContactMessage
 
 
@@ -30,6 +32,12 @@ class ContactInfoSerializer(serializers.ModelSerializer):
 
 
 class ContactMessageCreateSerializer(serializers.ModelSerializer):
+    related_unit = serializers.PrimaryKeyRelatedField(
+        queryset=SchoolUnit.objects.filter(is_active=True),
+        required=False,
+        allow_null=True,
+    )
+
     class Meta:
         model = ContactMessage
         fields = (
@@ -38,6 +46,8 @@ class ContactMessageCreateSerializer(serializers.ModelSerializer):
             "email",
             "subject",
             "message",
+            "related_unit",
+            "message_type",
         )
 
     def to_internal_value(self, data):
@@ -104,6 +114,8 @@ class CMSContactMessageSerializer(serializers.ModelSerializer):
             "email",
             "subject",
             "message",
+            "related_unit",
+            "message_type",
             "status",
             "is_read",
             "admin_note",

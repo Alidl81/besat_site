@@ -117,8 +117,14 @@ class NewsCategoryListAPIView(ListAPIView):
                 type=bool,
             ),
             OpenApiParameter(
+                name="important",
+                description="Filter important news. Accepted values: true, false.",
+                required=False,
+                type=bool,
+            ),
+            OpenApiParameter(
                 name="ordering",
-                description="Allowed: published_at, -published_at, title, -title.",
+                description="Allowed: published_at, -published_at, priority, -priority, title, -title.",
                 required=False,
                 type=str,
             ),
@@ -149,6 +155,7 @@ class NewsViewSet(ReadOnlyModelViewSet):
     )
     ordering_fields = (
         "published_at",
+        "priority",
         "title",
     )
     ordering = (
@@ -214,6 +221,17 @@ class NewsViewSet(ReadOnlyModelViewSet):
 
             elif featured_value in ("false", "0", "no"):
                 queryset = queryset.filter(is_featured=False)
+
+        important = self.request.query_params.get("important")
+
+        if important is not None:
+            important_value = important.strip().lower()
+
+            if important_value in ("true", "1", "yes"):
+                queryset = queryset.filter(is_important=True)
+
+            elif important_value in ("false", "0", "no"):
+                queryset = queryset.filter(is_important=False)
 
         return queryset
 
@@ -335,6 +353,7 @@ class CMSNewsViewSet(ModelViewSet):
         "title",
         "status",
         "scope",
+        "priority",
     )
     ordering = (
         "-updated_at",
@@ -387,6 +406,15 @@ class CMSNewsViewSet(ModelViewSet):
 
         if category_id:
             queryset = queryset.filter(category_id=category_id)
+
+        important = self.request.query_params.get("important")
+
+        if important is not None:
+            important_value = important.strip().lower()
+            if important_value in ("true", "1", "yes"):
+                queryset = queryset.filter(is_important=True)
+            elif important_value in ("false", "0", "no"):
+                queryset = queryset.filter(is_important=False)
 
         return queryset
 
@@ -587,6 +615,13 @@ class CMSNewsViewSet(ModelViewSet):
 
         if not is_general_manager(request.user):
             raise PermissionDenied("فقط مدیر کل اجازه انتشار خبر را دارد.")
+
+        if news.status != News.Status.APPROVED:
+            raise DRFValidationError(
+                {
+                    "status": "فقط خبر تأییدشده قابل انتشار است.",
+                }
+            )
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)

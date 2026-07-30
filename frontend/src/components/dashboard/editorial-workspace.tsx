@@ -1,22 +1,40 @@
 "use client";
 
 import type { JSONContent } from "@tiptap/core";
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ContentBlockInserter } from "@/components/cms/content-block-inserter";
+import { RichContentRenderer } from "@/components/content/rich-content-renderer";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
 import {
   PanelEmpty,
   PanelError,
   PanelLoading,
 } from "@/components/dashboard/panel-request-state";
-import { RichEditor } from "@/components/editor/rich-editor";
+import { EditorDocumentOutline } from "@/components/editor/editor-document-outline";
+import { EditorIcon } from "@/components/editor/editor-icons";
+import {
+  RichEditor,
+  type EditorDocumentStats,
+  type EditorOutlineItem,
+  type RichEditorHandle,
+} from "@/components/editor/rich-editor";
 import { usePanelRequest } from "@/hooks/use-panel-request";
 import { getApiErrorMessage } from "@/lib/api/client";
+import {
+  createSerialSaveQueue,
+  type SerialSaveQueue,
+} from "@/lib/editor/serial-save-queue";
 import { panelService } from "@/services/panel-service";
 import type {
   ContentItem,
   ContentKind,
-  ContentRevision,
   NamedOption,
 } from "@/types/panel-api";
 import type { AccountRole } from "@/lib/data/domain-types";
@@ -41,6 +59,14 @@ type Draft = {
   kind: ContentKind;
   scope: "school" | "unit";
   scheduledAt: string;
+  seoTitle: string;
+  seoDescription: string;
+  seoKeywords: string;
+  canonicalUrl: string;
+  audience: "all" | "students" | "parents" | "staff";
+  isFeatured: boolean;
+  allowComments: boolean;
+  wordpressSync: boolean;
 };
 
 const statusLabels: Record<PublishStatus, string> = {
@@ -83,6 +109,14 @@ function draftFrom(item: ContentItem | null, kind: ContentKind, unitId: string |
     kind: item?.kind ?? kind,
     scope: item?.scope ?? (unitId ? "unit" : "school"),
     scheduledAt: item?.scheduled_at?.slice(0, 16) ?? "",
+    seoTitle: item?.seo_title ?? "",
+    seoDescription: item?.seo_description ?? "",
+    seoKeywords: item?.seo_keywords?.join("، ") ?? "",
+    canonicalUrl: item?.canonical_url ?? "",
+    audience: item?.audience ?? "all",
+    isFeatured: item?.is_featured ?? false,
+    allowComments: item?.allow_comments ?? false,
+    wordpressSync: item?.wordpress_sync ?? false,
   };
 }
 
@@ -112,26 +146,35 @@ function EditorialEditor({
   const [currentItem, setCurrentItem] = useState(item);
   const [draft, setDraft] = useState(() => draftFrom(item, defaultKind, unitId));
   const [categories, setCategories] = useState<NamedOption[]>([]);
-  const [revisions, setRevisions] = useState<ContentRevision[]>([]);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saved" | "error">("idle");
   const [errorText, setErrorText] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [outline, setOutline] = useState<EditorOutlineItem[]>([]);
+  const [stats, setStats] = useState<EditorDocumentStats>({
+    blocks: 0,
+    characters: 0,
+    words: 0,
+    readingMinutes: 1,
+  });
+  const [uploading, setUploading] = useState(false);
   const coverInput = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<RichEditorHandle>(null);
+  const editVersion = useRef(0);
+  const currentItemRef = useRef<ContentItem | null>(item);
+  const saveQueue = useRef<SerialSaveQueue<ContentItem>>(
+    createSerialSaveQueue<ContentItem>(),
+  );
+
+  useEffect(() => {
+    currentItemRef.current = currentItem;
+  }, [currentItem]);
 
   useEffect(() => {
     if (!open) return;
-    document.body.style.overflow = "hidden";
     panelService.contentCategories().then(setCategories).catch(() => setCategories([]));
-    return () => {
-      document.body.style.overflow = "";
-    };
   }, [open]);
-
-  useEffect(() => {
-    if (!currentItem) return;
-    panelService.contentRevisions(currentItem.id).then(setRevisions).catch(() => setRevisions([]));
-  }, [currentItem]);
 
   const payload = useMemo(
     () => ({
@@ -141,26 +184,41 @@ function EditorialEditor({
       body_html: draft.bodyHtml,
       body_json: draft.bodyJson,
       cover_image_url: draft.coverImageUrl || null,
-      category_id: draft.categoryId || null,
+      category:
+        categories.find((category) => String(category.id) === draft.categoryId)
+          ?.title ?? null,
       scope: draft.scope,
       unit_id: draft.scope === "unit" ? unitId : null,
       scheduled_at: draft.scheduledAt || null,
+      is_featured: draft.isFeatured,
     }),
-    [draft, unitId],
+    [categories, draft, unitId],
   );
 
-  async function persist() {
-    if (!payload.title) throw new Error("عنوان محتوا الزامی است.");
-    const saved = currentItem
-      ? await panelService.updateContent(currentItem.id, payload)
-      : await panelService.createContent(payload);
-    setCurrentItem(saved);
-    setDraft(draftFrom(saved, defaultKind, unitId));
-    setDirty(false);
-    setSaveState("saved");
-    onSaved(saved);
-    return saved;
-  }
+  const persist = useCallback(async (
+    snapshot = payload,
+    versionAtStart = editVersion.current,
+  ) => {
+    if (!snapshot.title) throw new Error("عنوان محتوا الزامی است.");
+
+    const operation = async () => {
+      const existing = currentItemRef.current;
+      const saved = existing
+        ? await panelService.updateContent(existing.id, snapshot)
+        : await panelService.createContent(snapshot);
+      currentItemRef.current = saved;
+      setCurrentItem(saved);
+      if (editVersion.current === versionAtStart) {
+        setDraft(draftFrom(saved, defaultKind, unitId));
+        setDirty(false);
+      }
+      setSaveState("saved");
+      onSaved(saved);
+      return saved;
+    };
+
+    return saveQueue.current.enqueue(operation);
+  }, [defaultKind, onSaved, payload, unitId]);
 
   async function save() {
     setSaving(true);
@@ -175,16 +233,17 @@ function EditorialEditor({
     }
   }
 
-  async function workflow(action: "submit-review" | "publish" | "schedule") {
+  async function workflow(action: "submit-review" | "approve" | "reject" | "publish" | "schedule") {
     setSaving(true);
     setErrorText("");
     try {
-      const saved = await persist();
+      const saved = await persist(payload, editVersion.current);
       const updated = await panelService.contentAction(
         saved.id,
         action,
         action === "schedule" ? { scheduled_at: draft.scheduledAt } : {},
       );
+      currentItemRef.current = updated;
       setCurrentItem(updated);
       setDraft(draftFrom(updated, defaultKind, unitId));
       onSaved(updated);
@@ -198,19 +257,17 @@ function EditorialEditor({
   }
 
   useEffect(() => {
-    if (!open || !currentItem || !dirty) return;
+    if (!open || !dirty || !payload.title) return;
+    const versionAtSchedule = editVersion.current;
     const timer = window.setTimeout(() => {
-      panelService.contentAction(currentItem.id, "autosave", payload)
+      persist(payload, versionAtSchedule)
         .then((saved) => {
-          setCurrentItem(saved);
-          setDirty(false);
-          setSaveState("saved");
-          onSaved(saved);
+          currentItemRef.current = saved;
         })
         .catch(() => setSaveState("error"));
-    }, 15000);
+    }, 8000);
     return () => window.clearTimeout(timer);
-  }, [currentItem, dirty, onSaved, open, payload]);
+  }, [dirty, open, payload, persist]);
 
   useEffect(() => {
     if (!open) return;
@@ -224,9 +281,20 @@ function EditorialEditor({
     return () => window.removeEventListener("keydown", shortcut);
   });
 
+  useEffect(() => {
+    if (!dirty) return;
+    function warnBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [dirty]);
+
   if (!open) return null;
 
   function update<K extends keyof Draft>(key: K, value: Draft[K]) {
+    editVersion.current += 1;
     setDraft((current) => ({ ...current, [key]: value }));
     setDirty(true);
     setSaveState("idle");
@@ -251,84 +319,177 @@ function EditorialEditor({
     }
   }
 
-  async function restore(revision: ContentRevision) {
-    if (!currentItem || !window.confirm(`نسخه ${revision.number} بازیابی شود؟`)) return;
-    setSaving(true);
+  async function uploadEditorMedia(file: File) {
     try {
-      const restored = await panelService.restoreContentRevision(currentItem.id, revision.id);
-      setCurrentItem(restored);
-      setDraft(draftFrom(restored, defaultKind, unitId));
-      setDirty(false);
-      onSaved(restored);
+      return await panelService.uploadMedia(file);
     } catch (reason) {
-      setErrorText(getApiErrorMessage(reason));
-    } finally {
-      setSaving(false);
+      const message = getApiErrorMessage(reason);
+      setErrorText(message);
+      throw reason;
     }
   }
 
   const editor = (
     <RichEditor
+      ref={editorRef}
       value={draft.bodyHtml}
       jsonValue={draft.bodyJson}
       onChange={(html) => update("bodyHtml", html)}
       onJsonChange={(json) => update("bodyJson", json)}
+      mode={mode}
+      onOutlineChange={setOutline}
+      onStatsChange={setStats}
+      onUploadMedia={uploadEditorMedia}
+      onUploadState={setUploading}
       placeholder="متن کامل محتوا را اینجا بنویسید..."
     />
   );
 
   const settings = (
-    <section className="panel-card space-y-4">
-      <h3 className="panel-divider-title">تنظیمات انتشار</h3>
-      <label><span className="panel-field-label">نوع</span><select value={draft.kind} onChange={(event) => update("kind", event.target.value as ContentKind)} className="panel-select"><option value="news">خبر</option><option value="announcement">اطلاعیه</option></select></label>
-      <label><span className="panel-field-label">دسته‌بندی</span><select value={draft.categoryId} onChange={(event) => update("categoryId", event.target.value)} className="panel-select"><option value="">بدون دسته‌بندی</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.title}</option>)}</select></label>
-      <label><span className="panel-field-label">دامنه نمایش</span><select value={draft.scope} onChange={(event) => update("scope", event.target.value as "school" | "unit")} className="panel-select"><option value="school">کل مدرسه</option>{unitId ? <option value="unit">واحد من</option> : null}</select></label>
-      <label><span className="panel-field-label">زمان انتشار</span><input type="datetime-local" value={draft.scheduledAt} onChange={(event) => update("scheduledAt", event.target.value)} className="panel-input" /></label>
-      <input ref={coverInput} type="file" accept="image/*" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadCover(file); }} />
-      <button type="button" onClick={() => coverInput.current?.click()} className="panel-secondary-button w-full"><PanelIcon name="image" className="size-4" />بارگذاری تصویر شاخص</button>
-      {draft.coverImageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={draft.coverImageUrl} alt="پیش‌نمایش تصویر شاخص" className="h-36 w-full rounded-lg border border-slate-200 object-cover" />
-      ) : <p className="rounded-lg border border-dashed border-slate-200 p-4 text-center text-xs font-bold text-slate-400">تصویر شاخص انتخاب نشده است.</p>}
-    </section>
+    <aside className="besat-editor-settings">
+      <section className="besat-editor-side-card">
+        <header className="besat-editor-side-heading">
+          <div><h3>گردش کار</h3><p>مرحله فعلی انتشار</p></div>
+          <PanelIcon name="review" className="size-5" />
+        </header>
+        <ol className="besat-editor-workflow">
+          {[
+            ["draft", "پیش‌نویس"],
+            ["waiting_review", "ارسال برای بررسی"],
+            ["approved", "تأیید سردبیر"],
+            ["published", "انتشار نهایی"],
+          ].map(([value, label], index) => {
+            const statusOrder = ["draft", "waiting_review", "approved", "published"];
+            const currentIndex = statusOrder.indexOf(currentItem?.status === "scheduled" ? "published" : currentItem?.status ?? "draft");
+            return (
+              <li key={value} className={index < currentIndex ? "is-done" : index === currentIndex ? "is-current" : ""}>
+                <span>{index < currentIndex ? <EditorIcon name="check" /> : index + 1}</span>
+                <b>{label}</b>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+
+      <details className="besat-editor-setting-group" open>
+        <summary>تنظیمات انتشار <EditorIcon name="chevron-down" /></summary>
+        <div className="besat-editor-setting-body">
+          <label><span>نوع محتوا</span><select value={draft.kind} onChange={(event) => update("kind", event.target.value as ContentKind)} className="panel-select"><option value="news">خبر</option><option value="announcement">اطلاعیه</option></select></label>
+          <label><span>دسته‌بندی</span><select value={draft.categoryId} onChange={(event) => update("categoryId", event.target.value)} className="panel-select"><option value="">بدون دسته‌بندی</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.title}</option>)}</select></label>
+          <label><span>دامنه نمایش</span><select value={draft.scope} onChange={(event) => update("scope", event.target.value as "school" | "unit")} className="panel-select"><option value="school">کل مجموعه</option>{unitId ? <option value="unit">واحد آموزشی جاری</option> : null}</select></label>
+          <label><span>زمان انتشار</span><input type="datetime-local" value={draft.scheduledAt} onChange={(event) => update("scheduledAt", event.target.value)} className="panel-input" /></label>
+          <label><span>مخاطبان</span><select value={draft.audience} onChange={(event) => update("audience", event.target.value as Draft["audience"])} className="panel-select"><option value="all">همه کاربران سایت</option><option value="students">دانش‌آموزان</option><option value="parents">والدین</option><option value="staff">کادر آموزشی</option></select></label>
+        </div>
+      </details>
+
+      <details className="besat-editor-setting-group" open>
+        <summary>تصویر شاخص <EditorIcon name="chevron-down" /></summary>
+        <div className="besat-editor-setting-body">
+          <input ref={coverInput} type="file" accept="image/*" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadCover(file); }} />
+          {draft.coverImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={draft.coverImageUrl} alt="پیش‌نمایش تصویر شاخص" className="besat-editor-cover-preview" />
+          ) : <p className="besat-editor-cover-empty">هنوز تصویر شاخص انتخاب نشده است.</p>}
+          <button type="button" onClick={() => coverInput.current?.click()} className="panel-secondary-button w-full"><EditorIcon name="upload" className="size-4" />{draft.coverImageUrl ? "جایگزینی تصویر" : "بارگذاری تصویر"}</button>
+        </div>
+      </details>
+
+      <details className="besat-editor-setting-group">
+        <summary>نمایش <EditorIcon name="chevron-down" /></summary>
+        <div className="besat-editor-setting-body">
+          <label className="besat-editor-switch"><input type="checkbox" checked={draft.isFeatured} onChange={(event) => update("isFeatured", event.target.checked)} /><span aria-hidden="true" /><b>نمایش به‌عنوان محتوای ویژه</b></label>
+        </div>
+      </details>
+    </aside>
   );
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#fbfaf7]" dir="rtl">
-      <form onSubmit={(event: FormEvent) => { event.preventDefault(); void save(); }} className="flex min-h-screen flex-col">
-        <header className="sticky top-0 z-20 flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-6">
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={close} className="panel-icon-button" aria-label="بستن ویرایشگر"><PanelIcon name="chevron" className="size-5" /></button>
-            <div><h2 className="text-xl font-black text-[#102b4a]">ادیتور {mode === "simple" ? "ساده" : "پیشرفته"}</h2><p className="mt-1 text-[11px] font-bold text-slate-500">{currentItem ? `وضعیت: ${statusLabels[currentItem.status]}` : "محتوای جدید"}</p></div>
+    <form onSubmit={(event: FormEvent) => { event.preventDefault(); void save(); }} className="besat-editor-studio" dir="rtl">
+      <header className="besat-editor-studio-header">
+        <div className="besat-editor-studio-title">
+          <button type="button" onClick={close} aria-label="بازگشت به فهرست محتوا"><EditorIcon name="chevron-left" /></button>
+          <div>
+            <p>مدیریت محتوا / {currentItem ? "ویرایش محتوا" : "محتوای جدید"}</p>
+            <h2>ادیتور {mode === "simple" ? "ساده" : "پیشرفته"}</h2>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-slate-500">{saving ? "در حال ذخیره..." : dirty ? "تغییرات ذخیره نشده" : saveState === "saved" ? `ذخیره شد · ${formatDate(currentItem?.updated_at ?? null)}` : saveState === "error" ? "خطا در ذخیره" : "آماده"}</span>
-            <button disabled={saving} type="submit" className="panel-secondary-button"><PanelIcon name="document" className="size-4" />ذخیره پیش‌نویس</button>
-            <button disabled={saving} type="button" onClick={() => void workflow("submit-review")} className="panel-primary-button"><PanelIcon name="review" className="size-4" />ارسال برای بررسی</button>
-            {canPublish ? <button disabled={saving} type="button" onClick={() => void workflow(draft.scheduledAt ? "schedule" : "publish")} className="panel-primary-button !bg-emerald-600"><PanelIcon name="check" className="size-4" />{draft.scheduledAt ? "زمان‌بندی انتشار" : "انتشار"}</button> : null}
+        </div>
+        <div className="besat-editor-header-actions">
+          <span role="status" aria-live="polite" className={`besat-editor-save-state ${saveState === "error" ? "is-error" : ""}`}>
+            <i aria-hidden="true" />
+            {saving || uploading ? "در حال ذخیره یا بارگذاری..." : dirty ? "تغییرات ذخیره‌نشده" : saveState === "saved" ? `ذخیره شد · ${formatDate(currentItem?.updated_at ?? null)}` : "ذخیره خودکار فعال است"}
+          </span>
+          <button type="button" onClick={() => setPreviewOpen(true)} className="panel-secondary-button"><PanelIcon name="eye" className="size-4" />پیش‌نمایش</button>
+        </div>
+      </header>
+
+      {errorText ? <p role="alert" className="besat-editor-error">{errorText}</p> : null}
+
+      <div dir="ltr" className={`besat-editor-layout ${mode === "advanced" ? "is-advanced" : "is-simple"}`}>
+        {mode === "advanced" ? (
+          <aside dir="rtl" className="besat-editor-left-column">
+            <EditorDocumentOutline editorRef={editorRef} outline={outline} />
+            <ContentBlockInserter value="" onChange={(html) => editorRef.current?.insertHtml(html)} unitId={unitId} variant="sidebar" />
+          </aside>
+        ) : null}
+
+        <main dir="rtl" className="besat-editor-document">
+          <div className="besat-editor-document-meta">
+            <label>
+              <span>عنوان محتوا <b aria-hidden="true">*</b></span>
+              <input required value={draft.title} onChange={(event) => update("title", event.target.value)} placeholder="عنوان دقیق و خوانای محتوا را بنویسید" />
+            </label>
+            <label>
+              <span>خلاصه</span>
+              <textarea value={draft.summary} onChange={(event) => update("summary", event.target.value)} placeholder="خلاصه کوتاه برای کارت خبر و نتایج جستجو" />
+              <small>{draft.summary.length.toLocaleString("fa-IR")} نویسه</small>
+            </label>
           </div>
-        </header>
 
-        {errorText ? <p role="alert" className="mx-4 mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-black text-rose-700 sm:mx-6">{errorText}</p> : null}
-
-        <div className={`mx-auto grid w-full max-w-7xl flex-1 gap-5 p-4 sm:p-6 ${mode === "simple" ? "xl:grid-cols-[minmax(0,1fr)_18rem]" : "lg:grid-cols-[15rem_minmax(0,1fr)_18rem]"}`}>
-          {mode === "advanced" ? (
-            <aside className="space-y-4">
-              <section className="panel-card"><h3 className="panel-divider-title">ساختار محتوا</h3><p className="mt-3 text-xs font-bold leading-7 text-slate-500">بلوک‌های تصویر، گالری و نقل‌قول را از بخش زیر به متن اضافه کنید. متن هم‌زمان به JSON و HTML ذخیره می‌شود.</p></section>
-              {currentItem ? <section className="panel-card"><h3 className="panel-divider-title">تاریخچه نسخه‌ها</h3>{revisions.length ? <div className="mt-3 space-y-2">{revisions.slice(0, 8).map((revision) => <button key={revision.id} type="button" onClick={() => void restore(revision)} className="w-full rounded-lg border border-slate-200 p-3 text-right text-xs hover:bg-slate-50"><b className="block text-[#172b43]">نسخه {revision.number}</b><span className="mt-1 block text-slate-500">{formatDate(revision.created_at)} · {revision.actor_name}</span></button>)}</div> : <PanelEmpty title="نسخه قبلی وجود ندارد." />}</section> : null}
-            </aside>
+          {mode === "simple" && draft.coverImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={draft.coverImageUrl} alt="" className="besat-editor-inline-cover" />
           ) : null}
 
-          <main className="panel-card min-w-0 space-y-5">
-            <label><span className="panel-field-label">عنوان</span><input required value={draft.title} onChange={(event) => update("title", event.target.value)} className="panel-input text-lg font-black" placeholder="عنوان اصلی محتوا" /></label>
-            <label><span className="panel-field-label">خلاصه</span><textarea value={draft.summary} onChange={(event) => update("summary", event.target.value)} className="panel-textarea" placeholder="خلاصه‌ای کوتاه برای فهرست و متادیتا..." /></label>
-            <div><span className="panel-field-label">متن محتوا</span>{editor}</div>
-            {mode === "advanced" ? <ContentBlockInserter value={draft.bodyHtml} onChange={(html) => { update("bodyHtml", html); update("bodyJson", null); }} unitId={unitId} /> : null}
-          </main>
-          <aside className="space-y-4 lg:sticky lg:top-20 lg:h-fit">{settings}</aside>
+          <div className="besat-editor-document-label">
+            <span>متن اصلی</span>
+            <div><b>{stats.words.toLocaleString("fa-IR")}</b> واژه · <b>{stats.readingMinutes.toLocaleString("fa-IR")}</b> دقیقه مطالعه · <b>{stats.blocks.toLocaleString("fa-IR")}</b> بلوک</div>
+          </div>
+          {editor}
+        </main>
+
+        <div dir="rtl" className="besat-editor-right-column">{settings}</div>
+      </div>
+
+      <footer className="besat-editor-actionbar">
+        <div>
+          <span className={`panel-status ${currentItem ? statusClasses[currentItem.status] : ""}`}>{currentItem ? statusLabels[currentItem.status] : "محتوای جدید"}</span>
+          <small>میانبر ذخیره: Ctrl/⌘ + S</small>
         </div>
-      </form>
-    </div>
+        <div>
+          {currentItem?.status === "waiting_review" && canPublish ? <button disabled={saving} type="button" onClick={() => void workflow("reject")} className="panel-secondary-button !border-rose-200 !text-rose-700"><EditorIcon name="close" className="size-4" />رد محتوا</button> : null}
+          <button disabled={saving} type="submit" className="panel-secondary-button"><PanelIcon name="document" className="size-4" />ذخیره پیش‌نویس</button>
+          {currentItem?.status === "waiting_review" && canPublish ? <button disabled={saving} type="button" onClick={() => void workflow("approve")} className="panel-secondary-button !border-emerald-200 !text-emerald-700"><EditorIcon name="check" className="size-4" />تأیید محتوا</button> : null}
+          {!currentItem || currentItem.status === "draft" || currentItem.status === "rejected" ? <button disabled={saving} type="button" onClick={() => void workflow("submit-review")} className="panel-primary-button"><PanelIcon name="review" className="size-4" />ارسال برای بررسی</button> : null}
+          {canPublish && currentItem?.status === "approved" ? <button disabled={saving} type="button" onClick={() => void workflow(draft.scheduledAt ? "schedule" : "publish")} className="panel-primary-button !bg-[#d98712]"><PanelIcon name={draft.scheduledAt ? "calendar" : "check"} className="size-4" />{draft.scheduledAt ? "زمان‌بندی انتشار" : "انتشار نهایی"}</button> : null}
+        </div>
+      </footer>
+
+      {previewOpen ? (
+        <div className="besat-editor-preview-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPreviewOpen(false); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="editor-preview-title" className="besat-editor-preview">
+            <header><div><p>پیش‌نمایش قبل از انتشار</p><h2 id="editor-preview-title">{draft.title || "عنوان محتوا"}</h2></div><button type="button" onClick={() => setPreviewOpen(false)} aria-label="بستن پیش‌نمایش"><EditorIcon name="close" /></button></header>
+            <article>
+              {draft.coverImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={draft.coverImageUrl} alt="" />
+              ) : null}
+              {draft.summary ? <p className="besat-editor-preview-summary">{draft.summary}</p> : null}
+              <RichContentRenderer html={draft.bodyHtml} />
+            </article>
+          </section>
+        </div>
+      ) : null}
+    </form>
   );
 }
 
@@ -384,6 +545,22 @@ export function EditorialWorkspace({
     }
   }
 
+  if (editor) {
+    return (
+      <EditorialEditor
+        key={`${editor.mode}-${editor.item?.id ?? "new"}`}
+        open
+        mode={editor.mode}
+        item={editor.item}
+        defaultKind={defaultKind}
+        unitId={unitId}
+        canPublish={canPublish}
+        onClose={() => setEditor(null)}
+        onSaved={onSaved}
+      />
+    );
+  }
+
   if (request.loading && !request.data) return <PanelLoading label="در حال دریافت محتوا..." />;
   if (request.error && !request.data) return <PanelError message={request.error} onRetry={request.reload} />;
 
@@ -434,7 +611,6 @@ export function EditorialWorkspace({
         </section>
       </section>
 
-      {editor ? <EditorialEditor key={`${editor.mode}-${editor.item?.id ?? "new"}`} open mode={editor.mode} item={editor.item} defaultKind={defaultKind} unitId={unitId} canPublish={canPublish} onClose={() => setEditor(null)} onSaved={onSaved} /> : null}
     </div>
   );
 }

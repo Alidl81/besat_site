@@ -43,7 +43,10 @@ export function useCollection<T extends BaseRecord>(
   }, [repository]);
 
   useEffect(() => {
-    reload();
+    const frame = window.requestAnimationFrame(() => {
+      void reload();
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [reload]);
 
   const create = useCallback(

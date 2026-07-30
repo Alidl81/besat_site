@@ -2,22 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { HomeUnitsCarousel } from "@/components/home/home-units-carousel";
-import { unitsRepository } from "@/lib/data/repositories";
-import type { SchoolUnitRecord } from "@/lib/data/domain-types";
+import { getPublicUnits } from "@/services/public-content-service";
+import type { PublicSchoolUnit } from "@/types/public-content";
 
 export function HomeUnitsSection() {
-  const [units, setUnits] = useState<SchoolUnitRecord[] | null>(null);
+  const [units, setUnits] = useState<PublicSchoolUnit[] | null>(null);
 
   useEffect(() => {
-    unitsRepository
-      .list()
-      .then((all) => {
-        const active = all
-          .filter((u) => u.is_active)
-          .sort((a, b) => a.order - b.order);
-        setUnits(active);
+    let active = true;
+    getPublicUnits()
+      .then((items) => {
+        if (active) setUnits(items);
       })
-      .catch(() => setUnits([]));
+      .catch(() => {
+        if (active) setUnits([]);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (units === null) {

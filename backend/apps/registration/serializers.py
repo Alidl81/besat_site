@@ -80,6 +80,14 @@ class RegistrationRequestCreateSerializer(serializers.ModelSerializer):
                 }
             )
 
+        requested_unit = attrs.get("requested_unit")
+        if requested_unit is not None and not requested_unit.accepts_registration:
+            raise serializers.ValidationError(
+                {
+                    "requested_unit": "پیش‌ثبت‌نام این واحد در حال حاضر بسته است.",
+                }
+            )
+
         return attrs
 
     def create(self, validated_data):

@@ -193,7 +193,7 @@ function eventFeed(record: MockRecord) {
     title: record.title,
     description: record.description ?? null,
     timestamp: record.starts_at ?? null,
-    status: record.is_demo ? "آزمایشی" : null,
+    status: record.status ?? null,
     href: "/dashboard/admin/events",
     avatar_url: null,
   };
@@ -288,7 +288,7 @@ function mediaDashboard(database: MockDatabase, account: MockAccount) {
         key: "drafts",
         title: "پیش‌نویس",
         value: summary.drafts,
-        detail: "داده محیط موقت",
+        detail: "بر اساس محتوای ثبت‌شده",
         trend: null,
         tone: "blue",
         icon: "document",
@@ -297,7 +297,7 @@ function mediaDashboard(database: MockDatabase, account: MockAccount) {
         key: "review",
         title: "در صف بررسی",
         value: summary.waiting_review,
-        detail: "داده محیط موقت",
+        detail: "بر اساس محتوای ثبت‌شده",
         trend: null,
         tone: "amber",
         icon: "review",
@@ -306,7 +306,7 @@ function mediaDashboard(database: MockDatabase, account: MockAccount) {
         key: "scheduled",
         title: "زمان‌بندی‌شده",
         value: summary.scheduled,
-        detail: "داده محیط موقت",
+        detail: "بر اساس محتوای ثبت‌شده",
         trend: null,
         tone: "purple",
         icon: "calendar",
@@ -373,23 +373,23 @@ function parentDashboard(
     metrics: [
       {
         key: "average",
-        title: "معدل آزمایشی",
+        title: "معدل",
         value: selected?.average ?? null,
-        detail: "این مقدار متعلق به دانش‌آموز واقعی نیست",
+        detail: selected ? "بر اساس پرونده آموزشی" : "فرزندی انتخاب نشده است",
         trend: null,
         tone: "green",
         icon: "chart",
       },
       {
         key: "attendance",
-        title: "حضور آزمایشی",
+        title: "حضور",
         value:
           attendance &&
           "attendance_percent" in attendance &&
           typeof attendance.attendance_percent === "number"
             ? `${attendance.attendance_percent}%`
             : null,
-        detail: "داده محیط موقت",
+        detail: selected ? "بر اساس پرونده آموزشی" : "فرزندی انتخاب نشده است",
         trend: null,
         tone: "blue",
         icon: "calendar",
@@ -398,7 +398,7 @@ function parentDashboard(
         key: "exams",
         title: "آزمون پیش رو",
         value: exams.length,
-        detail: "داده محیط موقت",
+        detail: selected ? "بر اساس برنامه آموزشی" : "فرزندی انتخاب نشده است",
         trend: null,
         tone: "amber",
         icon: "document",
@@ -407,7 +407,7 @@ function parentDashboard(
         key: "assignments",
         title: "تکلیف جاری",
         value: assignments.length,
-        detail: "داده محیط موقت",
+        detail: selected ? "بر اساس برنامه آموزشی" : "فرزندی انتخاب نشده است",
         trend: null,
         tone: "purple",
         icon: "clipboard",
@@ -499,26 +499,6 @@ function panelContext(
   };
 }
 
-function contentRevision(
-  database: MockDatabase,
-  content: MockRecord,
-  account: MockAccount,
-  note: string,
-) {
-  const previous = database.content_revisions.filter(
-    (revision) => String(revision.content_id) === String(content.id),
-  );
-  database.content_revisions.push({
-    id: `revision-${crypto.randomUUID()}`,
-    content_id: content.id,
-    number: previous.length + 1,
-    actor_name: account.full_name,
-    note,
-    snapshot: structuredClone(content),
-    created_at: new Date().toISOString(),
-  });
-}
-
 function genericRecordResponse(
   collection: CollectionName,
   record: MockRecord,
@@ -608,9 +588,6 @@ async function genericCms(
           : payload;
       const created = createRecord(collection, normalized);
       (current[collection] as MockRecord[]).unshift(created);
-      if (collection === "content") {
-        contentRevision(current, created, account, "ایجاد در محیط موقت");
-      }
       return jsonResponse(
         genericRecordResponse(collection, created, current, true),
         201,
@@ -635,9 +612,6 @@ async function genericCms(
           : {}),
         updated_at: new Date().toISOString(),
       };
-      if (collection === "content") {
-        contentRevision(current, records[index], account, "ویرایش محتوا");
-      }
       return jsonResponse(
         genericRecordResponse(collection, records[index], current, true),
       );
@@ -650,6 +624,11 @@ async function genericCms(
       const index = records.findIndex((record) => String(record.id) === id);
       if (index < 0) {
         return apiError("رکورد در دیتابیس موقت پیدا نشد.", 404, "not_found");
+      }
+      if (collection === "content") {
+        current.content_revisions = current.content_revisions.filter(
+          (revision) => String(revision.content_id) !== String(records[index].id),
+        );
       }
       records.splice(index, 1);
       return new Response(null, { status: 204 });
@@ -684,12 +663,12 @@ async function registrationAction(
       id: `timeline-${crypto.randomUUID()}`,
       title:
         action === "contact"
-          ? "ارتباط آزمایشی با والد ثبت شد"
+          ? "ارتباط با والد ثبت شد"
           : action === "approve"
-            ? "درخواست آزمایشی تأیید شد"
+            ? "درخواست تأیید شد"
             : action === "reject"
-              ? "درخواست آزمایشی رد شد"
-              : "تکمیل مدارک آزمایشی درخواست شد",
+              ? "درخواست رد شد"
+              : "تکمیل مدارک درخواست شد",
       created_at: record.updated_at,
       actor_name: account.full_name,
       note: payload.note ?? null,
@@ -724,24 +703,15 @@ async function contentAction(
     publish: "published",
     schedule: "scheduled",
   };
+  if (!statusMap[action]) {
+    return apiError("عملیات محتوا پیدا نشد.", 404, "not_found");
+  }
 
   return updateMockDatabase((database) => {
     const record = recordById(database.content, id);
     if (!record) return apiError("محتوا پیدا نشد.", 404, "not_found");
 
-    if (action === "restore-revision") {
-      const revision = database.content_revisions.find(
-        (item) =>
-          String(item.id) === String(payload.revision_id) &&
-          String(item.content_id) === id,
-      );
-      if (!revision || !revision.snapshot || typeof revision.snapshot !== "object") {
-        return apiError("نسخه موردنظر پیدا نشد.", 404, "revision_not_found");
-      }
-      Object.assign(record, revision.snapshot);
-    } else if (statusMap[action]) {
-      record.status = statusMap[action];
-    }
+    record.status = statusMap[action];
 
     if (action === "schedule") {
       record.scheduled_at = payload.scheduled_at ?? null;
@@ -749,11 +719,7 @@ async function contentAction(
     if (action === "publish") {
       record.published_at = new Date().toISOString();
     }
-    if (action === "autosave") {
-      Object.assign(record, payload);
-    }
     record.updated_at = new Date().toISOString();
-    contentRevision(database, record, account, `عملیات ${action}`);
     return jsonResponse(panelContent(record, database));
   });
 }
@@ -761,7 +727,12 @@ async function contentAction(
 async function uploadMedia(request: Request) {
   const form = await request.formData();
   const file = form.get("file");
-  if (!(file instanceof File)) {
+  if (
+    !file ||
+    typeof file === "string" ||
+    typeof file.arrayBuffer !== "function" ||
+    typeof file.name !== "string"
+  ) {
     return apiError("فایل ارسال نشده است.", 400, "missing_file");
   }
   if (file.size > 2 * 1024 * 1024) {
@@ -785,7 +756,12 @@ async function uploadMedia(request: Request) {
 async function importStudents(request: Request, account: MockAccount) {
   const form = await request.formData();
   const file = form.get("file");
-  if (!(file instanceof File)) {
+  if (
+    !file ||
+    typeof file === "string" ||
+    typeof file.arrayBuffer !== "function" ||
+    typeof file.name !== "string"
+  ) {
     return apiError("فایل ارسال نشده است.", 400, "missing_file");
   }
   if (!file.name.toLowerCase().endsWith(".csv")) {
@@ -851,7 +827,6 @@ function parentRegistration(record: MockRecord, database: MockDatabase) {
           major: child.major ?? null,
           unit_title: child.unit_title ?? null,
           is_active: child.is_active === true,
-          is_demo: true,
         }
       : null,
   };
@@ -896,7 +871,7 @@ export async function handleMockApiRequest(
     );
     if (!account) {
       return apiError(
-        "نام کاربری یا رمز حساب آزمایشی صحیح نیست.",
+        "نام کاربری یا رمز عبور صحیح نیست.",
         401,
         "invalid_credentials",
       );
@@ -923,7 +898,7 @@ export async function handleMockApiRequest(
           access: `mock-access:${account.id}`,
           refresh: `mock-refresh:${account.id}`,
         })
-      : apiError("refresh token آزمایشی معتبر نیست.", 401, "invalid_token");
+      : apiError("refresh token معتبر نیست.", 401, "invalid_token");
   }
 
   if (route === "auth/logout" && request.method === "POST") {
@@ -984,8 +959,25 @@ export async function handleMockApiRequest(
     return jsonResponse(accountUnits(database, account));
   }
   if (route === "me/change-password" && request.method === "POST" && account) {
-    return jsonResponse({
-      detail: "در محیط موقت رمز حساب‌های نمایشی ثابت می‌ماند.",
+    const payload = await requestPayload(request);
+    if (payload.current_password !== account.password) {
+      return apiError("رمز عبور فعلی صحیح نیست.", 400, "invalid_password");
+    }
+    if (String(payload.new_password ?? "").length < 8) {
+      return apiError(
+        "رمز عبور جدید باید حداقل ۸ نویسه باشد.",
+        400,
+        "invalid_password",
+      );
+    }
+    return updateMockDatabase((current) => {
+      const target = current.accounts.find(
+        (candidate) => String(candidate.id) === String(account.id),
+      );
+      if (!target) return apiError("حساب پیدا نشد.", 404, "not_found");
+      target.password = String(payload.new_password);
+      target.updated_at = new Date().toISOString();
+      return jsonResponse({ detail: "رمز عبور با موفقیت تغییر کرد." });
     });
   }
 
@@ -1059,19 +1051,6 @@ export async function handleMockApiRequest(
   if (route === "cms/content/categories" && request.method === "GET") {
     return jsonResponse(
       database.content_categories.map(({ id, title }) => ({ id, title })),
-    );
-  }
-  if (
-    path[0] === "cms" &&
-    path[1] === "content" &&
-    path[2] &&
-    path[3] === "revisions" &&
-    request.method === "GET"
-  ) {
-    return jsonResponse(
-      database.content_revisions
-        .filter((revision) => String(revision.content_id) === path[2])
-        .map(({ snapshot: _snapshot, content_id: _contentId, ...revision }) => revision),
     );
   }
   if (
@@ -1203,7 +1182,6 @@ export async function handleMockApiRequest(
           major: child.major ?? null,
           unit_title: child.unit_title ?? null,
           is_active: child.is_active === true,
-          is_demo: true,
         })),
     );
   }
@@ -1254,11 +1232,34 @@ export async function handleMockApiRequest(
         .map((content) => publicContent(content, database)),
     });
   }
+  if (route === "home/slides" && request.method === "GET") {
+    return jsonResponse(
+      database.home_slides
+        .filter((slide) => slide.is_active !== false)
+        .sort((left, right) => Number(left.order ?? 0) - Number(right.order ?? 0)),
+    );
+  }
   if (route === "about" && request.method === "GET") {
-    const page = database.static_pages.find((item) => item.slug === "about");
+    const page = database.static_pages.find(
+      (item) => item.slug === "about" && item.is_published !== false,
+    );
     return jsonResponse({
       title: page?.title ?? null,
       description: page?.body_html ?? null,
+      image: page?.image ?? null,
+      meta_description: page?.meta_description ?? null,
+      history: page?.history ?? null,
+      founders: page?.founders ?? [],
+      key_people: page?.key_people ?? [],
+      mission: page?.mission ?? null,
+      values: page?.values ?? [],
+      goals: page?.goals ?? [],
+      images: page?.images ?? [],
+      video_url: page?.video_url ?? null,
+      video_poster_url: page?.video_poster_url ?? null,
+      video_title: page?.video_title ?? null,
+      video_description: page?.video_description ?? null,
+      video_caption: page?.video_caption ?? null,
     });
   }
   if (route === "contact" && request.method === "GET") {
@@ -1266,10 +1267,16 @@ export async function handleMockApiRequest(
       address: database.site_settings.address ?? null,
       phone: database.site_settings.phone ?? null,
       email: database.site_settings.email ?? null,
+      title: database.site_settings.school_name ?? "تماس با ما",
+      description: null,
+      phone_secondary: database.site_settings.phone_secondary ?? null,
+      working_hours: database.site_settings.working_hours ?? null,
       map_url: null,
+      latitude: null,
+      longitude: null,
     });
   }
-  if (route === "contact" && request.method === "POST") {
+  if ((route === "contact" || route === "messages") && request.method === "POST") {
     const payload = await requestPayload(request);
     return updateMockDatabase((current) => {
       const record = createRecord("contact-messages", {
@@ -1278,7 +1285,7 @@ export async function handleMockApiRequest(
       });
       current.contact_messages.unshift(record);
       return jsonResponse(
-        { detail: "پیام در دیتابیس موقت ذخیره شد.", id: record.id },
+          { message: "پیام با موفقیت ثبت شد.", id: record.id },
         201,
       );
     });
@@ -1289,24 +1296,50 @@ export async function handleMockApiRequest(
       description:
         "پیش‌ثبت‌نام در مقاطع اعلام‌شده و به‌صورت محدود انجام می‌شود.",
       is_open: true,
+      open_message: null,
+      closed_message: null,
+      required_documents: [],
+      notes: null,
     });
   }
-  if (route === "registration" && request.method === "POST") {
+  if (
+    (route === "registration" || route === "registration-requests") &&
+    request.method === "POST"
+  ) {
     const payload = await requestPayload(request);
+    const fullName = String(
+      payload.student_full_name ?? payload.full_name ?? "",
+    ).trim();
+    const parentPhone = String(payload.parent_phone ?? "").trim();
+    const unitId = payload.requested_unit ?? payload.unit_id ?? null;
+    if (!fullName || !parentPhone || !unitId) {
+      return apiError(
+        "نام دانش‌آموز، شماره تماس ولی و واحد آموزشی الزامی است.",
+        400,
+        "validation_error",
+      );
+    }
+    const unit = database.units.find(
+      (item) => String(item.id) === String(unitId) && item.is_active !== false,
+    );
+    if (!unit || unit.accepts_registration === false) {
+      return apiError(
+        "واحد آموزشی انتخاب‌شده پیش‌ثبت‌نام فعال ندارد.",
+        400,
+        "registration_closed",
+      );
+    }
     return updateMockDatabase((current) => {
       const record = createRecord("registration-requests", {
-        request_code: `DEMO-${Date.now()}`,
-        student_full_name:
-          payload.student_full_name ?? payload.full_name ?? "متقاضی آزمایشی",
+        student_full_name: fullName,
         requested_grade_id: payload.requested_grade_id ?? null,
-        requested_grade_title: payload.requested_grade_title ?? null,
-        requested_unit_id: payload.requested_unit_id ?? payload.unit_id ?? null,
-        parent_full_name: payload.parent_full_name ?? "والد آزمایشی",
-        parent_phone: payload.parent_phone ?? null,
+        requested_grade_title:
+          payload.requested_grade_title ?? payload.requested_grade ?? null,
+        requested_unit_id: unitId,
+        parent_full_name: payload.parent_full_name ?? null,
+        parent_phone: parentPhone,
         parent_email: payload.parent_email ?? null,
-        description:
-          payload.description ??
-          "درخواست ایجادشده در دیتابیس موقت توسعه",
+        description: payload.description ?? null,
         status: "new",
         documents: [],
         timeline: [],
@@ -1320,7 +1353,9 @@ export async function handleMockApiRequest(
   }
 
   if (route === "units" && request.method === "GET") {
-    return jsonResponse(paginatedResponse(database.units, url));
+    return jsonResponse(
+      database.units.filter((unit) => unit.is_active !== false),
+    );
   }
   if (path[0] === "units" && path[1] && request.method === "GET") {
     const unit = database.units.find((record) => record.slug === path[1]);
@@ -1402,7 +1437,13 @@ export async function handleMockApiRequest(
   }
   if (route === "gallery" && request.method === "GET") {
     return jsonResponse(
-      paginatedResponse(filterRecords(database.gallery, url), url),
+      paginatedResponse(
+        filterRecords(
+          database.gallery.filter((item) => item.status === "published"),
+          url,
+        ),
+        url,
+      ),
     );
   }
   if (route === "achievements" && request.method === "GET") {

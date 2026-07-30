@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
@@ -7,7 +9,7 @@ from rest_framework import serializers
 from apps.core.serializers import AbsoluteMediaURLMixin, FileOrURLField
 from apps.units.models import SchoolUnit
 
-from .models import GalleryItem
+from .models import GalleryItem, MediaAsset
 from .permissions import get_accessible_unit_ids, is_general_manager
 from .validators import validate_gallery_image_file
 
@@ -27,6 +29,68 @@ def validate_image_or_error(value):
         raise_drf_validation_error(exc)
 
     return value
+
+
+class MediaAssetSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
+    title = serializers.CharField(required=False, allow_blank=True)
+    url = serializers.SerializerMethodField()
+    file = serializers.FileField(write_only=True)
+    uploaded_by = serializers.StringRelatedField(read_only=True)
+
+    class Meta:
+        model = MediaAsset
+        fields = (
+            "id",
+            "title",
+            "file",
+            "url",
+            "media_type",
+            "content_type",
+            "size",
+            "alt_text",
+            "caption",
+            "unit",
+            "uploaded_by",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "id",
+            "url",
+            "media_type",
+            "content_type",
+            "size",
+            "uploaded_by",
+            "created_at",
+            "updated_at",
+        )
+
+    def get_url(self, obj):
+        return self.build_absolute_media_url(obj.file)
+
+    def validate_file(self, value):
+        content_type = getattr(value, "content_type", "")
+        allowed_images = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+        allowed_videos = {"video/mp4", "video/webm", "video/ogg"}
+        if content_type not in allowed_images | allowed_videos:
+            raise serializers.ValidationError("نوع فایل پشتیبانی نمی‌شود.")
+        if value.size > 25 * 1024 * 1024:
+            raise serializers.ValidationError("حجم فایل نباید بیشتر از ۲۵ مگابایت باشد.")
+        return value
+
+    def create(self, validated_data):
+        uploaded_file = validated_data["file"]
+        content_type = uploaded_file.content_type
+        validated_data["content_type"] = content_type
+        validated_data["size"] = uploaded_file.size
+        validated_data["media_type"] = (
+            MediaAsset.MediaType.IMAGE
+            if content_type.startswith("image/")
+            else MediaAsset.MediaType.VIDEO
+        )
+        if not validated_data.get("title"):
+            validated_data["title"] = Path(uploaded_file.name).stem
+        return super().create(validated_data)
 
 
 class UnitBriefSerializer(serializers.ModelSerializer):

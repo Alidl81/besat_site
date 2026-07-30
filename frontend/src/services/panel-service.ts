@@ -11,17 +11,17 @@ import {
   withQuery,
   type QueryValue,
 } from "@/lib/api/query";
+import type { ApiId } from "@/types/api";
 import type {
   AdminDashboard,
   ContentItem,
-  ContentRevision,
   ContentSummary,
-  DashboardPayload,
   EventItem,
   MediaDashboard,
   InternalMessageItem,
   MessageRecipient,
   NamedOption,
+  PanelMetric,
   PanelContext,
   PanelListResponse,
   PanelSettings,
@@ -36,6 +36,62 @@ import type {
   StudentItem,
   StudentSummary,
 } from "@/types/panel-api";
+
+type BackendDashboard = {
+  role: string;
+  scope: string;
+  selected_unit?: { id: ApiId; title: string; slug: string } | null;
+  accessible_units?: Array<{ id: ApiId; title: string; slug: string }>;
+  cards?: Array<{
+    key: string;
+    label: string;
+    value: number;
+    description: string | null;
+  }>;
+  recent_activity?: Array<{
+    id: ApiId;
+    type: string;
+    title: string;
+    status: string;
+    updated_at: string | null;
+  }>;
+  metrics?: PanelMetric[];
+};
+
+function dashboardMetrics(payload: BackendDashboard): PanelMetric[] {
+  const tones: PanelMetric["tone"][] = ["blue", "amber", "green", "purple"];
+  if (payload.metrics) return payload.metrics;
+  return (payload.cards ?? []).map((card, index) => ({
+    key: card.key,
+    title: card.label,
+    value: card.value,
+    detail: card.description,
+    trend: null,
+    tone: tones[index % tones.length],
+    icon:
+      card.key.includes("unit")
+        ? "units"
+        : card.key.includes("gallery")
+          ? "image"
+          : card.key.includes("review")
+            ? "review"
+            : card.key.includes("publish")
+              ? "check"
+              : "chart",
+  }));
+}
+
+function dashboardFeed(payload: BackendDashboard) {
+  return (payload.recent_activity ?? []).map((item) => ({
+    id: item.id,
+    title: item.title,
+    description: item.status,
+    timestamp: item.updated_at,
+    status: item.status,
+    href: null,
+    avatar_url: null,
+  }));
+}
 
 function token() {
   return readBesatSession()?.accessToken;
@@ -68,7 +124,7 @@ export const panelService = {
     );
   },
 
-  dashboard(
+  async dashboard(
     panel: "admin" | "unitManager" | "media" | "parents",
     params: Record<string, QueryValue> = {},
   ) {
@@ -80,9 +136,51 @@ export const panelService = {
           : panel === "media"
             ? apiEndpoints.dashboard.media
             : apiEndpoints.dashboard.parents;
-    return authed<DashboardPayload>(withQuery(endpoint, params)) as Promise<
-      AdminDashboard | MediaDashboard | ParentDashboard
-    >;
+    const raw = await authed<BackendDashboard>(
+      withQuery(endpoint, {
+        unit_id: params.unit,
+      }),
+    );
+    if (raw.metrics) {
+      return raw as unknown as
+        | AdminDashboard
+        | MediaDashboard
+        | ParentDashboard;
+    }
+    const metrics = dashboardMetrics(raw);
+    const feed = dashboardFeed(raw);
+    if (panel === "media") {
+      return {
+        current_date: new Date().toISOString(),
+        metrics,
+        latest_content: feed,
+        messages: [],
+        calendar: [],
+        storage: null,
+      } satisfies MediaDashboard;
+    }
+    if (panel === "parents") {
+      return {
+        current_date: new Date().toISOString(),
+        metrics,
+        selected_child: null,
+        today_schedule: [],
+        next_exam: null,
+        current_assignment: null,
+        attendance: null,
+        events: [],
+        teacher_messages: [],
+        quick_links: [],
+      } satisfies ParentDashboard;
+    }
+    return {
+      current_date: new Date().toISOString(),
+      metrics,
+      messages: [],
+      events: [],
+      announcements: [],
+      units: [],
+    } satisfies AdminDashboard;
   },
 
   students(params: Record<string, QueryValue>) {
@@ -158,15 +256,35 @@ export const panelService = {
     );
   },
 
-  content(params: Record<string, QueryValue>) {
-    return Promise.all([
-      authed<PanelListResponse<ContentItem>>(
-        withQuery(apiEndpoints.cms.content, params),
-      ),
-      authed<ContentSummary>(
-        withQuery(`${apiEndpoints.cms.content}summary/`, params),
-      ),
-    ]).then(([page, summary]) => ({ page, summary }));
+  async content(params: Record<string, QueryValue>) {
+    const records = await authed<ContentItem[]>(apiEndpoints.cms.content);
+    const search = String(params.search ?? "").trim().toLocaleLowerCase("fa");
+    const kind = String(params.kind ?? "");
+    const statusValue = String(params.status ?? "");
+    const unit = String(params.unit ?? "");
+    const filtered = records.filter((item) => {
+      if (search && !`${item.title} ${item.summary ?? ""}`.toLocaleLowerCase("fa").includes(search)) return false;
+      if (kind && item.kind !== kind) return false;
+      if (statusValue && item.status !== statusValue) return false;
+      if (unit && String(item.unit?.id ?? "") !== unit) return false;
+      return true;
+    });
+    const pageNumber = Math.max(1, Number(params.page ?? 1));
+    const pageSize = 20;
+    const start = (pageNumber - 1) * pageSize;
+    const page: PanelListResponse<ContentItem> = {
+      count: filtered.length,
+      next: start + pageSize < filtered.length ? String(pageNumber + 1) : null,
+      previous: pageNumber > 1 ? String(pageNumber - 1) : null,
+      results: filtered.slice(start, start + pageSize),
+    };
+    const summary: ContentSummary = {
+      drafts: records.filter((item) => item.status === "draft").length,
+      waiting_review: records.filter((item) => item.status === "waiting_review").length,
+      scheduled: records.filter((item) => item.status === "scheduled").length,
+      published: records.filter((item) => item.status === "published").length,
+    };
+    return { page, summary };
   },
   createContent(payload: Record<string, unknown>) {
     return mutate<ContentItem>(apiEndpoints.cms.content, "POST", payload);
@@ -184,7 +302,6 @@ export const panelService = {
   contentAction(
     id: string | number,
     action:
-      | "autosave"
       | "submit-review"
       | "approve"
       | "reject"
@@ -198,20 +315,22 @@ export const panelService = {
       payload,
     );
   },
-  contentRevisions(id: string | number) {
-    return authed<ContentRevision[]>(
-      actionEndpoint(apiEndpoints.cms.content, id, "revisions"),
+  async contentCategories() {
+    const endpoints = [
+      `${apiEndpoints.cms.news}categories/`,
+      `${apiEndpoints.cms.announcements}categories/`,
+    ];
+    const responses = await Promise.all(
+      endpoints.map((endpoint) =>
+        authed<NamedOption[] | PanelListResponse<NamedOption>>(endpoint),
+      ),
     );
-  },
-  restoreContentRevision(id: string | number, revisionId: string | number) {
-    return mutate<ContentItem>(
-      actionEndpoint(apiEndpoints.cms.content, id, "restore-revision"),
-      "POST",
-      { revision_id: revisionId },
-    );
-  },
-  contentCategories() {
-    return authed<NamedOption[]>(apiEndpoints.cms.contentCategories);
+    const unique = new Map<string, NamedOption>();
+    for (const response of responses) {
+      const items = Array.isArray(response) ? response : response.results;
+      for (const item of items) unique.set(`${item.id}-${item.title}`, item);
+    }
+    return [...unique.values()];
   },
   uploadMedia(file: File) {
     const form = new FormData();

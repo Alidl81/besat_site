@@ -61,6 +61,48 @@ function getApiBaseUrl() {
   return process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/backend";
 }
 
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken() {
+  if (typeof window === "undefined") return null;
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const session = readBesatSession();
+    if (!session?.refreshToken) return null;
+    const response = await fetch(normalizeEndpoint(apiEndpoints.auth.refresh), {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ refresh: session.refreshToken }),
+    });
+    if (!response.ok) {
+      clearBesatSession();
+      return null;
+    }
+    const payload = (await response.json()) as {
+      access?: string;
+      refresh?: string;
+    };
+    if (!payload.access) {
+      clearBesatSession();
+      return null;
+    }
+    writeBesatSession({
+      ...session,
+      accessToken: payload.access,
+      refreshToken: payload.refresh ?? session.refreshToken,
+    });
+    return payload.access;
+  })().finally(() => {
+    refreshPromise = null;
+  });
+
+  return refreshPromise;
+}
+
 export function normalizeEndpoint(endpoint: string) {
   if (endpoint.startsWith("http://") || endpoint.startsWith("https://")) {
     return endpoint;
@@ -147,10 +189,28 @@ export async function apiRequest<T>(
     ...headers,
   };
 
-  const response = await fetch(normalizeEndpoint(endpoint), {
+  let response = await fetch(normalizeEndpoint(endpoint), {
     ...requestOptions,
     headers: requestHeaders,
   });
+
+  if (
+    response.status === 401 &&
+    token &&
+    endpoint !== apiEndpoints.auth.refresh &&
+    endpoint !== apiEndpoints.auth.login
+  ) {
+    const refreshedToken = await refreshAccessToken();
+    if (refreshedToken) {
+      response = await fetch(normalizeEndpoint(endpoint), {
+        ...requestOptions,
+        headers: {
+          ...requestHeaders,
+          Authorization: `Bearer ${refreshedToken}`,
+        },
+      });
+    }
+  }
 
   if (!response.ok) throw await createApiError(response);
   if (response.status === 204) return undefined as T;
@@ -189,3 +249,9 @@ export function getApiErrorMessage(error: unknown) {
       ? error.message
       : "خطای پیش‌بینی‌نشده‌ای رخ داد.";
 }
+import {
+  clearBesatSession,
+  readBesatSession,
+  writeBesatSession,
+} from "@/lib/auth/auth-session";
+import { apiEndpoints } from "@/lib/api/endpoints";

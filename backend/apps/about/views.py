@@ -13,6 +13,18 @@ def empty_about_payload():
         "description": None,
         "image": None,
         "meta_description": None,
+        "history": None,
+        "founders": [],
+        "key_people": [],
+        "mission": None,
+        "values": [],
+        "goals": [],
+        "images": [],
+        "video_url": None,
+        "video_poster_url": None,
+        "video_title": None,
+        "video_description": None,
+        "video_caption": None,
     }
 
 

@@ -182,6 +182,15 @@ export type ContentItem = {
   body_html: string;
   body_json: Record<string, unknown> | null;
   cover_image_url: string | null;
+  seo_title?: string | null;
+  seo_description?: string | null;
+  seo_keywords?: string[] | null;
+  canonical_url?: string | null;
+  audience?: "all" | "students" | "parents" | "staff";
+  is_featured?: boolean;
+  allow_comments?: boolean;
+  wordpress_sync?: boolean;
+  wordpress_sync_status?: "idle" | "pending" | "synced" | "failed" | null;
   scope: "school" | "unit";
   unit: NamedOption | null;
   category: NamedOption | null;
@@ -202,14 +211,6 @@ export type ContentSummary = {
   waiting_review: number;
   scheduled: number;
   published: number;
-};
-
-export type ContentRevision = {
-  id: ApiId;
-  number: number;
-  created_at: string;
-  actor_name: string;
-  note: string | null;
 };
 
 export type ParentChildSummary = {

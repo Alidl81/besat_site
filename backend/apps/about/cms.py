@@ -16,6 +16,18 @@ class StaticPageCompatibilitySerializer(serializers.Serializer):
     title = serializers.CharField(allow_blank=True)
     body_html = serializers.CharField(allow_blank=True)
     meta_description = serializers.CharField(allow_null=True)
+    history = serializers.CharField(allow_null=True, required=False)
+    founders = serializers.ListField(required=False)
+    key_people = serializers.ListField(required=False)
+    mission = serializers.CharField(allow_null=True, required=False)
+    values = serializers.ListField(required=False)
+    goals = serializers.ListField(required=False)
+    images = serializers.ListField(required=False)
+    video_url = serializers.URLField(allow_null=True, required=False)
+    video_poster_url = serializers.URLField(allow_null=True, required=False)
+    video_title = serializers.CharField(allow_null=True, required=False)
+    video_description = serializers.CharField(allow_null=True, required=False)
+    video_caption = serializers.CharField(allow_null=True, required=False)
     is_published = serializers.BooleanField()
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
@@ -28,6 +40,18 @@ def serialize_static_page(page):
         "title": page.title or "",
         "body_html": page.description or "",
         "meta_description": page.meta_description,
+        "history": page.history,
+        "founders": page.founders,
+        "key_people": page.key_people,
+        "mission": page.mission,
+        "values": page.values,
+        "goals": page.goals,
+        "images": page.images,
+        "video_url": page.video_url,
+        "video_poster_url": page.video_poster_url,
+        "video_title": page.video_title,
+        "video_description": page.video_description,
+        "video_caption": page.video_caption,
         "is_published": page.is_active,
         "created_at": page.created_at,
         "updated_at": page.updated_at,
@@ -64,6 +88,18 @@ class CMSStaticPageViewSet(GenericViewSet):
             title=request.data.get("title") or None,
             description=request.data.get("body_html") or None,
             meta_description=request.data.get("meta_description") or None,
+            history=request.data.get("history") or None,
+            founders=request.data.get("founders") or [],
+            key_people=request.data.get("key_people") or [],
+            mission=request.data.get("mission") or None,
+            values=request.data.get("values") or [],
+            goals=request.data.get("goals") or [],
+            images=request.data.get("images") or [],
+            video_url=request.data.get("video_url") or None,
+            video_poster_url=request.data.get("video_poster_url") or None,
+            video_title=request.data.get("video_title") or None,
+            video_description=request.data.get("video_description") or None,
+            video_caption=request.data.get("video_caption") or None,
             is_active=bool(request.data.get("is_published", True)),
         )
         return Response(serialize_static_page(page), status=status.HTTP_201_CREATED)
@@ -87,6 +123,18 @@ class CMSStaticPageViewSet(GenericViewSet):
             "title": "title",
             "body_html": "description",
             "meta_description": "meta_description",
+            "history": "history",
+            "founders": "founders",
+            "key_people": "key_people",
+            "mission": "mission",
+            "values": "values",
+            "goals": "goals",
+            "images": "images",
+            "video_url": "video_url",
+            "video_poster_url": "video_poster_url",
+            "video_title": "video_title",
+            "video_description": "video_description",
+            "video_caption": "video_caption",
             "is_published": "is_active",
         }
         for input_name, model_name in mapping.items():

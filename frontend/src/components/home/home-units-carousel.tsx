@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import type { SchoolUnitRecord } from "@/lib/data/domain-types";
+import type { PublicSchoolUnit } from "@/types/public-content";
 
 import { getOfficialUnitShortTitle } from "@/lib/units/unit-display";
 type HomeUnitsCarouselProps = {
-  units: SchoolUnitRecord[];
+  units: PublicSchoolUnit[];
 };
 
 const autoPlayDelay = 3600;
@@ -22,21 +22,6 @@ const kindLabels: Record<string, string> = {
   elementary: "دبستان",
   middle_school: "متوسطه اول",
   high_school: "دبیرستان",
-};
-
-const officialUnitImages: Record<string, string> = {
-  "unit-01-02": "/images/official/units/unit-01-02.jpg",
-  "unit-03": "/images/official/units/unit-03.jpg",
-  "unit-04": "/images/official/units/unit-04.jpg",
-  "unit-05": "/images/official/units/unit-05.jpg",
-  "unit-06": "/images/official/units/unit-06.jpg",
-  "unit-07": "/images/official/units/unit-07.jpg",
-  "unit-08": "/images/official/units/unit-08.jpg",
-  "unit-09": "/images/official/units/unit-09.jpg",
-  "unit-10": "/images/official/units/unit-10.jpg",
-  "unit-11": "/images/official/units/unit-11.jpg",
-  "unit-12": "/images/official/units/unit-12.jpg",
-  "unit-13": "/images/official/units/unit-13.jpg",
 };
 
 export function HomeUnitsCarousel({ units }: HomeUnitsCarouselProps) {
@@ -226,11 +211,11 @@ function UnitCard({
   isActive,
   onClick,
 }: {
-  unit: SchoolUnitRecord;
+  unit: PublicSchoolUnit;
   isActive: boolean;
   onClick: () => void;
 }) {
-  const imageSrc = unit.cover_image || officialUnitImages[unit.id] || "/images/official/hero/besat-main.jpg";
+  const imageSrc = unit.cover_image;
   const cardInner = (
     <div
       className={`relative h-[24rem] w-[18rem] overflow-hidden rounded-[1.5rem] border shadow-2xl transition-[border-color,box-shadow] duration-500 sm:h-[28rem] sm:w-[21rem] ${
@@ -238,12 +223,16 @@ function UnitCard({
       }`}
     >
       {/* تصویر یا گرادیان */}
-      <img
-        src={imageSrc}
-        alt={getOfficialUnitShortTitle(unit)}
-        className={`absolute inset-0 h-full w-full object-cover transition-transform duration-[680ms] ease-[cubic-bezier(.22,1,.36,1)] ${isActive ? "scale-100" : "scale-[1.055]"}`}
-        draggable={false}
-      />
+      {imageSrc ? (
+        <img
+          src={imageSrc}
+          alt={getOfficialUnitShortTitle(unit)}
+          className={`absolute inset-0 h-full w-full object-cover transition-transform duration-[680ms] ease-[cubic-bezier(.22,1,.36,1)] ${isActive ? "scale-100" : "scale-[1.055]"}`}
+          draggable={false}
+        />
+      ) : (
+        <div className="absolute inset-0 bg-[#163b5c]" aria-hidden="true" />
+      )}
 
       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-transparent" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(226,174,91,0.2),transparent_45%)]" />

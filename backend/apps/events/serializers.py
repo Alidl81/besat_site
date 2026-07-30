@@ -164,6 +164,17 @@ class CMSEventWriteSerializer(serializers.ModelSerializer):
             "updated_at",
         )
 
+    def get_fields(self):
+        fields = super().get_fields()
+        request = self.context.get("request")
+        if request is not None:
+            from .permissions import is_general_manager
+
+            if not is_general_manager(request.user):
+                for field_name in ("status", "published_at", "review_note"):
+                    fields[field_name].read_only = True
+        return fields
+
     def validate_cover_image(self, value):
         if value is None:
             return value

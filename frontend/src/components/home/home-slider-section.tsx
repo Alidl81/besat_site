@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { homeSlidesRepository } from "@/lib/data/repositories";
+import { BookOpen, FilePenLine, Play } from "lucide-react";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import {
+  getPublicHomeSlides,
+  getPublicSiteSettings,
+} from "@/services/public-content-service";
 
 const slideDuration = 6200;
 
@@ -15,74 +20,44 @@ type Slide = {
   subtitle?: string;
 };
 
-const fallbackSlides: Slide[] = [
-  {
-    id: "home-fallback",
-    imageSrc: "/images/official/hero/besat-main.jpg",
-    imageAlt: "نمای مجتمع آموزشی بعثت",
-  },
-];
-
-function resolveOfficialSeedImage(id: string, image: string) {
-  if (id === "slide-1" && image === "/images/home-slider/slide-1.jpg") {
-    return "/images/official/hero/besat-main.jpg";
-  }
-  if (id === "slide-2" && image === "/images/home-slider/slide-2.png") {
-    return "/images/official/hero/besat-hs-banner-03.jpg";
-  }
-  return image;
-}
-
-function BookIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-      <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5Z" />
-    </svg>
-  );
-}
-
-function EditIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
-    </svg>
-  );
-}
-
-function PlayIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-5" fill="currentColor" aria-hidden="true">
-      <path d="m9 7 8 5-8 5V7Z" />
-    </svg>
-  );
-}
-
 export function HomeSliderSection() {
-  const [slides, setSlides] = useState<Slide[]>([]);
+  const [slides, setSlides] = useState<Slide[] | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const visibleSlides = slides.length > 0 ? slides : fallbackSlides;
+  const reducedMotion = useReducedMotion();
+  const visibleSlides = slides ?? [];
 
   useEffect(() => {
     let mounted = true;
 
-    homeSlidesRepository
-      .list()
-      .then((all) => {
+    Promise.all([getPublicHomeSlides(), getPublicSiteSettings()])
+      .then(([all, settings]) => {
         if (!mounted) return;
         const mapped = all
           .filter((slide) => slide.is_active && slide.image)
           .sort((a, b) => a.order - b.order)
           .map((slide) => ({
-            id: slide.id,
-            imageSrc: resolveOfficialSeedImage(slide.id, slide.image),
-            imageAlt: slide.title ?? "اسلاید صفحه اصلی مجتمع آموزشی بعثت",
+            id: String(slide.id),
+            imageSrc: slide.image,
+            imageAlt: slide.alt_text ?? slide.title ?? settings.school_name ?? "",
             href: slide.href ?? undefined,
             title: slide.title ?? undefined,
             subtitle: slide.subtitle ?? undefined,
           }));
-        setSlides(mapped);
+        setSlides(
+          mapped.length > 0
+            ? mapped
+            : settings.hero_image
+              ? [
+                  {
+                    id: "site-hero",
+                    imageSrc: settings.hero_image,
+                    imageAlt: settings.school_name ?? "",
+                    title: settings.hero_title ?? undefined,
+                    subtitle: settings.hero_subtitle ?? undefined,
+                  },
+                ]
+              : [],
+        );
         setActiveIndex(0);
       })
       .catch(() => setSlides([]));
@@ -93,12 +68,30 @@ export function HomeSliderSection() {
   }, []);
 
   useEffect(() => {
-    if (visibleSlides.length <= 1) return;
+    if (visibleSlides.length <= 1 || reducedMotion) return;
     const timer = window.setInterval(() => {
       setActiveIndex((current) => (current + 1) % visibleSlides.length);
     }, slideDuration);
     return () => window.clearInterval(timer);
-  }, [visibleSlides.length]);
+  }, [reducedMotion, visibleSlides.length]);
+
+  if (slides === null) {
+    return (
+      <div
+        role="status"
+        aria-label="در حال بارگذاری تصویر اصلی"
+        className="min-h-[660px] animate-pulse bg-[#071b31] motion-reduce:animate-none"
+      />
+    );
+  }
+
+  if (visibleSlides.length === 0) {
+    return (
+      <section className="flex min-h-80 items-center justify-center bg-[#071b31] px-5 text-center text-white">
+        <p className="text-sm font-bold">تصویر اصلی هنوز در مدیریت محتوا تنظیم نشده است.</p>
+      </section>
+    );
+  }
 
   return (
     <section dir="rtl" className="relative min-h-[660px] overflow-hidden bg-[#071b31] text-white sm:min-h-[700px] lg:min-h-[720px]">
@@ -110,7 +103,7 @@ export function HomeSliderSection() {
               index === activeIndex ? "scale-100 opacity-100" : "scale-[1.035] opacity-0"
             }`}
           >
-            <img src={slide.imageSrc} alt={slide.imageAlt} className={`h-full w-full object-cover ${index === activeIndex ? "besat-hero-ken-burns" : ""}`} draggable={false} />
+            <img src={slide.imageSrc} alt={slide.imageAlt} className={`h-full w-full object-cover ${index === activeIndex && !reducedMotion ? "besat-hero-ken-burns" : ""}`} draggable={false} />
           </div>
         ))}
       </div>
@@ -126,11 +119,10 @@ export function HomeSliderSection() {
             مجتمع آموزشی، تربیتی و فرهنگی بعثت
           </p>
           <h1 className="besat-hero-line besat-hero-line-2 max-w-[640px] text-[2.25rem] font-black leading-[1.45] text-white drop-shadow-sm sm:text-5xl lg:text-[3.55rem] lg:leading-[1.35]">
-            {visibleSlides[activeIndex]?.title || "آینده‌ای روشن از مسیر آموزش و تربیت"}
+            {visibleSlides[activeIndex]?.title}
           </h1>
           <p className="besat-hero-line besat-hero-line-3 mt-5 max-w-[610px] text-sm font-bold leading-8 text-white/82 sm:text-base sm:leading-9">
-            {visibleSlides[activeIndex]?.subtitle ||
-              "مجتمع آموزشی بعثت، با تکیه بر تجربه‌ای ماندگار و محیطی پویا، دانش‌آموزان را در مسیر رشد علمی، اخلاقی و معنوی همراهی می‌کند."}
+            {visibleSlides[activeIndex]?.subtitle}
           </p>
 
           <div className="besat-hero-line besat-hero-line-4 mt-8 flex flex-wrap items-center gap-3 sm:gap-4">
@@ -138,21 +130,21 @@ export function HomeSliderSection() {
               href="/registration"
               className="inline-flex h-13 items-center justify-center gap-2 rounded-xl bg-[#e2ae5b] px-6 text-sm font-black text-[#0b213c] shadow-[0_15px_35px_rgba(226,174,91,0.2)] transition hover:-translate-y-0.5 hover:bg-[#edc57f]"
             >
-              <EditIcon />
+              <FilePenLine className="size-5" aria-hidden="true" />
               پیش‌ثبت‌نام آنلاین
             </Link>
             <Link
               href="/about"
               className="inline-flex h-13 items-center justify-center gap-2 rounded-xl border border-white/65 bg-white/[0.04] px-6 text-sm font-black text-white backdrop-blur-sm transition hover:bg-white/12"
             >
-              <BookIcon />
+              <BookOpen className="size-5" aria-hidden="true" />
               آشنایی با بعثت
             </Link>
           </div>
 
           <Link href="/gallery" className="besat-hero-line besat-hero-line-5 mt-10 inline-flex items-center gap-3 text-xs font-bold text-white/82 transition hover:text-[#e7b665]">
             <span className="flex size-10 items-center justify-center rounded-full border border-white/55 bg-white/8 text-white backdrop-blur-sm">
-              <PlayIcon />
+              <Play className="size-5" aria-hidden="true" />
             </span>
             ویدئوی معرفی مجتمع بعثت
           </Link>

@@ -9,10 +9,10 @@ type PublicPageLayoutProps = {
 
 export function PublicPageLayout({ children }: PublicPageLayoutProps) {
   return (
-    <>
+    <div className="flex min-h-dvh flex-col overflow-x-clip">
       <SiteHeader />
       <PageMotion>{children}</PageMotion>
       <SiteFooter />
-    </>
+    </div>
   );
 }

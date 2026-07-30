@@ -4,9 +4,14 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { PanoramaViewer } from "@/components/virtual-tour/panorama-viewer";
 import { BesatLogoMark } from "@/components/shared/besat-logo";
-import { departmentsRepository, unitsRepository } from "@/lib/data/repositories";
-import type { DepartmentRecord, SchoolUnitRecord } from "@/lib/data/domain-types";
-import { seedDepartments, seedUnits } from "@/lib/data/seed-data";
+import {
+  getPublicDepartments,
+  getPublicUnits,
+} from "@/services/public-content-service";
+import type {
+  PublicDepartment,
+  PublicSchoolUnit,
+} from "@/types/public-content";
 import { getTourScene, type TourSceneConfig } from "@/lib/virtual-tour/tour-config";
 
 type Wing = "lobby" | "units" | "departments";
@@ -20,14 +25,6 @@ type Destination = {
   preview: string;
   panorama: TourSceneConfig | null;
 };
-
-const departmentPreviews = [
-  "/images/official/units/unit-07.jpg",
-  "/images/official/units/unit-06.jpg",
-  "/images/official/units/unit-05.jpg",
-  "/images/official/units/unit-03.jpg",
-  "/images/official/units/unit-09.jpg",
-];
 
 function ArrowIcon() {
   return (
@@ -103,40 +100,40 @@ function WingDoor({
 }
 
 export function VirtualTourLobby() {
-  const [units, setUnits] = useState<SchoolUnitRecord[]>(seedUnits);
-  const [departments, setDepartments] = useState<DepartmentRecord[]>(seedDepartments);
+  const [units, setUnits] = useState<PublicSchoolUnit[]>([]);
+  const [departments, setDepartments] = useState<PublicDepartment[]>([]);
   const [wing, setWing] = useState<Wing>("lobby");
   const [selected, setSelected] = useState<Destination | null>(null);
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([unitsRepository.list(), departmentsRepository.list()])
+    Promise.all([getPublicUnits(), getPublicDepartments()])
       .then(([unitRecords, departmentRecords]) => {
         if (!mounted) return;
-        setUnits(unitRecords.filter((item) => item.is_active).sort((a, b) => a.order - b.order));
-        setDepartments(departmentRecords.filter((item) => item.is_active).sort((a, b) => a.order - b.order));
+        setUnits(unitRecords);
+        setDepartments(departmentRecords);
       })
       .catch(() => undefined);
     return () => { mounted = false; };
   }, []);
 
-  const unitDestinations = useMemo<Destination[]>(() => units.map((unit) => ({
-    id: unit.id,
+  const unitDestinations = useMemo<Destination[]>(() => units.filter((unit) => unit.cover_image).map((unit) => ({
+    id: String(unit.id),
     type: "unit",
     title: unit.title,
     slug: unit.slug,
-    description: unit.description ?? "فضای آموزشی مجتمع بعثت",
-    preview: unit.cover_image ?? "/images/official/units/unit-05.jpg",
+    description: unit.description ?? "",
+    preview: unit.cover_image as string,
     panorama: getTourScene("unit", unit.slug),
   })), [units]);
 
-  const departmentDestinations = useMemo<Destination[]>(() => departments.map((department, index) => ({
-    id: department.id,
+  const departmentDestinations = useMemo<Destination[]>(() => departments.filter((department) => department.cover_image).map((department) => ({
+    id: String(department.id),
     type: "department",
     title: department.title,
     slug: department.slug,
-    description: department.description ?? "دپارتمان تخصصی مجتمع بعثت",
-    preview: department.cover_image ?? departmentPreviews[index % departmentPreviews.length],
+    description: department.description ?? "",
+    preview: department.cover_image as string,
     panorama: getTourScene("department", department.slug),
   })), [departments]);
 

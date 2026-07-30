@@ -68,12 +68,18 @@ export function ScopedTabs({ tabs, activeKey, onChange, children }: ScopedTabsPr
 
   // انیمیشن تعویض محتوا
   useEffect(() => {
-    setPhase("out");
-    const timer = window.setTimeout(() => {
-      setDisplayChildren(children);
-      setPhase("in");
-    }, 200);
-    return () => window.clearTimeout(timer);
+    let timer: number | undefined;
+    const frame = window.requestAnimationFrame(() => {
+      setPhase("out");
+      timer = window.setTimeout(() => {
+        setDisplayChildren(children);
+        setPhase("in");
+      }, 200);
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
   }, [children]);
 
   return (

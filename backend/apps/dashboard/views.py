@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -12,7 +13,8 @@ from apps.gallery.models import GalleryItem
 from apps.news.models import News
 from apps.units.models import SchoolUnit
 
-from .serializers import DashboardResponseSerializer
+from .models import InternalMessage
+from .serializers import DashboardContextSerializer, DashboardResponseSerializer
 
 
 User = get_user_model()
@@ -209,6 +211,99 @@ def latest_activity(news_queryset, announcement_queryset, gallery_queryset, limi
     )
 
     return items[:limit]
+
+
+class DashboardContextAPIView(APIView):
+    permission_classes = [IsAuthenticatedAndActiveProfile]
+
+    @extend_schema(
+        tags=["Dashboard"],
+        summary="Current panel context",
+        responses=DashboardContextSerializer,
+    )
+    def get(self, request):
+        profile = get_or_create_user_profile(request.user)
+        units_queryset = get_accessible_units_for_dashboard(request.user)
+        units = [unit_payload(unit) for unit in units_queryset]
+        requested_unit_id = (
+            request.query_params.get("unit")
+            or request.query_params.get("unit_id")
+        )
+
+        if requested_unit_id:
+            try:
+                requested_unit_id = int(requested_unit_id)
+            except (TypeError, ValueError):
+                raise PermissionDenied("شناسه واحد معتبر نیست.")
+            if not units_queryset.filter(id=requested_unit_id).exists():
+                raise PermissionDenied("شما به این واحد دسترسی ندارید.")
+            selected_unit_id = requested_unit_id
+        else:
+            selected_unit_id = units[0]["id"] if units else None
+
+        if user_is_general_manager(request.user):
+            pending_news = News.objects.filter(status=News.Status.WAITING_REVIEW)
+            pending_announcements = Announcement.objects.filter(
+                status=Announcement.Status.WAITING_REVIEW,
+            )
+            pending_gallery = GalleryItem.objects.filter(
+                status=GalleryItem.Status.WAITING_REVIEW,
+            )
+        elif profile.role in (
+            UserProfile.Role.UNIT_MANAGER,
+            UserProfile.Role.UNIT_MEDIA,
+        ):
+            unit_ids = units_queryset.values_list("id", flat=True)
+            pending_news = News.objects.filter(
+                status=News.Status.WAITING_REVIEW,
+                unit_id__in=unit_ids,
+            )
+            pending_announcements = Announcement.objects.filter(
+                status=Announcement.Status.WAITING_REVIEW,
+                unit_id__in=unit_ids,
+            )
+            pending_gallery = GalleryItem.objects.filter(
+                status=GalleryItem.Status.WAITING_REVIEW,
+                unit_id__in=unit_ids,
+            )
+        else:
+            pending_news = News.objects.none()
+            pending_announcements = Announcement.objects.none()
+            pending_gallery = GalleryItem.objects.none()
+
+        avatar_url = None
+        if profile.avatar:
+            avatar_url = request.build_absolute_uri(profile.avatar.url)
+
+        return Response(
+            {
+                "user": {
+                    "id": request.user.id,
+                    "full_name": profile.full_name or request.user.get_username(),
+                    "role_display": profile.get_role_display(),
+                    "avatar_url": avatar_url,
+                },
+                "academic_years": [],
+                "selected_academic_year_id": None,
+                "units": [
+                    {"id": unit["id"], "title": unit["title"]}
+                    for unit in units
+                ],
+                "selected_unit_id": selected_unit_id,
+                "children": [],
+                "selected_child_id": None,
+                "unread_notifications": (
+                    pending_news.count()
+                    + pending_announcements.count()
+                    + pending_gallery.count()
+                ),
+                "unread_messages": InternalMessage.objects.filter(
+                    recipient=request.user,
+                    is_read=False,
+                ).count(),
+                "current_date": iso_datetime(timezone.now()),
+            }
+        )
 
 
 class GeneralManagerDashboardAPIView(APIView):

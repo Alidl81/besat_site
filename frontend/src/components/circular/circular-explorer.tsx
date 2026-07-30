@@ -1,10 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CircularSelector, type CircularItem } from "@/components/circular/circular-selector";
 import { ScopedTabs, type ScopedTab } from "@/components/circular/scoped-tabs";
-import { achievementsRepository, contentRepository, galleryRepository } from "@/lib/data/repositories";
-import type { AchievementRecord, ContentRecord, GalleryItemRecord } from "@/lib/data/domain-types";
+import {
+  getPublicAchievements,
+  getPublicGallery,
+  getPublicNews,
+} from "@/services/public-content-service";
+import type {
+  PublicAchievement,
+  PublicGalleryItem,
+  PublicNewsItem,
+} from "@/types/public-content";
 
 type CircularExplorerProps = {
   items: CircularItem[];
@@ -39,7 +48,10 @@ export function CircularExplorer({ items, descriptions, variant, initialSlug }: 
     const matchedInitialItemOnChange = items.find((item) => item.slug === initialSlug);
 
     if (matchedInitialItemOnChange) {
-      setActiveId(matchedInitialItemOnChange.id);
+      const frame = window.requestAnimationFrame(() => {
+        setActiveId(matchedInitialItemOnChange.id);
+      });
+      return () => window.cancelAnimationFrame(frame);
     }
   }, [initialSlug, items]);
 
@@ -84,7 +96,11 @@ export function CircularExplorer({ items, descriptions, variant, initialSlug }: 
               </h2>
             </div>
 
-            <ScopedTabs tabs={tabs} activeKey={activeTab} onChange={setActiveTab}>
+            <ScopedTabs
+              tabs={variant === "unit" ? tabs : tabs.slice(0, 1)}
+              activeKey={activeTab}
+              onChange={setActiveTab}
+            >
               {tabContent}
             </ScopedTabs>
           </div>
@@ -163,18 +179,21 @@ function ContentTab({
   kind: "news";
   emptyText: string;
 }) {
-  const [items, setItems] = useState<ContentRecord[] | null>(null);
-  const [detail, setDetail] = useState<ContentRecord | null>(null);
+  const [items, setItems] = useState<PublicNewsItem[] | null>(null);
+  const [detail, setDetail] = useState<PublicNewsItem | null>(null);
 
   useEffect(() => {
-    setItems(null);
-    contentRepository.list().then((all) => {
-      setItems(
-        all.filter(
-          (c) => c.kind === kind && c.status === "published" && c.unit_id === itemId,
-        ),
-      );
-    });
+    let active = true;
+    getPublicNews({ scope: "unit", unit_id: itemId, page_size: 100 })
+      .then(({ results }) => {
+        if (active) setItems(results);
+      })
+      .catch(() => {
+        if (active) setItems([]);
+      });
+    return () => {
+      active = false;
+    };
   }, [itemId, kind]);
 
   if (items === null) return <Spinner />;
@@ -234,7 +253,7 @@ function ContentDetailModal({
   item,
   onClose,
 }: {
-  item: ContentRecord | null;
+  item: PublicNewsItem | null;
   onClose: () => void;
 }) {
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -267,7 +286,7 @@ function ContentDetailModal({
           <div className="min-w-0 flex-1 text-right">
             {item.category ? (
               <span className="mb-3 inline-block rounded-xl bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
-                {item.category}
+                {item.category.title}
               </span>
             ) : null}
             <h2 className="text-xl font-black leading-[1.6] text-[#062452] sm:text-2xl">{item.title}</h2>
@@ -297,14 +316,12 @@ function ContentDetailModal({
           {item.summary ? (
             <p className="mb-5 text-base font-bold leading-8 text-slate-700">{item.summary}</p>
           ) : null}
-          {item.body_html ? (
-            <div
-              className="besat-rich-content text-right"
-              dangerouslySetInnerHTML={{ __html: item.body_html }}
-            />
-          ) : (
-            <p className="text-sm font-bold leading-8 text-slate-500">متن کاملی برای این مورد ثبت نشده است.</p>
-          )}
+          <Link
+            href={`/news/${encodeURIComponent(item.slug)}`}
+            className="inline-flex min-h-11 items-center border border-[#062452] px-5 text-sm font-black text-[#062452]"
+          >
+            مشاهده صفحه کامل خبر
+          </Link>
         </div>
       </article>
     </div>
@@ -312,18 +329,21 @@ function ContentDetailModal({
 }
 
 function AchievementsTab({ itemId }: { itemId: string }) {
-  const [items, setItems] = useState<AchievementRecord[] | null>(null);
-  const [detail, setDetail] = useState<AchievementRecord | null>(null);
+  const [items, setItems] = useState<PublicAchievement[] | null>(null);
+  const [detail, setDetail] = useState<PublicAchievement | null>(null);
 
   useEffect(() => {
-    setItems(null);
-    achievementsRepository.list().then((all) => {
-      setItems(
-        all.filter(
-          (item) => item.status === "published" && item.unit_id === itemId,
-        ),
-      );
-    });
+    let active = true;
+    getPublicAchievements({ unit_id: itemId, page_size: 100 })
+      .then(({ results }) => {
+        if (active) setItems(results);
+      })
+      .catch(() => {
+        if (active) setItems([]);
+      });
+    return () => {
+      active = false;
+    };
   }, [itemId]);
 
   if (items === null) return <Spinner />;
@@ -389,7 +409,7 @@ function AchievementDetailModal({
   item,
   onClose,
 }: {
-  item: AchievementRecord | null;
+  item: PublicAchievement | null;
   onClose: () => void;
 }) {
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -465,14 +485,21 @@ function AchievementDetailModal({
 }
 
 function GalleryTab({ itemId }: { itemId: string }) {
-  const [items, setItems] = useState<GalleryItemRecord[] | null>(null);
-  const [lightbox, setLightbox] = useState<GalleryItemRecord | null>(null);
+  const [items, setItems] = useState<PublicGalleryItem[] | null>(null);
+  const [lightbox, setLightbox] = useState<PublicGalleryItem | null>(null);
 
   useEffect(() => {
-    setItems(null);
-    galleryRepository.list().then((all) => {
-      setItems(all.filter((g) => g.status === "published" && g.unit_id === itemId));
-    });
+    let active = true;
+    getPublicGallery({ scope: "unit", unit_id: itemId, page_size: 100 })
+      .then(({ results }) => {
+        if (active) setItems(results);
+      })
+      .catch(() => {
+        if (active) setItems([]);
+      });
+    return () => {
+      active = false;
+    };
   }, [itemId]);
 
   useEffect(() => {
@@ -494,13 +521,15 @@ function GalleryTab({ itemId }: { itemId: string }) {
             onClick={() => setLightbox(item)}
             className="group overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-md"
           >
-            <div className="aspect-[4/3] overflow-hidden bg-slate-100">
-              <img
-                src={item.image}
-                alt={item.title}
-                className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-              />
-            </div>
+            {item.image ? (
+              <div className="aspect-[4/3] overflow-hidden bg-slate-100">
+                <img
+                  src={item.image}
+                  alt={item.alt_text || item.title}
+                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                />
+              </div>
+            ) : null}
             <div className="p-4 text-right">
               <p className="text-sm font-black text-[#062452]">{item.title}</p>
             </div>
@@ -508,7 +537,7 @@ function GalleryTab({ itemId }: { itemId: string }) {
         ))}
       </div>
 
-      {lightbox ? (
+      {lightbox?.image ? (
         <div
           dir="rtl"
           className="besat-modal-overlay fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/85 p-4"

@@ -17,6 +17,18 @@ class AboutPageSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
             "description",
             "image",
             "meta_description",
+            "history",
+            "founders",
+            "key_people",
+            "mission",
+            "values",
+            "goals",
+            "images",
+            "video_url",
+            "video_poster_url",
+            "video_title",
+            "video_description",
+            "video_caption",
         )
         read_only_fields = fields
 

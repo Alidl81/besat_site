@@ -83,6 +83,8 @@ class NewsListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
             "unit",
             "status",
             "is_featured",
+            "is_important",
+            "priority",
             "is_published",
         )
         read_only_fields = fields
@@ -115,6 +117,8 @@ class NewsDetailSerializer(NewsListSerializer):
             "unit",
             "status",
             "is_featured",
+            "is_important",
+            "priority",
             "is_published",
         )
         read_only_fields = fields
@@ -178,6 +182,8 @@ class CMSNewsListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
             "status",
             "published_at",
             "is_featured",
+            "is_important",
+            "priority",
             "is_active",
             "created_by",
             "updated_by",
@@ -210,6 +216,8 @@ class CMSNewsDetailSerializer(CMSNewsListSerializer):
             "status",
             "published_at",
             "is_featured",
+            "is_important",
+            "priority",
             "is_active",
             "created_by",
             "updated_by",
@@ -256,6 +264,8 @@ class CMSNewsWriteSerializer(serializers.ModelSerializer):
             "status",
             "published_at",
             "is_featured",
+            "is_important",
+            "priority",
             "is_active",
             "created_by",
             "updated_by",

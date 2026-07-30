@@ -83,6 +83,8 @@ export function panelContent(record: MockRecord, database: MockDatabase) {
 }
 
 export function publicContent(record: MockRecord, database: MockDatabase) {
+  const category = namedRecord(database.content_categories, record.category_id);
+  const unit = namedRecord(database.units, record.unit_id);
   return {
     id: record.id,
     title: record.title,
@@ -90,10 +92,31 @@ export function publicContent(record: MockRecord, database: MockDatabase) {
     summary: record.summary ?? null,
     content: record.body_html ?? "",
     image: record.cover_image ?? record.cover_image_url ?? null,
-    category: namedRecord(database.content_categories, record.category_id),
+    category: category
+      ? {
+          ...category,
+          slug:
+            database.content_categories.find(
+              (item) => String(item.id) === String(category.id),
+            )?.slug ?? String(category.id),
+        }
+      : null,
     scope: record.scope,
     unit_id: record.unit_id ?? null,
+    unit: unit
+      ? {
+          ...unit,
+          slug:
+            database.units.find(
+              (item) => String(item.id) === String(unit.id),
+            )?.slug ?? String(unit.id),
+        }
+      : null,
     status: record.status,
+    is_featured: record.is_featured === true,
+    is_important: record.is_important === true,
+    priority: Number(record.priority ?? 0),
+    is_published: record.status === "published",
     published_at: record.published_at ?? null,
     created_at: record.created_at,
     updated_at: record.updated_at,
@@ -137,7 +160,7 @@ export function panelRegistration(record: MockRecord, database: MockDatabase) {
         : null,
     requested_unit: namedRecord(database.units, record.requested_unit_id),
     parent: {
-      full_name: record.parent_full_name ?? "والد آزمایشی",
+      full_name: record.parent_full_name ?? "ثبت نشده",
       phone: record.parent_phone ?? null,
       email: record.parent_email ?? null,
     },
@@ -163,8 +186,8 @@ export function panelMessage(record: MockRecord) {
     },
     recipient: {
       id: record.recipient_id ?? "unknown",
-      full_name: record.recipient_name ?? "گیرنده آزمایشی",
-      role_display: record.recipient_role ?? "آزمایشی",
+      full_name: record.recipient_name ?? "ثبت نشده",
+      role_display: record.recipient_role ?? "ثبت نشده",
     },
     subject: record.subject,
     body: record.body,

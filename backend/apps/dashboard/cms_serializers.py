@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+from apps.accounts.models import UserProfile
 from apps.accounts.selectors import get_or_create_user_profile
 from apps.news.permissions import get_accessible_unit_ids, is_general_manager
 from apps.units.models import SchoolUnit
@@ -69,6 +70,8 @@ class ProgramSerializer(UnitScopedSerializerMixin, serializers.ModelSerializer):
 
 
 class InternalMessageSerializer(serializers.ModelSerializer):
+    sender = serializers.SerializerMethodField()
+    recipient = serializers.SerializerMethodField()
     sender_id = serializers.SerializerMethodField()
     recipient_id = serializers.SerializerMethodField()
     unit_id = serializers.PrimaryKeyRelatedField(
@@ -81,20 +84,39 @@ class InternalMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = InternalMessage
         fields = (
-            "id", "sender_id", "sender_name", "sender_role", "recipient_id",
+            "id", "sender", "recipient", "sender_id", "sender_name", "sender_role", "recipient_id",
             "recipient_name", "recipient_role", "subject", "body", "is_read",
             "unit_id", "created_at", "updated_at",
         )
         read_only_fields = (
-            "id", "sender_id", "sender_name", "sender_role", "recipient_id",
+            "id", "sender", "recipient", "sender_id", "sender_name", "sender_role", "recipient_id",
             "recipient_name", "recipient_role", "created_at", "updated_at",
         )
 
     def get_sender_id(self, obj):
         return f"user-{obj.sender.get_username()}" if obj.sender_id else None
 
+    def get_sender(self, obj):
+        return {
+            "id": self.get_sender_id(obj),
+            "full_name": obj.sender_name,
+            "role_display": UserProfile.Role(obj.sender_role).label,
+        }
+
     def get_recipient_id(self, obj):
         return f"user-{obj.recipient.get_username()}" if obj.recipient_id else None
+
+    def get_recipient(self, obj):
+        role_display = (
+            UserProfile.Role(obj.recipient_role).label
+            if obj.recipient_role
+            else "همه"
+        )
+        return {
+            "id": self.get_recipient_id(obj) or f"role-{obj.recipient_role or 'all'}",
+            "full_name": obj.recipient_name,
+            "role_display": role_display,
+        }
 
 
 class InternalMessageCreateSerializer(serializers.ModelSerializer):

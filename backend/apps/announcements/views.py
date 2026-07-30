@@ -597,6 +597,13 @@ class CMSAnnouncementViewSet(ModelViewSet):
         if not is_general_manager(request.user):
             raise PermissionDenied("فقط مدیر کل اجازه انتشار اطلاعیه را دارد.")
 
+        if announcement.status != Announcement.Status.APPROVED:
+            raise DRFValidationError(
+                {
+                    "status": "فقط اطلاعیه تأییدشده قابل انتشار است.",
+                }
+            )
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 

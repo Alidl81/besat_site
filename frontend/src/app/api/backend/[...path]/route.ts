@@ -73,9 +73,9 @@ function createUpstreamUrl(request: Request, path: string[]) {
   const frontendUrl = new URL(request.url);
   const upstreamUrl = getBackendBaseUrl();
   const encodedPath = path.map((segment) => encodeURIComponent(segment)).join("/");
-  // Next.js may normalize the browser route without a trailing slash, while
-  // this Django API uses slash-terminated endpoints for every HTTP method.
-  upstreamUrl.pathname = `${upstreamUrl.pathname}${encodedPath}/`;
+  const trailingSlash = frontendUrl.pathname.endsWith("/") ? "/" : "";
+
+  upstreamUrl.pathname = `${upstreamUrl.pathname}${encodedPath}${trailingSlash}`;
   upstreamUrl.search = frontendUrl.search;
   return upstreamUrl;
 }
@@ -167,10 +167,7 @@ async function forwardToBackend(
     };
 
     if (request.method !== "GET" && request.method !== "HEAD") {
-      // Buffer once before proxying: Turbopack/Next route requests can expose
-      // an empty stream when the original body is forwarded directly.
-      const body = await request.arrayBuffer();
-      init.body = body.byteLength > 0 ? body : undefined;
+      init.body = request.body;
       init.duplex = "half";
     }
 
@@ -186,7 +183,8 @@ async function forwardToBackend(
       statusText: upstreamResponse.statusText,
       headers: responseHeaders,
     });
-  } catch {
+  } catch (reason) {
+    console.error("[besat-backend-proxy]", requestId, reason);
     return createProxyError(requestId);
   }
 }

@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import { CircularExplorer } from "@/components/circular/circular-explorer";
 import type { CircularItem } from "@/components/circular/circular-selector";
-import { departmentsRepository, unitsRepository } from "@/lib/data/repositories";
 import { getOfficialUnitShortTitle } from "@/lib/units/unit-display";
+import {
+  getPublicDepartments,
+  getPublicUnits,
+} from "@/services/public-content-service";
 
 type ExplorerSectionProps = {
   variant: "unit" | "department";
@@ -16,28 +19,33 @@ export function UnitsExplorerSection({ variant, initialSlug }: ExplorerSectionPr
   const [descriptions, setDescriptions] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
-    const repo = variant === "unit" ? unitsRepository : departmentsRepository;
+    let active = true;
+    const request =
+      variant === "unit" ? getPublicUnits() : getPublicDepartments();
 
-    repo.list().then((all) => {
-      const active = all
-        .filter((x) => x.is_active)
-        .sort((a, b) => a.order - b.order);
-
+    request.then((items) => {
+      if (!active) return;
       const descs: Record<string, string | null> = {};
 
-      active.forEach((x) => {
-        descs[x.id] = x.description;
+      items.forEach((x) => {
+        descs[String(x.id)] = x.description;
       });
 
       setDescriptions(descs);
       setItems(
-        active.map((x) => ({
-          id: x.id,
+        items.map((x) => ({
+          id: String(x.id),
           title: variant === "unit" ? getOfficialUnitShortTitle(x) : x.title,
           slug: x.slug,
         })),
       );
+    }).catch(() => {
+      if (active) setItems([]);
     });
+
+    return () => {
+      active = false;
+    };
   }, [variant]);
 
   if (items === null) {

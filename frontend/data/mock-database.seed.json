@@ -3,7 +3,7 @@
     "name": "Besat Mashhad temporary development database",
     "schema_version": 1,
     "seeded_at": "2026-07-28T00:00:00.000Z",
-    "notice": "اطلاعات عمومی مدارس از منابع رسمی بعثت گرفته شده است. رکوردهای دانش‌آموز، والد، ثبت‌نام، پیام و کاربران با برچسب آزمایشی ساخته شده‌اند و متعلق به شخص واقعی نیستند.",
+    "notice": "این پایگاه محلی فقط شامل محتوای عمومی تاییدشده است. داده خصوصی و حساب کاربری در آن توزیع نمی‌شود.",
     "sources": [
       {
         "title": "روابط عمومی مدارس بعثت",
@@ -74,72 +74,7 @@
       }
     ]
   },
-  "accounts": [
-    {
-      "id": "account-admin",
-      "username": "admin",
-      "password": "BesatDemo1405!",
-      "full_name": "مدیر آزمایشی مجموعه",
-      "email": "demo-admin@local.test",
-      "phone": null,
-      "role": "general_manager",
-      "role_display": "مدیر مجموعه (آزمایشی)",
-      "unit_id": null,
-      "redirect_path": "/dashboard/admin",
-      "avatar": null,
-      "is_active": true,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "account-unit",
-      "username": "unit_manager",
-      "password": "BesatDemo1405!",
-      "full_name": "مدیر آزمایشی واحد ۷",
-      "email": "demo-unit@local.test",
-      "phone": null,
-      "role": "unit_manager",
-      "role_display": "مدیر واحد (آزمایشی)",
-      "unit_id": "unit-07",
-      "redirect_path": "/dashboard/unit-manager",
-      "avatar": null,
-      "is_active": true,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "account-media",
-      "username": "media",
-      "password": "BesatDemo1405!",
-      "full_name": "مسئول رسانه آزمایشی",
-      "email": "demo-media@local.test",
-      "phone": null,
-      "role": "unit_media",
-      "role_display": "مسئول رسانه (آزمایشی)",
-      "unit_id": "unit-07",
-      "redirect_path": "/dashboard/media",
-      "avatar": null,
-      "is_active": true,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "account-parent",
-      "username": "parent",
-      "password": "BesatDemo1405!",
-      "full_name": "والد آزمایشی",
-      "email": "demo-parent@local.test",
-      "phone": null,
-      "role": "parent",
-      "role_display": "والد (آزمایشی)",
-      "unit_id": "unit-07",
-      "redirect_path": "/dashboard/parents",
-      "avatar": null,
-      "is_active": true,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    }
-  ],
+  "accounts": [],
   "units": [
     {
       "id": "unit-01-02",
@@ -408,195 +343,8 @@
       "updated_at": "2026-07-28T00:00:00.000Z"
     }
   ],
-  "users": [
-    {
-      "id": "user-demo-admin",
-      "username": "admin",
-      "full_name": "مدیر آزمایشی مجموعه",
-      "email": "demo-admin@local.test",
-      "phone": null,
-      "role": "general_manager",
-      "unit_id": null,
-      "is_active": true,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "user-demo-unit",
-      "username": "unit_manager",
-      "full_name": "مدیر آزمایشی واحد ۷",
-      "email": "demo-unit@local.test",
-      "phone": null,
-      "role": "unit_manager",
-      "unit_id": "unit-07",
-      "is_active": true,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "user-demo-media",
-      "username": "media",
-      "full_name": "مسئول رسانه آزمایشی",
-      "email": "demo-media@local.test",
-      "phone": null,
-      "role": "unit_media",
-      "unit_id": "unit-07",
-      "is_active": true,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "user-demo-parent",
-      "username": "parent",
-      "full_name": "والد آزمایشی",
-      "email": "demo-parent@local.test",
-      "phone": null,
-      "role": "parent",
-      "unit_id": "unit-07",
-      "is_active": true,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    }
-  ],
+  "users": [],
   "content": [
-    {
-      "id": "content-firacup-2024",
-      "kind": "news",
-      "title": "مقام جهانی در مسابقات فیراکاپ ۲۰۲۴ برزیل توسط دانش‌آموزان بعثتی",
-      "slug": "firacup-2024-world-title",
-      "summary": "تیم رباتیک دبیرستان دوره دوم بعثت در لیگ نوآوری و کسب‌وکار فیراکاپ ۲۰۲۴ عنوان بهترین اختراع و طرح تجاری را کسب کرد.",
-      "body_html": "<p>دانش‌آموزان تیم رباتیک دبیرستان دوره دوم بعثت در رقابت با تیم‌هایی از ۱۸ کشور، مقام نخست لیگ نوآوری و کسب‌وکار فیراکاپ ۲۰۲۴ برزیل را به دست آوردند.</p>",
-      "body_json": null,
-      "cover_image": "/images/official/hero/besat-main.jpg",
-      "cover_image_url": "/images/official/hero/besat-main.jpg",
-      "scope": "school",
-      "unit_id": "unit-07",
-      "category_id": "category-achievement",
-      "category_title": "افتخار",
-      "status": "published",
-      "author_id": "user-demo-media",
-      "author_role": "unit_media",
-      "scheduled_at": null,
-      "published_at": null,
-      "source_url": "https://besat-r.com/blog-archive.axd",
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "content-ijso-bronze",
-      "kind": "news",
-      "title": "کسب مدال برنز مسابقات جهانی المپیاد IJSO",
-      "slug": "ijso-world-bronze-medal",
-      "summary": "دانش‌آموز دبیرستان بعثت در رقابت جهانی IJSO در بانکوک تایلند مدال برنز کسب کرد.",
-      "body_html": "<p>نماینده دبیرستان بعثت به همراه تیم ملی ایران در رقابت جهانی علوم نوجوانان IJSO با حضور ۵۵ کشور به مدال برنز دست یافت.</p>",
-      "body_json": null,
-      "cover_image": "/images/official/hero/besat-hs-banner-03.jpg",
-      "cover_image_url": "/images/official/hero/besat-hs-banner-03.jpg",
-      "scope": "school",
-      "unit_id": "unit-07",
-      "category_id": "category-olympiad",
-      "category_title": "المپیاد",
-      "status": "published",
-      "author_id": "user-demo-media",
-      "author_role": "unit_media",
-      "scheduled_at": null,
-      "published_at": null,
-      "source_url": "https://besat-r.com/blog-archive.axd",
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "content-ijso-opening",
-      "kind": "news",
-      "title": "آیین افتتاحیه المپیاد جهانی ۲۰۲۳ IJSO",
-      "slug": "ijso-2023-opening",
-      "summary": "چهار دانش‌آموز دبیرستان بعثت در ترکیب رسمی تیم ملی ایران در المپیاد جهانی علوم نوجوانان حضور داشتند.",
-      "body_html": "<p>آیین افتتاحیه المپیاد جهانی علوم نوجوانان ۲۰۲۳ با حضور ۵۵ کشور در بانکوک برگزار شد و چهار دانش‌آموز دبیرستان بعثت در ترکیب تیم ملی ایران حضور داشتند.</p>",
-      "body_json": null,
-      "cover_image": "/images/official/units/unit-07.jpg",
-      "cover_image_url": "/images/official/units/unit-07.jpg",
-      "scope": "school",
-      "unit_id": "unit-07",
-      "category_id": "category-olympiad",
-      "category_title": "المپیاد",
-      "status": "published",
-      "author_id": "user-demo-media",
-      "author_role": "unit_media",
-      "scheduled_at": null,
-      "published_at": null,
-      "source_url": "https://besat-r.com/blog-archive.axd",
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "content-kashef",
-      "kind": "news",
-      "title": "افتخارآفرینی تیم کاشف بعثت",
-      "slug": "kashef-team-achievement",
-      "summary": "تیم رباتیک دبیرستان بعثت در مسابقات بین‌المللی ایران‌اوپن ۲۰۲۳ در جمع سه طرح برگزیده قرار گرفت.",
-      "body_html": "<p>تیم کاشف دبیرستان بعثت در رقابت بین‌المللی ایران‌اوپن ۲۰۲۳ توانست در میان طرح‌های ارائه‌شده، یکی از سه طرح برگزیده باشد.</p>",
-      "body_json": null,
-      "cover_image": "/images/official/units/unit-07.jpg",
-      "cover_image_url": "/images/official/units/unit-07.jpg",
-      "scope": "school",
-      "unit_id": "unit-07",
-      "category_id": "category-robotics",
-      "category_title": "رباتیک",
-      "status": "published",
-      "author_id": "user-demo-media",
-      "author_role": "unit_media",
-      "scheduled_at": null,
-      "published_at": null,
-      "source_url": "https://besat-r.com/blog-archive.axd",
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "content-smart-shade",
-      "kind": "news",
-      "title": "تولید ربات سایه‌بان هوشمند توسط پژوهشگران بعثتی",
-      "slug": "smart-shade-robot",
-      "summary": "طرح ربات سایه‌بان هوشمند پژوهشگران بعثتی در مسابقات بین‌المللی ایران‌اوپن ارائه شد.",
-      "body_html": "<p>پژوهشگران دانش‌آموز مجتمع بعثت، ربات سایه‌بان هوشمند را در مسابقات بین‌المللی ایران‌اوپن معرفی کردند.</p>",
-      "body_json": null,
-      "cover_image": "/images/official/units/unit-06.jpg",
-      "cover_image_url": "/images/official/units/unit-06.jpg",
-      "scope": "school",
-      "unit_id": "unit-06",
-      "category_id": "category-research",
-      "category_title": "پژوهش",
-      "status": "published",
-      "author_id": "user-demo-media",
-      "author_role": "unit_media",
-      "scheduled_at": null,
-      "published_at": null,
-      "source_url": "https://besat-r.com/blog-archive.axd",
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "content-demo-league",
-      "kind": "news",
-      "title": "کسب مقام سوم لیگ دمو دانش‌آموزی مسابقات بین‌المللی",
-      "slug": "international-demo-league-third-place",
-      "summary": "دانش‌آموزان بعثتی در لیگ دمو مسابقات بین‌المللی روبوکاپ ایران ۲۰۲۳ مقام سوم را کسب کردند.",
-      "body_html": "<p>تیم دانش‌آموزی بعثت در لیگ دمو مسابقات بین‌المللی روبوکاپ ایران ۲۰۲۳ به مقام سوم دست یافت.</p>",
-      "body_json": null,
-      "cover_image": "/images/official/units/unit-07.jpg",
-      "cover_image_url": "/images/official/units/unit-07.jpg",
-      "scope": "school",
-      "unit_id": "unit-07",
-      "category_id": "category-robotics",
-      "category_title": "رباتیک",
-      "status": "published",
-      "author_id": "user-demo-media",
-      "author_role": "unit_media",
-      "scheduled_at": null,
-      "published_at": null,
-      "source_url": "https://besat-r.com/blog-archive.axd",
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
     {
       "id": "announcement-preregistration",
       "kind": "announcement",
@@ -612,8 +360,8 @@
       "category_id": "category-registration",
       "category_title": "ثبت‌نام",
       "status": "published",
-      "author_id": "user-demo-admin",
-      "author_role": "general_manager",
+      "author_id": null,
+      "author_role": null,
       "scheduled_at": null,
       "published_at": null,
       "source_url": "https://besat-r.com/home.axd",
@@ -635,34 +383,11 @@
       "category_id": "category-program",
       "category_title": "برنامه",
       "status": "published",
-      "author_id": "user-demo-admin",
-      "author_role": "general_manager",
+      "author_id": null,
+      "author_role": null,
       "scheduled_at": null,
       "published_at": null,
       "source_url": "https://besat-r.com/home.axd",
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "content-demo-draft",
-      "kind": "news",
-      "title": "پیش‌نویس آزمایشی برای بررسی عملکرد ادیتور",
-      "slug": "editor-demo-draft",
-      "summary": "این رکورد صرفاً برای تست ذخیره، بازبینی، زمان‌بندی و انتشار ساخته شده است.",
-      "body_html": "<p>این محتوا واقعی نیست و فقط گردش‌کار ادیتور ساده و پیشرفته را آزمایش می‌کند.</p>",
-      "body_json": null,
-      "cover_image": null,
-      "cover_image_url": null,
-      "scope": "unit",
-      "unit_id": "unit-07",
-      "category_id": "category-demo",
-      "category_title": "آزمایشی",
-      "status": "draft",
-      "author_id": "user-demo-media",
-      "author_role": "unit_media",
-      "scheduled_at": null,
-      "published_at": null,
-      "source_url": null,
       "created_at": "2026-07-28T00:00:00.000Z",
       "updated_at": "2026-07-28T00:00:00.000Z"
     }
@@ -697,27 +422,9 @@
       "id": "category-program",
       "title": "برنامه",
       "slug": "program"
-    },
-    {
-      "id": "category-demo",
-      "title": "آزمایشی",
-      "slug": "demo"
     }
   ],
-  "content_revisions": [
-    {
-      "id": "revision-demo-draft-1",
-      "content_id": "content-demo-draft",
-      "number": 1,
-      "actor_name": "مسئول رسانه آزمایشی",
-      "note": "نسخه اولیه آزمایشی",
-      "snapshot": {
-        "title": "پیش‌نویس آزمایشی برای بررسی عملکرد ادیتور",
-        "body_html": "<p>این محتوا واقعی نیست و فقط گردش‌کار ادیتور ساده و پیشرفته را آزمایش می‌کند.</p>"
-      },
-      "created_at": "2026-07-28T00:00:00.000Z"
-    }
-  ],
+  "content_revisions": [],
   "gallery": [
     {
       "id": "gallery-unit-01-02",
@@ -857,207 +564,11 @@
       "updated_at": "2026-07-28T00:00:00.000Z"
     }
   ],
-  "registration_requests": [
-    {
-      "id": "registration-demo-1",
-      "request_code": "DEMO-1405-001",
-      "student_full_name": "دانش‌آموز آزمایشی ۱",
-      "student_avatar_url": null,
-      "student_national_code": null,
-      "requested_grade_id": "grade-10",
-      "requested_grade_title": "پایه دهم",
-      "requested_unit_id": "unit-07",
-      "parent_full_name": "والد آزمایشی",
-      "parent_phone": null,
-      "parent_email": "demo-parent@local.test",
-      "description": "رکورد آزمایشی؛ فاقد اطلاعات شخص واقعی",
-      "status": "reviewing",
-      "documents": [
-        {
-          "id": "document-demo-1",
-          "title": "کارنامه سال قبل",
-          "status": "pending",
-          "file_url": null
-        }
-      ],
-      "timeline": [
-        {
-          "id": "timeline-demo-1",
-          "title": "ثبت درخواست آزمایشی",
-          "created_at": "2026-07-28T00:00:00.000Z",
-          "actor_name": "سامانه موقت"
-        }
-      ],
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "registration-demo-2",
-      "request_code": "DEMO-1405-002",
-      "student_full_name": "دانش‌آموز آزمایشی ۲",
-      "student_avatar_url": null,
-      "student_national_code": null,
-      "requested_grade_id": "grade-7",
-      "requested_grade_title": "پایه هفتم",
-      "requested_unit_id": "unit-06",
-      "parent_full_name": "والد آزمایشی دوم",
-      "parent_phone": null,
-      "parent_email": "demo-parent-2@local.test",
-      "description": "رکورد آزمایشی برای بررسی وضعیت مدارک",
-      "status": "needs_documents",
-      "documents": [
-        {
-          "id": "document-demo-2",
-          "title": "تصویر شناسنامه",
-          "status": "missing",
-          "file_url": null
-        }
-      ],
-      "timeline": [
-        {
-          "id": "timeline-demo-2",
-          "title": "درخواست تکمیل مدارک آزمایشی",
-          "created_at": "2026-07-28T00:00:00.000Z",
-          "actor_name": "مدیر آزمایشی"
-        }
-      ],
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    }
-  ],
-  "contact_messages": [
-    {
-      "id": "contact-demo-1",
-      "name": "پیام آزمایشی سامانه",
-      "phone": null,
-      "email": "demo@local.test",
-      "subject": "بررسی عملکرد صندوق پیام",
-      "message": "این پیام واقعی نیست و برای تست رابط مدیریت پیام‌ها ایجاد شده است.",
-      "is_read": false,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    }
-  ],
-  "students": [
-    {
-      "id": "student-demo-1",
-      "full_name": "دانش‌آموز آزمایشی ۱",
-      "avatar_url": null,
-      "student_code": "DEMO-ST-001",
-      "national_code": null,
-      "unit_id": "unit-07",
-      "grade_id": "grade-10",
-      "grade_title": "پایه دهم",
-      "class_id": "class-demo-10-a",
-      "class_title": "کلاس آزمایشی دهم",
-      "major": "ریاضی و فیزیک",
-      "profile_status": "complete",
-      "education_status": "active",
-      "guardian_id": "account-parent",
-      "guardian_full_name": "والد آزمایشی",
-      "guardian_phone": null,
-      "guardian_email": "demo-parent@local.test",
-      "enrolled_at": "2026-07-28T00:00:00.000Z",
-      "parent_id": "account-parent",
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "student-demo-2",
-      "full_name": "دانش‌آموز آزمایشی ۲",
-      "avatar_url": null,
-      "student_code": "DEMO-ST-002",
-      "national_code": null,
-      "unit_id": "unit-07",
-      "grade_id": "grade-11",
-      "grade_title": "پایه یازدهم",
-      "class_id": "class-demo-11-a",
-      "class_title": "کلاس آزمایشی یازدهم",
-      "major": "علوم تجربی",
-      "profile_status": "incomplete",
-      "education_status": "active",
-      "guardian_id": null,
-      "guardian_full_name": "والد آزمایشی دوم",
-      "guardian_phone": null,
-      "guardian_email": null,
-      "enrolled_at": "2026-07-28T00:00:00.000Z",
-      "parent_id": null,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "student-demo-3",
-      "full_name": "دانش‌آموز آزمایشی ۳",
-      "avatar_url": null,
-      "student_code": "DEMO-ST-003",
-      "national_code": null,
-      "unit_id": "unit-06",
-      "grade_id": "grade-8",
-      "grade_title": "پایه هشتم",
-      "class_id": "class-demo-8-a",
-      "class_title": "کلاس آزمایشی هشتم",
-      "major": null,
-      "profile_status": "complete",
-      "education_status": "active",
-      "guardian_id": null,
-      "guardian_full_name": "والد آزمایشی سوم",
-      "guardian_phone": null,
-      "guardian_email": null,
-      "enrolled_at": "2026-07-28T00:00:00.000Z",
-      "parent_id": null,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    }
-  ],
-  "classes": [
-    {
-      "id": "class-demo-10-a",
-      "title": "کلاس آزمایشی دهم",
-      "unit_id": "unit-07",
-      "grade": "پایه دهم",
-      "capacity": 0,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "class-demo-11-a",
-      "title": "کلاس آزمایشی یازدهم",
-      "unit_id": "unit-07",
-      "grade": "پایه یازدهم",
-      "capacity": 0,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "class-demo-8-a",
-      "title": "کلاس آزمایشی هشتم",
-      "unit_id": "unit-06",
-      "grade": "پایه هشتم",
-      "capacity": 0,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    }
-  ],
-  "staff": [
-    {
-      "id": "staff-demo-1",
-      "full_name": "عضو کادر آزمایشی ۱",
-      "role_title": "دبیر آزمایشی",
-      "unit_id": "unit-07",
-      "phone": null,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "staff-demo-2",
-      "full_name": "عضو کادر آزمایشی ۲",
-      "role_title": "مسئول آموزشی آزمایشی",
-      "unit_id": "unit-06",
-      "phone": null,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    }
-  ],
+  "registration_requests": [],
+  "contact_messages": [],
+  "students": [],
+  "classes": [],
+  "staff": [],
   "programs": [
     {
       "id": "program-preregistration",
@@ -1090,20 +601,7 @@
       "updated_at": "2026-07-28T00:00:00.000Z"
     }
   ],
-  "events": [
-    {
-      "id": "event-demo-editorial",
-      "title": "رویداد آزمایشی تقویم محتوا",
-      "description": "این رویداد برای تست ایجاد، ویرایش و نمایش تقویم ساخته شده است.",
-      "location": "محیط آزمایشی",
-      "starts_at": "2026-08-05T08:00:00.000Z",
-      "ends_at": "2026-08-05T10:00:00.000Z",
-      "unit_id": "unit-07",
-      "is_demo": true,
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    }
-  ],
+  "events": [],
   "services": [
     {
       "id": "service-preregistration",
@@ -1142,38 +640,7 @@
       "audience": "all"
     }
   ],
-  "internal_messages": [
-    {
-      "id": "message-demo-welcome",
-      "sender_id": "account-admin",
-      "sender_name": "سامانه موقت",
-      "sender_role": "general_manager",
-      "recipient_id": "account-media",
-      "recipient_name": "مسئول رسانه آزمایشی",
-      "recipient_role": "unit_media",
-      "subject": "خوش‌آمدگویی به محیط آزمایشی",
-      "body": "این پیام برای تست صندوق ورودی، خواندن و حذف پیام ساخته شده است.",
-      "is_read": false,
-      "unit_id": "unit-07",
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    },
-    {
-      "id": "message-demo-parent",
-      "sender_id": "account-admin",
-      "sender_name": "سامانه موقت",
-      "sender_role": "general_manager",
-      "recipient_id": "account-parent",
-      "recipient_name": "والد آزمایشی",
-      "recipient_role": "parent",
-      "subject": "اطلاع درباره داده‌های آزمایشی",
-      "body": "اطلاعات تحصیلی این پنل ساختگی است و به دانش‌آموز واقعی تعلق ندارد.",
-      "is_read": false,
-      "unit_id": "unit-07",
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    }
-  ],
+  "internal_messages": [],
   "static_pages": [
     {
       "id": "page-about",
@@ -1187,146 +654,6 @@
       "updated_at": "2026-07-28T00:00:00.000Z"
     }
   ],
-  "parent_children": [
-    {
-      "id": "student-demo-1",
-      "parent_id": "account-parent",
-      "full_name": "دانش‌آموز آزمایشی ۱",
-      "avatar_url": null,
-      "grade_title": "پایه دهم",
-      "class_title": "کلاس آزمایشی دهم",
-      "major": "ریاضی و فیزیک",
-    "unit_title": "واحد ۷",
-    "unit_id": "unit-07",
-    "is_active": true,
-    "is_demo": true,
-      "average": 18.75,
-      "class_rank": "آزمایشی",
-      "grade_rank": "آزمایشی",
-      "teachers": [
-        {
-          "id": "teacher-demo-1",
-          "full_name": "دبیر آزمایشی ریاضی",
-          "avatar_url": null,
-          "subject": "ریاضی"
-        },
-        {
-          "id": "teacher-demo-2",
-          "full_name": "دبیر آزمایشی فیزیک",
-          "avatar_url": null,
-          "subject": "فیزیک"
-        }
-      ],
-      "latest_grades": [
-        {
-          "id": "grade-demo-1",
-          "subject": "ریاضی",
-          "score": 19,
-          "status_label": "داده آزمایشی",
-          "recorded_at": "2026-07-20T00:00:00.000Z"
-        },
-        {
-          "id": "grade-demo-2",
-          "subject": "فیزیک",
-          "score": 18.5,
-          "status_label": "داده آزمایشی",
-          "recorded_at": "2026-07-18T00:00:00.000Z"
-        }
-      ],
-      "attendance": {
-        "attendance_percent": 95,
-        "present_days": 19,
-        "excused_absence_days": 1,
-        "unexcused_absence_days": 0,
-        "late_days": 0
-      },
-      "exams": [
-        {
-          "id": "exam-demo-1",
-          "title": "آزمون آزمایشی ریاضی",
-          "subject": "ریاضی",
-          "starts_at": "2026-08-02T08:00:00.000Z"
-        }
-      ],
-      "assignments": [
-        {
-          "id": "assignment-demo-1",
-          "title": "تکلیف آزمایشی فصل اول",
-          "subject": "ریاضی",
-          "due_at": "2026-08-01T18:00:00.000Z",
-          "status": "در حال انجام"
-        }
-      ],
-      "schedule": [
-        {
-          "id": "schedule-demo-1",
-          "order": 1,
-          "title": "ریاضی",
-          "starts_at": "08:00",
-          "ends_at": "09:30"
-        },
-        {
-          "id": "schedule-demo-2",
-          "order": 2,
-          "title": "فیزیک",
-          "starts_at": "09:45",
-          "ends_at": "11:15"
-        }
-      ],
-      "counselor_message": {
-        "id": "counselor-demo-1",
-        "title": "پیام آزمایشی مشاور",
-        "description": "این پیام صرفاً برای تست رابط پنل والد ساخته شده است.",
-        "timestamp": "2026-07-28T00:00:00.000Z",
-        "status": "demo",
-        "href": null,
-        "avatar_url": null
-      },
-      "quick_links": [
-        {
-          "id": "quick-demo-1",
-          "title": "برنامه هفتگی",
-          "href": "/dashboard/parents/children"
-        },
-        {
-          "id": "quick-demo-2",
-          "title": "پیام‌ها",
-          "href": "/dashboard/parents/messages"
-        }
-      ],
-      "created_at": "2026-07-28T00:00:00.000Z",
-      "updated_at": "2026-07-28T00:00:00.000Z"
-    }
-  ],
-  "parent_registrations": [
-    {
-      "id": "parent-registration-demo-1",
-      "parent_id": "account-parent",
-      "child_id": "student-demo-1",
-      "academic_year": {
-        "id": "year-1405-1406",
-        "title": "۱۴۰۵–۱۴۰۶"
-      },
-      "status": "در حال تکمیل آزمایشی",
-      "progress_percent": 50,
-      "next_action_url": "/dashboard/parents/registration",
-      "steps": [
-        {
-          "id": "step-demo-1",
-          "title": "ثبت درخواست آزمایشی",
-          "status": "complete"
-        },
-        {
-          "id": "step-demo-2",
-          "title": "بررسی مدارک آزمایشی",
-          "status": "current"
-        },
-        {
-          "id": "step-demo-3",
-          "title": "تأیید نهایی آزمایشی",
-          "status": "pending"
-        }
-      ]
-    }
-  ]
+  "parent_children": [],
+  "parent_registrations": []
 }

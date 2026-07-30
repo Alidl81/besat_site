@@ -128,7 +128,7 @@ export function rolesForDashboardSegment(segment: string): BesatRole[] {
     case "media":
       return ["unit_media", "unit_manager", "general_manager"];
     case "parents":
-      return ["parent", "general_manager"];
+      return ["parent"];
     default:
       return [];
   }

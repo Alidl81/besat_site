@@ -1,10 +1,11 @@
-from html import escape
 from datetime import datetime
+from html import escape
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -32,13 +33,18 @@ class FrontendContentSerializer(serializers.Serializer):
     slug = serializers.CharField()
     summary = serializers.CharField(allow_null=True, required=False)
     body_html = serializers.CharField(allow_blank=True)
-    cover_image = serializers.CharField(allow_null=True, required=False)
+    body_json = serializers.JSONField(allow_null=True, required=False)
+    cover_image_url = serializers.CharField(allow_null=True, required=False)
     scope = serializers.ChoiceField(choices=("school", "unit"))
     unit_id = serializers.IntegerField(allow_null=True)
-    category = serializers.CharField(allow_null=True, required=False)
+    unit = serializers.DictField(allow_null=True, required=False)
+    category = serializers.DictField(allow_null=True, required=False)
     status = serializers.CharField()
+    author = serializers.DictField(allow_null=True, required=False)
     author_role = serializers.CharField(allow_null=True, required=False)
+    scheduled_at = serializers.DateField(allow_null=True, required=False)
     published_at = serializers.DateField(allow_null=True)
+    is_featured = serializers.BooleanField(required=False)
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
 
@@ -101,6 +107,160 @@ def _html_to_editorjs(body_html):
         ],
     }
 
+def _inline_tiptap_text(node):
+    if not isinstance(node, dict):
+        return ""
+    if node.get("type") == "text":
+        text = escape(str(node.get("text") or ""))
+        for mark in node.get("marks") or []:
+            mark_type = mark.get("type") if isinstance(mark, dict) else None
+            if mark_type == "bold":
+                text = f"<strong>{text}</strong>"
+            elif mark_type == "italic":
+                text = f"<em>{text}</em>"
+            elif mark_type == "underline":
+                text = f"<u>{text}</u>"
+            elif mark_type == "strike":
+                text = f"<s>{text}</s>"
+            elif mark_type == "link":
+                href = escape(str((mark.get("attrs") or {}).get("href") or ""), quote=True)
+                text = f'<a href="{href}">{text}</a>'
+        return text
+    return "".join(_inline_tiptap_text(child) for child in node.get("content") or [])
+
+
+def _tiptap_list_items(node):
+    items = []
+    for item in node.get("content") or []:
+        if not isinstance(item, dict) or item.get("type") != "listItem":
+            continue
+        items.append(_inline_tiptap_text(item))
+    return items
+
+
+def _tiptap_to_editorjs(value):
+    if not isinstance(value, dict) or value.get("type") != "doc":
+        return _html_to_editorjs("")
+    blocks = []
+    for node in value.get("content") or []:
+        if not isinstance(node, dict):
+            continue
+        node_type = node.get("type")
+        if node_type == "paragraph":
+            blocks.append({"type": "paragraph", "data": {"text": _inline_tiptap_text(node)}})
+        elif node_type == "heading":
+            blocks.append(
+                {
+                    "type": "header",
+                    "data": {
+                        "text": _inline_tiptap_text(node),
+                        "level": (node.get("attrs") or {}).get("level", 2),
+                    },
+                }
+            )
+        elif node_type in ("bulletList", "orderedList"):
+            blocks.append(
+                {
+                    "type": "list",
+                    "data": {
+                        "style": "ordered" if node_type == "orderedList" else "unordered",
+                        "items": _tiptap_list_items(node),
+                    },
+                }
+            )
+        elif node_type == "blockquote":
+            blocks.append(
+                {
+                    "type": "quote",
+                    "data": {"text": _inline_tiptap_text(node), "caption": ""},
+                }
+            )
+        elif node_type == "horizontalRule":
+            blocks.append({"type": "delimiter", "data": {}})
+        elif node_type == "image":
+            attrs = node.get("attrs") or {}
+            if attrs.get("src"):
+                blocks.append(
+                    {
+                        "type": "image",
+                        "data": {
+                            "file": {"url": attrs["src"]},
+                            "caption": attrs.get("alt") or attrs.get("title") or "",
+                        },
+                    }
+                )
+    return {"time": None, "version": "tiptap-compat-1", "blocks": blocks}
+
+
+def _editorjs_inline_node(value):
+    return [{"type": "text", "text": str(value or "")}] if value else []
+
+
+def _editorjs_to_tiptap(value):
+    content = []
+    for block in (value or {}).get("blocks") or []:
+        if not isinstance(block, dict):
+            continue
+        block_type = block.get("type")
+        data = block.get("data") or {}
+        if block_type == "paragraph":
+            content.append({"type": "paragraph", "content": _editorjs_inline_node(data.get("text"))})
+        elif block_type == "header":
+            content.append(
+                {
+                    "type": "heading",
+                    "attrs": {"level": data.get("level", 2)},
+                    "content": _editorjs_inline_node(data.get("text")),
+                }
+            )
+        elif block_type == "list":
+            list_type = "orderedList" if data.get("style") == "ordered" else "bulletList"
+            content.append(
+                {
+                    "type": list_type,
+                    "content": [
+                        {
+                            "type": "listItem",
+                            "content": [
+                                {
+                                    "type": "paragraph",
+                                    "content": _editorjs_inline_node(item),
+                                }
+                            ],
+                        }
+                        for item in data.get("items") or []
+                    ],
+                }
+            )
+        elif block_type in ("quote", "qoute"):
+            content.append(
+                {
+                    "type": "blockquote",
+                    "content": [
+                        {
+                            "type": "paragraph",
+                            "content": _editorjs_inline_node(data.get("text")),
+                        }
+                    ],
+                }
+            )
+        elif block_type == "delimiter":
+            content.append({"type": "horizontalRule"})
+        elif block_type == "image":
+            file_data = data.get("file") or {}
+            if isinstance(file_data, dict) and file_data.get("url"):
+                content.append(
+                    {
+                        "type": "image",
+                        "attrs": {
+                            "src": file_data["url"],
+                            "alt": data.get("caption") or "",
+                            "title": data.get("caption") or "",
+                        },
+                    }
+                )
+    return {"type": "doc", "content": content}
+
 
 def _content_id(kind, object_id):
     return f"{kind}-{object_id}"
@@ -127,6 +287,14 @@ def _author_role(item):
 
 
 def serialize_content_item(request, kind, item):
+    today = timezone.localdate()
+    serialized_status = (
+        "scheduled"
+        if item.status == item.Status.PUBLISHED
+        and item.published_at
+        and item.published_at > today
+        else item.status
+    )
     return {
         "id": _content_id(kind, item.id),
         "kind": kind,
@@ -134,15 +302,39 @@ def serialize_content_item(request, kind, item):
         "slug": item.slug,
         "summary": item.summary,
         "body_html": _editorjs_to_html(item.content_json),
-        "cover_image": _absolute_file_or_fallback(
+        "body_json": _editorjs_to_tiptap(item.content_json),
+        "cover_image_url": _absolute_file_or_fallback(
             request,
             item.cover_image,
             item.cover_image_url,
         ),
         "scope": item.scope,
         "unit_id": item.unit_id,
-        "category": _category_title(item.category),
-        "status": item.status,
+        "category": (
+            {"id": item.category_id, "title": item.category.title}
+            if item.category_id
+            else None
+        ),
+        "unit": (
+            {"id": item.unit_id, "title": item.unit.title}
+            if item.unit_id
+            else None
+        ),
+        "status": serialized_status,
+        "author": (
+            {
+                "id": item.created_by_id,
+                "full_name": getattr(item.created_by.profile, "full_name", None)
+                or item.created_by.get_username(),
+                "avatar_url": None,
+            }
+            if item.created_by_id
+            else None
+        ),
+        "scheduled_at": (
+            item.published_at if serialized_status == "scheduled" else None
+        ),
+        "is_featured": item.is_featured,
         "author_role": _author_role(item),
         "published_at": item.published_at,
         "created_at": item.created_at,
@@ -245,6 +437,100 @@ class CMSContentViewSet(GenericViewSet):
 
         return Response(serialize_content_item(request, kind, item))
 
+    def _workflow_item(self, request, pk, review=False):
+        kind, object_id = _parse_content_id(pk)
+        model, _ = CONTENT_MODELS[kind]
+        item = model.objects.filter(pk=object_id).first()
+        if item is None:
+            raise NotFound("محتوا یافت نشد.")
+
+        if review and not is_general_manager(request.user):
+            profile = get_or_create_user_profile(request.user)
+            if profile.role != UserProfile.Role.UNIT_MANAGER:
+                raise PermissionDenied("اجازه بررسی این محتوا را ندارید.")
+            self._ensure_write_access(request.user, item.scope, item.unit_id)
+        elif not review:
+            self._ensure_write_access(request.user, item.scope, item.unit_id)
+
+        return kind, item
+
+    def _workflow_response(self, request, kind, item):
+        try:
+            item.save()
+        except DjangoValidationError as exc:
+            self._raise_validation(exc)
+        return Response(serialize_content_item(request, kind, item))
+
+    @action(detail=True, methods=("post",), url_path="submit-review")
+    def submit_review(self, request, pk=None):
+        kind, item = self._workflow_item(request, pk)
+        if item.status not in (item.Status.DRAFT, item.Status.REJECTED):
+            raise ValidationError(
+                {"status": "فقط پیش‌نویس یا محتوای ردشده قابل ارسال برای بررسی است."}
+            )
+        item.status = item.Status.WAITING_REVIEW
+        item.updated_by = request.user
+        return self._workflow_response(request, kind, item)
+
+    @action(detail=True, methods=("post",), url_path="approve")
+    def approve(self, request, pk=None):
+        kind, item = self._workflow_item(request, pk, review=True)
+        if item.status != item.Status.WAITING_REVIEW:
+            raise ValidationError(
+                {"status": "فقط محتوای در انتظار بررسی قابل تأیید است."}
+            )
+        item.status = item.Status.APPROVED
+        item.updated_by = request.user
+        return self._workflow_response(request, kind, item)
+
+    @action(detail=True, methods=("post",), url_path="reject")
+    def reject(self, request, pk=None):
+        kind, item = self._workflow_item(request, pk, review=True)
+        if item.status not in (item.Status.WAITING_REVIEW, item.Status.APPROVED):
+            raise ValidationError(
+                {"status": "فقط محتوای در حال بررسی یا تأییدشده قابل رد است."}
+            )
+        item.status = item.Status.REJECTED
+        item.updated_by = request.user
+        return self._workflow_response(request, kind, item)
+
+    @action(detail=True, methods=("post",), url_path="publish")
+    def publish(self, request, pk=None):
+        if not is_general_manager(request.user):
+            raise PermissionDenied("فقط مدیر کل اجازه انتشار محتوا را دارد.")
+        kind, item = self._workflow_item(request, pk)
+        if item.status != item.Status.APPROVED:
+            raise ValidationError({"status": "فقط محتوای تأییدشده قابل انتشار است."})
+        item.status = item.Status.PUBLISHED
+        item.published_at = timezone.localdate()
+        item.published_by = request.user
+        item.updated_by = request.user
+        return self._workflow_response(request, kind, item)
+
+    @action(detail=True, methods=("post",), url_path="schedule")
+    def schedule(self, request, pk=None):
+        if not is_general_manager(request.user):
+            raise PermissionDenied("فقط مدیر کل اجازه زمان‌بندی محتوا را دارد.")
+        kind, item = self._workflow_item(request, pk)
+        if item.status != item.Status.APPROVED:
+            raise ValidationError({"status": "فقط محتوای تأییدشده قابل زمان‌بندی است."})
+        scheduled_at = request.data.get("scheduled_at")
+        try:
+            scheduled_date = datetime.fromisoformat(
+                str(scheduled_at).replace("Z", "+00:00")
+            ).date()
+        except (TypeError, ValueError):
+            raise ValidationError({"scheduled_at": "تاریخ زمان‌بندی معتبر نیست."})
+        if scheduled_date <= timezone.localdate():
+            raise ValidationError(
+                {"scheduled_at": "تاریخ زمان‌بندی باید بعد از امروز باشد."}
+            )
+        item.status = item.Status.PUBLISHED
+        item.published_at = scheduled_date
+        item.published_by = request.user
+        item.updated_by = request.user
+        return self._workflow_response(request, kind, item)
+
     def _visible_queryset(self, user, model):
         queryset = model.objects.all()
         today = timezone.localdate()
@@ -309,15 +595,50 @@ class CMSContentViewSet(GenericViewSet):
         self._ensure_write_access(request.user, scope, unit_id)
 
         status_value = data.get("status", current("status", model.Status.DRAFT))
+        if status_value == "scheduled":
+            status_value = model.Status.PUBLISHED
         valid_statuses = {choice for choice, _ in model.Status.choices}
         if status_value not in valid_statuses:
             raise ValidationError({"status": "وضعیت محتوا معتبر نیست."})
-        if not is_general_manager(request.user) and status_value in (
+        if "status" in data and not is_general_manager(request.user) and status_value in (
             model.Status.APPROVED,
             model.Status.PUBLISHED,
             model.Status.ARCHIVED,
         ):
             status_value = model.Status.WAITING_REVIEW
+
+        previous_status = current("status", None)
+        if instance is None:
+            if status_value not in (model.Status.DRAFT, model.Status.WAITING_REVIEW):
+                raise ValidationError(
+                    {"status": "محتوای جدید باید ابتدا به‌صورت پیش‌نویس یا در انتظار بررسی ثبت شود."}
+                )
+        elif "status" in data and status_value != previous_status:
+            allowed_transitions = {
+                model.Status.DRAFT: {model.Status.WAITING_REVIEW},
+                model.Status.WAITING_REVIEW: {
+                    model.Status.APPROVED,
+                    model.Status.REJECTED,
+                },
+                model.Status.APPROVED: {
+                    model.Status.PUBLISHED,
+                    model.Status.REJECTED,
+                },
+                model.Status.REJECTED: {
+                    model.Status.DRAFT,
+                    model.Status.WAITING_REVIEW,
+                },
+                model.Status.PUBLISHED: {model.Status.ARCHIVED},
+                model.Status.ARCHIVED: {model.Status.DRAFT},
+            }
+            if status_value not in allowed_transitions.get(previous_status, set()):
+                raise ValidationError(
+                    {
+                        "status": (
+                            f"تغییر وضعیت از {previous_status} به {status_value} مجاز نیست."
+                        )
+                    }
+                )
 
         published_at = data.get("published_at", current("published_at"))
         if isinstance(published_at, str):
@@ -350,15 +671,24 @@ class CMSContentViewSet(GenericViewSet):
 
         body_html = data.get("body_html")
         content_json = (
-            _html_to_editorjs(body_html)
+            _tiptap_to_editorjs(data.get("body_json"))
+            if "body_json" in data and data.get("body_json") is not None
+            else _html_to_editorjs(body_html)
             if "body_html" in data
             else current("content_json", _html_to_editorjs(""))
         )
 
-        cover_value = data.get("cover_image", None)
+        cover_key = (
+            "cover_image_url"
+            if "cover_image_url" in data
+            else "cover_image"
+            if "cover_image" in data
+            else None
+        )
+        cover_value = data.get(cover_key) if cover_key else None
         cover_image_url = current("cover_image_url")
         cover_image = current("cover_image")
-        if "cover_image" in data:
+        if cover_key:
             if isinstance(cover_value, str):
                 cover_image_url = cover_value.strip() or None
                 cover_image = None
@@ -378,6 +708,7 @@ class CMSContentViewSet(GenericViewSet):
             "published_at": published_at,
             "cover_image": cover_image,
             "cover_image_url": cover_image_url,
+            "is_featured": data.get("is_featured", current("is_featured", False)),
             "is_active": True,
         }
         return values

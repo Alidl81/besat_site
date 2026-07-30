@@ -2,8 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { BesatLogoMark } from "@/components/shared/besat-logo";
+import { getPublicSiteSettings } from "@/services/public-content-service";
+import type { PublicSiteSettings } from "@/types/public-content";
 
 type HeaderItem = { label: string; href: string; description?: string };
 type DropdownProps = {
@@ -18,7 +26,8 @@ type DropdownProps = {
 const mainItems: HeaderItem[] = [
   { label: "صفحه نخست", href: "/" },
   { label: "معرفی بعثت", href: "/about" },
-  { label: "اخبار و افتخارات", href: "/news" },
+  { label: "اخبار", href: "/news" },
+  { label: "افتخارات", href: "/achievements" },
   { label: "گالری", href: "/gallery" },
   { label: "تماس با ما", href: "/contact" },
 ];
@@ -28,17 +37,8 @@ const educationItems: HeaderItem[] = [
   { label: "دپارتمان‌های تخصصی", href: "/departments", description: "برنامه‌های آموزشی، مهارتی و تربیتی" },
 ];
 
-const besatSites: HeaderItem[] = [
-  { label: "روابط عمومی مدارس بعثت", href: "https://besat-r.com/", description: "پایگاه رسمی اطلاع‌رسانی مجموعه" },
-  { label: "پیش‌ثبت‌نام مدارس بعثت", href: "https://besat-r.com/register.axd", description: "معرفی واحدها و ثبت درخواست" },
-  { label: "دبیرستان بعثت", href: "https://www.besat-hs.ir/", description: "وب‌سایت رسمی دبیرستان بعثت" },
-  { label: "ثبت‌نام آزمون دبیرستان", href: "https://register.besat-hs.ir/", description: "سامانه آزمون ورودی دبیرستان" },
-];
-
-
 const menus = [
   { key: "branches", label: "شعب", items: educationItems },
-  { key: "besat-family", label: "خانواده بعثت", items: besatSites },
 ];
 
 function external(href: string) {
@@ -154,7 +154,17 @@ function Logo({ compact = false }: { compact?: boolean }) {
   </Link>;
 }
 
-function MobileAccordion({ label, items, pathname }: { label: string; items: HeaderItem[]; pathname: string }) {
+function MobileAccordion({
+  label,
+  items,
+  pathname,
+  onNavigate,
+}: {
+  label: string;
+  items: HeaderItem[];
+  pathname: string;
+  onNavigate: () => void;
+}) {
   const [open, setOpen] = useState(items.some((item) => activePath(pathname, item.href)));
   return <div className={`overflow-hidden rounded-xl border transition-all duration-300 ${open ? "border-white/15 bg-white/[.07]" : "border-transparent bg-white/[.035]"}`}>
     <button type="button" onClick={() => setOpen((value) => !value)} className="flex w-full items-center justify-between px-4 py-3.5 text-right text-[15px] font-black">
@@ -164,7 +174,7 @@ function MobileAccordion({ label, items, pathname }: { label: string; items: Hea
       <div className="min-h-0 overflow-hidden"><div className="grid gap-1 px-2 pb-2">
         {items.map((item) => {
           const cls = "rounded-lg px-3 py-2.5 text-[13px] font-bold text-white/80 transition hover:bg-white/10 hover:text-white";
-          return external(item.href) ? <a key={item.href} href={item.href} target="_blank" rel="noreferrer" className={cls}>{item.label}</a> : <Link key={item.href} href={item.href} className={cls}>{item.label}</Link>;
+          return external(item.href) ? <a key={item.href} href={item.href} target="_blank" rel="noreferrer" className={cls} onClick={onNavigate}>{item.label}</a> : <Link key={item.href} href={item.href} className={cls} onClick={onNavigate}>{item.label}</Link>;
         })}
       </div></div>
     </div>
@@ -176,16 +186,91 @@ export function SiteHeader() {
   const isHome = pathname === "/";
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [settings, setSettings] = useState<PublicSiteSettings | null>(null);
+  const mobileTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileDrawerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
+    if (!mobileOpen) return () => { document.body.style.overflow = ""; };
+
+    const drawer = mobileDrawerRef.current;
+    const focusable = drawer?.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    const trigger = mobileTriggerRef.current;
+    focusable?.[0]?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMobileOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKeyDown);
+      trigger?.focus();
+    };
   }, [mobileOpen]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setMobileOpen(false);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [pathname]);
+
+  useEffect(() => {
+    let active = true;
+    getPublicSiteSettings()
+      .then((value) => {
+        if (active) setSettings(value);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return <>
     <header dir="rtl" className={`besat-site-header z-50 w-full text-white ${isHome ? "absolute inset-x-0 top-0 bg-gradient-to-b from-[#06172c]/95 via-[#06172c]/55 to-transparent" : "sticky top-0 border-b border-white/10 bg-[#081d35]/95 shadow-lg backdrop-blur-xl"}`}>
       <div className="mx-auto hidden w-full max-w-[1840px] px-6 xl:block 2xl:px-10">
-
+        <div className="flex h-8 items-center justify-between border-b border-white/12 px-1 text-[11px] font-bold text-white/78 2xl:text-[12px]">
+          <span className="whitespace-nowrap text-white/82">مجتمع آموزشی، تربیتی و فرهنگی بعثت</span>
+          <div className="flex items-center gap-2.5" dir="ltr">
+            {settings?.phone_primary ? (
+              <a href={`tel:${settings.phone_primary}`} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition hover:bg-white/10 hover:text-[#f2c77c]">
+                <PhoneIcon />
+                <span>{settings.phone_primary}</span>
+              </a>
+            ) : null}
+            {settings?.email ? (
+              <a href={`mailto:${settings.email}`} className="hidden items-center gap-1.5 rounded-full px-2.5 py-1 transition hover:bg-white/10 hover:text-[#f2c77c] 2xl:inline-flex">
+                <MailIcon />
+                <span>{settings.email}</span>
+              </a>
+            ) : null}
+            {settings?.address ? (
+              <span dir="rtl" className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-white/82">
+                <PinIcon />
+                {settings.address}
+              </span>
+            ) : null}
+          </div>
+        </div>
         <div className="grid h-[72px] grid-cols-[minmax(180px,1fr)_auto_minmax(180px,1fr)] items-center gap-3 2xl:grid-cols-[minmax(235px,1fr)_auto_minmax(235px,1fr)] 2xl:gap-5">
           <div className="flex min-w-0 justify-start"><Logo /></div>
           <nav className="flex min-w-0 items-center justify-center gap-0.5 rounded-xl border border-white/16 bg-white/[.075] px-2.5 py-1.5 shadow-[0_10px_35px_rgba(2,12,27,.2)] backdrop-blur-xl 2xl:gap-1 2xl:px-3">
@@ -200,18 +285,18 @@ export function SiteHeader() {
       </div>
 
       <div className="mx-auto flex h-[62px] max-w-7xl items-center justify-between px-4 sm:px-6 xl:hidden">
-        <button type="button" onClick={() => setMobileOpen((value) => !value)} className="flex size-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 transition hover:bg-white/20" aria-label={mobileOpen ? "بستن منو" : "باز کردن منو"}><MenuIcon open={mobileOpen} /></button>
+        <button ref={mobileTriggerRef} type="button" onClick={() => setMobileOpen((value) => !value)} className="flex size-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 transition hover:bg-white/20" aria-expanded={mobileOpen} aria-controls="site-mobile-menu" aria-label={mobileOpen ? "بستن منو" : "باز کردن منو"}><MenuIcon open={mobileOpen} /></button>
         <Logo compact />
       </div>
     </header>
 
-    <div className={`fixed inset-0 z-[60] xl:hidden ${mobileOpen ? "pointer-events-auto" : "pointer-events-none"}`} aria-hidden={!mobileOpen}>
-      <button type="button" onClick={() => setMobileOpen(false)} aria-label="بستن منو" className={`absolute inset-0 bg-[#04101f]/75 backdrop-blur-sm transition-opacity duration-500 ${mobileOpen ? "opacity-100" : "opacity-0"}`} />
-      <aside dir="rtl" className={`absolute right-0 top-0 flex h-dvh w-[min(90vw,25rem)] flex-col bg-[#0a2039] p-5 text-white shadow-2xl transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] ${mobileOpen ? "translate-x-0" : "translate-x-full"}`}>
+    <div inert={mobileOpen ? undefined : true} className={`fixed inset-0 z-[60] xl:hidden ${mobileOpen ? "pointer-events-auto" : "pointer-events-none"}`} aria-hidden={!mobileOpen}>
+      <button type="button" tabIndex={-1} onClick={() => setMobileOpen(false)} aria-label="بستن منو" className={`absolute inset-0 bg-[#04101f]/75 backdrop-blur-sm transition-opacity duration-[250ms] motion-reduce:duration-0 motion-reduce:transition-none ${mobileOpen ? "opacity-100" : "opacity-0"}`} />
+      <aside ref={mobileDrawerRef} id="site-mobile-menu" role="dialog" aria-modal="true" aria-label="منوی اصلی" dir="rtl" className={`absolute right-0 top-0 flex h-dvh w-[min(90vw,25rem)] flex-col bg-[#0a2039] p-5 text-white shadow-2xl transition-transform duration-[250ms] ease-out motion-reduce:duration-0 motion-reduce:transition-none ${mobileOpen ? "translate-x-0" : "translate-x-full"}`}>
         <div className="flex items-center justify-between border-b border-white/10 pb-5"><Logo compact /><button onClick={() => setMobileOpen(false)} className="flex size-10 items-center justify-center rounded-xl bg-white/10" aria-label="بستن"><MenuIcon open /></button></div>
         <nav className="mt-5 grid gap-2 overflow-y-auto pb-4">
           <Link href="/" onClick={() => setMobileOpen(false)} className="rounded-xl bg-white/[.035] px-4 py-3 text-sm font-black">صفحه نخست</Link>
-          {menus.map((menu) => <MobileAccordion key={menu.key} label={menu.label} items={menu.items} pathname={pathname} />)}
+          {menus.map((menu) => <MobileAccordion key={menu.key} label={menu.label} items={menu.items} pathname={pathname} onNavigate={() => setMobileOpen(false)} />)}
           {mainItems.slice(1).map((item) => <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className="rounded-xl bg-white/[.035] px-4 py-3 text-sm font-black text-white/82 transition hover:bg-white/10">{item.label}</Link>)}
         </nav>
         <div className="mt-auto border-t border-white/10 pt-4"><Link href="/registration" onClick={() => setMobileOpen(false)} className="block rounded-xl bg-[#e2ae5b] px-4 py-3 text-center text-sm font-black text-[#0b213c]">پیش‌ثبت‌نام آنلاین</Link></div>

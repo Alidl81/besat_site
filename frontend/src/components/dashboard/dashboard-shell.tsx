@@ -4,6 +4,7 @@ import { BesatLogoMark } from "@/components/shared/besat-logo";
 import { DashboardOverview } from "@/components/dashboard/panel-overviews";
 import { DashboardSectionContent } from "@/components/dashboard/dashboard-section-content";
 import { DashboardTopbar } from "@/components/dashboard/dashboard-topbar";
+import { DashboardMobileMenu } from "@/components/dashboard/dashboard-mobile-menu";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
 import type { DashboardPageData, DashboardPageKey } from "@/components/dashboard/dashboard-data";
 
@@ -34,7 +35,7 @@ function SidebarMenu({
       {data.menu.map((item) => {
         const isActive = item.key === activeKey;
         return (
-          <div key={item.key} className={item.dividerBefore ? "border-t border-white/16 pt-3" : ""}>
+          <div key={item.key} className={`dashboard-menu-item ${item.dividerBefore ? "has-divider border-t border-white/16 pt-3" : ""}`}>
             <Link
               href={item.href}
               aria-current={isActive ? "page" : undefined}
@@ -56,14 +57,14 @@ function Sidebar({ data, activeKey }: { data: DashboardPageData; activeKey: stri
   return (
     <aside className="hidden xl:block">
       <div className="besat-dashboard-sidebar sticky top-0 flex h-dvh min-h-0 flex-col overflow-hidden text-white">
-        <Link href="/" className="mx-4 mb-3 mt-5 flex shrink-0 flex-col items-center border-b border-white/18 pb-5 text-center">
+        <Link href="/" className="besat-dashboard-brand mx-4 mb-3 mt-5 flex shrink-0 flex-col items-center border-b border-white/18 pb-5 text-center">
           <BesatLogoMark size="md" tone="light" className="!h-20 !w-20" />
           <span className="mt-2 text-base font-black text-white">مجتمع آموزشی بعثت</span>
         </Link>
 
         <SidebarMenu data={data} activeKey={activeKey} />
 
-        <div className="shrink-0 border-t border-white/16 p-3">
+        <div className="besat-dashboard-sidebar-footer shrink-0 border-t border-white/16 p-3">
           <Link href="/" className="dashboard-sidebar-link">
             <PanelIcon name="globe" className="size-[1.35rem]" />
             <span>بازگشت به سایت</span>
@@ -74,26 +75,6 @@ function Sidebar({ data, activeKey }: { data: DashboardPageData; activeKey: stri
         </div>
       </div>
     </aside>
-  );
-}
-
-function MobileMenuDropdown({ data, activeKey }: { data: DashboardPageData; activeKey: string }) {
-  return (
-    <details className="group relative xl:hidden">
-      <summary className="panel-icon-button list-none cursor-pointer" aria-label="باز کردن منو">
-        <PanelIcon name="dashboard" />
-      </summary>
-      <div className="absolute right-0 top-14 z-50 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-center gap-3 border-b border-slate-100 bg-[#082f57] p-4 text-white">
-          <BesatLogoMark size="sm" tone="light" className="!h-12 !w-12" />
-          <div>
-            <p className="text-sm font-black">مجتمع آموزشی بعثت</p>
-            <p className="mt-1 text-[11px] font-bold text-white/65">{data.roleTitle}</p>
-          </div>
-        </div>
-        <SidebarMenu data={data} activeKey={activeKey} mobile />
-      </div>
-    </details>
   );
 }
 
@@ -114,7 +95,7 @@ export function DashboardShell({ data, activeKey = "overview", panel }: Dashboar
           <DashboardTopbar
             panel={panel}
             profileHref={profileItem?.href ?? data.currentPath}
-            mobileMenu={<MobileMenuDropdown data={data} activeKey={activeItem.key} />}
+            mobileMenu={<DashboardMobileMenu data={data} activeKey={activeItem.key} />}
           />
 
           <div id="dashboard-content" tabIndex={-1} className="mx-auto w-full max-w-[112rem] px-4 py-6 sm:px-6 lg:px-7 lg:py-7">

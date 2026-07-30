@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { EditorIcon, type EditorIconName } from "@/components/editor/editor-icons";
 import { galleryRepository } from "@/lib/data/repositories";
-import type { GalleryItemRecord } from "@/lib/data/domain-types";
 
 type ContentBlockInserterProps = {
   value: string;
   onChange: (nextValue: string) => void;
   unitId?: string | null;
+  variant?: "default" | "sidebar";
 };
 
 type BlockType = "gallery" | "media" | "quote" | "highlight";
@@ -176,6 +177,7 @@ export function ContentBlockInserter({
   value,
   onChange,
   unitId = null,
+  variant = "default",
 }: ContentBlockInserterProps) {
   const [open, setOpen] = useState(false);
   const [activeType, setActiveType] = useState<BlockType>("gallery");
@@ -341,11 +343,11 @@ export function ContentBlockInserter({
     }
   }
 
-  const blockTypes: { key: BlockType; title: string; description: string }[] = [
-    { key: "gallery", title: "گالری", description: "چند عکس یا ویدیو داخل متن" },
-    { key: "media", title: "مدیای تکی", description: "یک عکس یا ویدیو با توضیح" },
-    { key: "quote", title: "نقل‌قول", description: "متن شاخص یا نقل‌قول" },
-    { key: "highlight", title: "متن برجسته", description: "باکس تأکیدی داخل متن" },
+  const blockTypes: { key: BlockType; title: string; description: string; icon: EditorIconName }[] = [
+    { key: "gallery", title: "گالری", description: "چند عکس یا ویدیو داخل متن", icon: "gallery" },
+    { key: "media", title: "مدیای تکی", description: "یک عکس یا ویدیو با توضیح", icon: "image" },
+    { key: "quote", title: "نقل‌قول", description: "متن شاخص یا نقل‌قول", icon: "quote" },
+    { key: "highlight", title: "متن برجسته", description: "باکس تأکیدی داخل متن", icon: "heading" },
   ];
 
   const insertDisabled =
@@ -353,25 +355,28 @@ export function ContentBlockInserter({
 
   return (
     <>
-      <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 p-4 text-right">
+      <div className={variant === "sidebar" ? "besat-editor-media-blocks" : "rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 p-4 text-right"}>
         <div>
-          <p className="text-sm font-black text-[#062452]">بلوک‌های محتوا</p>
-          <p className="mt-1 text-xs font-bold leading-6 text-slate-500">
+          <p className="text-sm font-black text-[#062452]">{variant === "sidebar" ? "بلوک‌های رسانه‌ای" : "بلوک‌های محتوا"}</p>
+          <p className={variant === "sidebar" ? "mt-1 text-[11px] font-bold leading-5 text-slate-500" : "mt-1 text-xs font-bold leading-6 text-slate-500"}>
             می‌توانید به متن، بلوک‌های گالری، مدیا، نقل‌قول یا متن برجسته اضافه کنید.
           </p>
         </div>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={variant === "sidebar" ? "mt-3 grid gap-2" : "mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4"}>
           {blockTypes.map((type) => (
             <button
               key={type.key}
               type="button"
               onClick={() => openDialog(type.key)}
-              className="rounded-2xl border border-slate-200 bg-white p-4 text-right transition hover:border-blue-300 hover:bg-blue-50"
+              className={variant === "sidebar" ? "besat-editor-media-block-button" : "rounded-2xl border border-slate-200 bg-white p-4 text-right transition hover:border-blue-300 hover:bg-blue-50"}
             >
-              <span className="block text-sm font-black text-[#062452]">{type.title}</span>
-              <span className="mt-1 block text-xs font-bold leading-6 text-slate-500">
-                {type.description}
+              <EditorIcon name={type.icon} className="size-4 shrink-0" />
+              <span>
+                <span className="block text-sm font-black text-[#062452]">{type.title}</span>
+                <span className={variant === "sidebar" ? "mt-0.5 block text-[10px] font-bold leading-5 text-slate-500" : "mt-1 block text-xs font-bold leading-6 text-slate-500"}>
+                  {type.description}
+                </span>
               </span>
             </button>
           ))}
@@ -404,7 +409,7 @@ export function ContentBlockInserter({
                 aria-label="بستن"
                 className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
               >
-                ✕
+                <EditorIcon name="close" className="size-5" />
               </button>
             </div>
 
@@ -525,7 +530,7 @@ export function ContentBlockInserter({
                                       : "bg-slate-100 text-slate-400"
                                   }`}
                                 >
-                                  ✓
+                                  <EditorIcon name="check" className="size-4" />
                                 </span>
                               </div>
                             </button>

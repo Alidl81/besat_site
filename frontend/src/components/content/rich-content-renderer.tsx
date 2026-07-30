@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { sanitizeCmsHtml } from "@/lib/content/sanitize-cms-html";
 
 type GalleryItem = {
   src: string;
@@ -379,7 +380,7 @@ function GalleryBlock({
 }
 
 export function RichContentRenderer({ html }: { html: string }) {
-  const parts = useMemo(() => parseContent(html), [html]);
+  const parts = useMemo(() => parseContent(sanitizeCmsHtml(html)), [html]);
 
   return (
     <div className="besat-rich-content mt-8 max-w-none text-right text-base font-medium leading-9 text-slate-700">

@@ -82,12 +82,16 @@ export function MediaPickerDialog({
   useEffect(() => {
     if (!open) return;
 
-    setSelectedUrl(value);
-    setFileName("");
-    setErrorText("");
-    setIsDragging(false);
+    let cancelled = false;
+    const frame = window.requestAnimationFrame(() => {
+      setSelectedUrl(value);
+      setFileName("");
+      setErrorText("");
+      setIsDragging(false);
+    });
 
     galleryRepository.list().then((items) => {
+      if (cancelled) return;
       const visibleItems = items.filter((item) => {
         if (!unitId) return true;
         return item.unit_id === unitId || item.scope === "school";
@@ -95,6 +99,10 @@ export function MediaPickerDialog({
 
       setLibraryItems(visibleItems);
     });
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+    };
   }, [open, unitId, value]);
 
   useEffect(() => {

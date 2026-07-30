@@ -888,6 +888,53 @@ button.besat-accent-button * {
   box-shadow: 0 8px 20px rgba(41, 24, 4, 0.2);
 }
 
+@media (min-width: 1280px) and (max-height: 900px) {
+  .besat-dashboard-brand {
+    margin-top: 0.65rem;
+    margin-bottom: 0.35rem;
+    padding-bottom: 0.65rem;
+  }
+
+  .besat-dashboard-brand > :first-child {
+    width: 3.75rem !important;
+    height: 3.75rem !important;
+  }
+
+  .besat-dashboard-brand > span:last-child {
+    margin-top: 0.25rem;
+    font-size: 0.78rem;
+  }
+
+  .besat-panel-menu-scroll > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.125rem;
+  }
+
+  .besat-panel-menu-scroll .dashboard-menu-item.has-divider {
+    padding-top: 0.35rem;
+  }
+
+  .besat-panel-menu-scroll .dashboard-sidebar-link {
+    min-height: 2.25rem;
+    gap: 0.65rem;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.76rem;
+  }
+
+  .besat-panel-menu-scroll .dashboard-sidebar-link svg {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  .besat-dashboard-sidebar-footer {
+    padding: 0.35rem 0.75rem;
+  }
+
+  .besat-dashboard-sidebar-footer .dashboard-sidebar-link {
+    min-height: 2.2rem;
+    padding-block: 0.3rem;
+  }
+}
+
 .panel-card {
   border: 1px solid var(--panel-border);
   border-radius: 0.8rem;
@@ -1229,3 +1276,1179 @@ button.besat-accent-button * {
   }
 }
 /* BESAT_UNIFIED_DASHBOARD_END */
+
+/* BESAT_EDITORIAL_STUDIO_START */
+.besat-editor-studio {
+  --editor-navy: #082f57;
+  --editor-ink: #173652;
+  --editor-amber: #d98a12;
+  --editor-border: #e1e6ea;
+  --editor-muted: #687789;
+  min-width: 0;
+  color: var(--editor-ink);
+}
+
+.besat-editor-studio-header {
+  display: flex;
+  min-height: 4.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--editor-border);
+  border-radius: 0.7rem;
+  background: #fff;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 2px 10px rgba(15, 40, 63, 0.035);
+}
+
+.besat-editor-studio-title,
+.besat-editor-header-actions,
+.besat-editor-actionbar > div,
+.besat-editor-document-label {
+  display: flex;
+  align-items: center;
+}
+
+.besat-editor-studio-title {
+  gap: 0.8rem;
+}
+
+.besat-editor-studio-title > button,
+.besat-editor-preview > header > button {
+  display: inline-flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--editor-border);
+  border-radius: 0.55rem;
+  background: #fff;
+  color: var(--editor-navy);
+}
+
+.besat-editor-studio-title > button svg,
+.besat-editor-preview > header > button svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.besat-editor-studio-title p {
+  color: #87919d;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.besat-editor-studio-title h2 {
+  margin-top: 0.2rem;
+  color: var(--editor-navy);
+  font-size: clamp(1.1rem, 2vw, 1.45rem);
+  font-weight: 950;
+}
+
+.besat-editor-header-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.besat-editor-save-state {
+  display: inline-flex;
+  min-height: 2.55rem;
+  align-items: center;
+  gap: 0.45rem;
+  color: #5f6e7d;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.besat-editor-save-state i {
+  width: 0.48rem;
+  height: 0.48rem;
+  border-radius: 50%;
+  background: #20a464;
+  box-shadow: 0 0 0 3px rgba(32, 164, 100, 0.1);
+}
+
+.besat-editor-save-state.is-error {
+  color: #b42318;
+}
+
+.besat-editor-save-state.is-error i {
+  background: #d92d20;
+}
+
+.besat-editor-error {
+  margin-bottom: 1rem;
+  border: 1px solid #fecaca;
+  border-radius: 0.6rem;
+  background: #fff1f2;
+  padding: 0.8rem 1rem;
+  color: #b42318;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.besat-editor-layout {
+  display: grid;
+  min-width: 0;
+  align-items: start;
+  gap: 1rem;
+}
+
+.besat-editor-layout.is-simple {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.besat-editor-left-column,
+.besat-editor-right-column,
+.besat-editor-settings {
+  display: grid;
+  min-width: 0;
+  gap: 0.8rem;
+}
+
+.besat-editor-document,
+.besat-editor-side-card,
+.besat-editor-setting-group,
+.besat-editor-media-blocks {
+  border: 1px solid var(--editor-border);
+  border-radius: 0.7rem;
+  background: #fff;
+}
+
+.besat-editor-document {
+  min-width: 0;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(15, 40, 63, 0.035);
+}
+
+.besat-editor-document-meta {
+  display: grid;
+  gap: 1rem;
+  padding: 1.35rem 1.5rem 1rem;
+}
+
+.besat-editor-document-meta label > span,
+.besat-editor-setting-body label > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+  color: #294660;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.besat-editor-document-meta label > span b {
+  color: #d92d20;
+}
+
+.besat-editor-document-meta input,
+.besat-editor-document-meta textarea {
+  width: 100%;
+  border: 1px solid #dfe4e8;
+  border-radius: 0.55rem;
+  background: #fff;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.besat-editor-document-meta input {
+  min-height: 3.25rem;
+  padding: 0.6rem 0.9rem;
+  color: var(--editor-navy);
+  font-size: clamp(1rem, 1.7vw, 1.22rem);
+  font-weight: 950;
+}
+
+.besat-editor-document-meta textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+  padding: 0.7rem 0.9rem;
+  color: #40556a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 2;
+}
+
+.besat-editor-document-meta input:focus,
+.besat-editor-document-meta textarea:focus {
+  border-color: #d39a3f;
+  box-shadow: 0 0 0 3px rgba(217, 138, 18, 0.1);
+}
+
+.besat-editor-document-meta label > small {
+  display: block;
+  margin-top: 0.35rem;
+  color: #929ba5;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.besat-editor-document-label {
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid #edf0f2;
+  padding: 0.75rem 1.5rem;
+  color: #294660;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.besat-editor-document-label > div {
+  color: #87919d;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.besat-editor-inline-cover {
+  display: block;
+  width: calc(100% - 3rem);
+  max-height: 22rem;
+  margin: 0 1.5rem 1rem;
+  border: 1px solid var(--editor-border);
+  border-radius: 0.7rem;
+  object-fit: cover;
+}
+
+.besat-editor-frame {
+  position: relative;
+  min-width: 0;
+  border-top: 1px solid var(--editor-border);
+  background: #fff;
+}
+
+.besat-editor-toolbar {
+  position: sticky;
+  z-index: 12;
+  top: 0;
+  border-bottom: 1px solid var(--editor-border);
+  background: rgba(248, 250, 252, 0.97);
+  backdrop-filter: blur(10px);
+}
+
+.besat-editor-toolbar-scroll {
+  display: flex;
+  min-height: 3.45rem;
+  align-items: center;
+  gap: 0.18rem;
+  overflow-x: auto;
+  padding: 0.45rem 0.65rem;
+  scrollbar-width: thin;
+}
+
+.besat-editor-tool {
+  display: inline-flex;
+  width: 2.45rem;
+  min-width: 2.45rem;
+  height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: #3b536a;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.besat-editor-tool:hover {
+  border-color: #dfe4e8;
+  background: #fff;
+  color: var(--editor-navy);
+}
+
+.besat-editor-tool.is-active {
+  border-color: var(--editor-navy);
+  background: var(--editor-navy);
+  color: #fff;
+}
+
+.besat-editor-tool:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.besat-editor-toolbar-divider {
+  width: 1px;
+  height: 1.65rem;
+  flex: 0 0 auto;
+  margin: 0 0.2rem;
+  background: #dfe4e8;
+}
+
+.besat-editor-link-popover {
+  position: absolute;
+  z-index: 15;
+  top: calc(100% + 0.35rem);
+  right: 0.65rem;
+  display: grid;
+  width: min(24rem, calc(100vw - 3rem));
+  grid-template-columns: minmax(0, 1fr) 2.5rem 2.5rem;
+  gap: 0.35rem;
+  border: 1px solid var(--editor-border);
+  border-radius: 0.6rem;
+  background: #fff;
+  padding: 0.45rem;
+  box-shadow: 0 12px 35px rgba(15, 40, 63, 0.15);
+}
+
+.besat-editor-link-popover input {
+  min-width: 0;
+  border: 1px solid #dfe4e8;
+  border-radius: 0.45rem;
+  padding: 0 0.65rem;
+  color: var(--editor-ink);
+  font-size: 0.75rem;
+  outline: none;
+}
+
+.besat-editor-link-popover button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.45rem;
+  background: #f2f5f7;
+  color: var(--editor-navy);
+}
+
+.besat-editor-link-popover button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.besat-editor-canvas {
+  position: relative;
+  min-height: 24rem;
+  max-width: none;
+  padding: 1.5rem clamp(1rem, 4vw, 2.75rem) 3rem;
+  color: #213c55;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 2.2;
+  outline: none;
+}
+
+.besat-editor-canvas.is-advanced {
+  min-height: 41rem;
+}
+
+.besat-editor-canvas > * {
+  position: relative;
+  border-radius: 0.25rem;
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.besat-editor-canvas > *:hover {
+  background: rgba(8, 47, 87, 0.025);
+  box-shadow: 0 0 0 0.35rem rgba(8, 47, 87, 0.025);
+}
+
+.besat-editor-canvas h1 {
+  margin: 1.25rem 0 0.75rem;
+  color: #082f57;
+  font-size: 1.75rem;
+  font-weight: 950;
+  line-height: 1.65;
+}
+
+.besat-editor-canvas h2 {
+  margin: 1.15rem 0 0.65rem;
+  color: #0b3d6b;
+  font-size: 1.4rem;
+  font-weight: 950;
+  line-height: 1.7;
+}
+
+.besat-editor-canvas h3 {
+  margin: 1rem 0 0.55rem;
+  color: #174f7a;
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.besat-editor-canvas p {
+  margin: 0.65rem 0;
+}
+
+.besat-editor-canvas blockquote {
+  margin: 1.2rem 0;
+  border-right: 4px solid var(--editor-amber);
+  border-radius: 0.55rem;
+  background: #fff8eb;
+  padding: 0.8rem 1rem;
+  color: #5c431f;
+}
+
+.besat-editor-canvas ul,
+.besat-editor-canvas ol {
+  margin: 0.75rem 0;
+  padding-right: 1.4rem;
+}
+
+.besat-editor-canvas ul {
+  list-style: disc;
+}
+
+.besat-editor-canvas ol {
+  list-style: decimal;
+}
+
+.besat-editor-canvas pre {
+  overflow-x: auto;
+  direction: ltr;
+  border-radius: 0.55rem;
+  background: #0a2239;
+  padding: 1rem;
+  color: #e8f2fa;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-align: left;
+}
+
+.besat-editor-canvas table {
+  width: 100%;
+  margin: 1rem 0;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.besat-editor-canvas th,
+.besat-editor-canvas td {
+  min-width: 6rem;
+  border: 1px solid #d7dee4;
+  padding: 0.55rem;
+  vertical-align: top;
+}
+
+.besat-editor-canvas th {
+  background: #f2f6f9;
+  color: var(--editor-navy);
+  font-weight: 900;
+}
+
+.besat-editor-canvas .selectedCell {
+  background: #fff4df;
+}
+
+.besat-editor-canvas .column-resize-handle {
+  width: 3px;
+  background: var(--editor-amber);
+}
+
+.besat-editor-canvas img {
+  margin: 1rem auto;
+  border-radius: 0.65rem;
+}
+
+.besat-editor-drag-handle {
+  display: flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d8e0e6;
+  border-radius: 0.45rem;
+  background: #fff;
+  color: #81909e;
+  cursor: grab;
+  box-shadow: 0 3px 12px rgba(15, 40, 63, 0.08);
+}
+
+.besat-editor-drag-handle:active {
+  cursor: grabbing;
+}
+
+.besat-editor-drag-handle svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.besat-editor-side-card,
+.besat-editor-media-blocks {
+  padding: 0.9rem;
+}
+
+.besat-editor-side-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid #edf0f2;
+}
+
+.besat-editor-side-heading h3 {
+  color: var(--editor-navy);
+  font-size: 0.76rem;
+  font-weight: 950;
+}
+
+.besat-editor-side-heading p {
+  margin-top: 0.2rem;
+  color: #8a95a0;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.65;
+}
+
+.besat-editor-side-heading > svg {
+  width: 1rem;
+  height: 1rem;
+  color: #52708b;
+}
+
+.besat-editor-outline {
+  display: grid;
+  gap: 0.35rem;
+  max-height: 26rem;
+  margin-top: 0.65rem;
+  overflow-y: auto;
+}
+
+.besat-editor-outline-row {
+  overflow: hidden;
+  border: 1px solid #e5e9ec;
+  border-radius: 0.55rem;
+  background: #fff;
+}
+
+.besat-editor-outline-main {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 0.8rem 1.8rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem;
+  text-align: right;
+}
+
+.besat-editor-outline-main:hover {
+  background: #f8fafb;
+}
+
+.besat-editor-outline-main > span:last-child {
+  min-width: 0;
+}
+
+.besat-editor-outline-main b,
+.besat-editor-outline-main small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.besat-editor-outline-main b {
+  color: #263f57;
+  font-size: 0.63rem;
+  font-weight: 900;
+}
+
+.besat-editor-outline-main small {
+  margin-top: 0.12rem;
+  color: #9aa3ac;
+  font-size: 0.53rem;
+  font-weight: 700;
+}
+
+.besat-editor-outline-grip {
+  width: 0.75rem;
+  height: 0.75rem;
+  color: #a2acb5;
+}
+
+.besat-editor-outline-icon {
+  display: flex;
+  width: 1.75rem;
+  height: 1.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.4rem;
+  background: #f2f6f9;
+  color: #315a7e;
+}
+
+.besat-editor-outline-icon svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.besat-editor-outline-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid #edf0f2;
+}
+
+.besat-editor-outline-actions button {
+  display: flex;
+  min-height: 1.85rem;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid #edf0f2;
+  color: #758493;
+}
+
+.besat-editor-outline-actions button:last-child {
+  border-left: 0;
+}
+
+.besat-editor-outline-actions button:hover {
+  background: #f5f7f9;
+  color: var(--editor-navy);
+}
+
+.besat-editor-outline-actions button.is-danger:hover {
+  background: #fff1f2;
+  color: #c93434;
+}
+
+.besat-editor-outline-actions button:disabled {
+  opacity: 0.28;
+}
+
+.besat-editor-outline-actions svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.besat-editor-outline-empty {
+  border: 1px dashed #dfe4e8;
+  border-radius: 0.55rem;
+  padding: 1rem 0.6rem;
+  color: #909ba5;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.besat-editor-insert-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.35rem;
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid #edf0f2;
+}
+
+.besat-editor-insert-grid button {
+  display: flex;
+  min-height: 2.4rem;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid #e1e6ea;
+  border-radius: 0.45rem;
+  padding: 0.4rem 0.5rem;
+  color: #36536e;
+  font-size: 0.59rem;
+  font-weight: 900;
+  text-align: right;
+}
+
+.besat-editor-insert-grid button:hover {
+  border-color: #d7a95d;
+  background: #fff9ef;
+  color: #9a5b08;
+}
+
+.besat-editor-insert-grid svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.besat-editor-media-block-button {
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid #e1e6ea;
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.5rem 0.6rem;
+  text-align: right;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.besat-editor-media-block-button:hover {
+  border-color: #d7a95d;
+  background: #fff9ef;
+}
+
+.besat-editor-setting-group {
+  overflow: hidden;
+}
+
+.besat-editor-setting-group > summary {
+  display: flex;
+  min-height: 3rem;
+  cursor: pointer;
+  list-style: none;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 0.85rem;
+  color: var(--editor-navy);
+  font-size: 0.7rem;
+  font-weight: 950;
+}
+
+.besat-editor-setting-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.besat-editor-setting-group > summary > svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-right: auto;
+  transition: transform 150ms ease;
+}
+
+.besat-editor-setting-group[open] > summary > svg {
+  transform: rotate(180deg);
+}
+
+.besat-editor-setting-body {
+  display: grid;
+  gap: 0.8rem;
+  border-top: 1px solid #edf0f2;
+  padding: 0.85rem;
+}
+
+.besat-editor-setting-body label > span small {
+  color: #9aa3ac;
+  font-size: 0.55rem;
+}
+
+.besat-editor-cover-preview {
+  width: 100%;
+  height: 9rem;
+  border: 1px solid #dfe4e8;
+  border-radius: 0.55rem;
+  object-fit: cover;
+}
+
+.besat-editor-cover-empty {
+  border: 1px dashed #d7dde2;
+  border-radius: 0.55rem;
+  padding: 1.15rem 0.65rem;
+  color: #8995a1;
+  font-size: 0.63rem;
+  font-weight: 800;
+  line-height: 1.8;
+  text-align: center;
+}
+
+.besat-editor-score {
+  display: inline-flex;
+  min-height: 1.4rem;
+  align-items: center;
+  border-radius: 999px;
+  background: #fff5e3;
+  padding: 0.1rem 0.45rem;
+  color: #b66c08;
+  font-size: 0.55rem;
+}
+
+.besat-editor-score.is-good {
+  background: #eaf8f0;
+  color: #14804a;
+}
+
+.besat-editor-switch {
+  display: grid !important;
+  min-height: 2.5rem;
+  grid-template-columns: 2.2rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+  cursor: pointer;
+}
+
+.besat-editor-switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.besat-editor-switch > span {
+  position: relative;
+  display: block !important;
+  width: 2.2rem;
+  height: 1.25rem;
+  margin: 0 !important;
+  border-radius: 999px;
+  background: #d9e0e5;
+  transition: background-color 150ms ease;
+}
+
+.besat-editor-switch > span::after {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.15rem;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(15, 40, 63, 0.2);
+  content: "";
+  transition: transform 150ms ease;
+}
+
+.besat-editor-switch input:checked + span {
+  background: #199a5b;
+}
+
+.besat-editor-switch input:checked + span::after {
+  transform: translateX(-0.95rem);
+}
+
+.besat-editor-switch b {
+  color: #445b70;
+  font-size: 0.63rem;
+  font-weight: 850;
+}
+
+.besat-editor-revisions {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+}
+
+.besat-editor-revisions button {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.15rem 0.4rem;
+  border: 1px solid #e6eaed;
+  border-radius: 0.5rem;
+  padding: 0.55rem;
+  text-align: right;
+}
+
+.besat-editor-revisions button:hover {
+  border-color: #d8aa5e;
+  background: #fffaf1;
+}
+
+.besat-editor-revisions b {
+  color: #294660;
+  font-size: 0.62rem;
+}
+
+.besat-editor-revisions span,
+.besat-editor-revisions small {
+  color: #8c98a3;
+  font-size: 0.52rem;
+}
+
+.besat-editor-revisions small {
+  grid-column: 1 / -1;
+}
+
+.besat-editor-workflow {
+  display: grid;
+  gap: 0;
+  margin-top: 0.75rem;
+}
+
+.besat-editor-workflow li {
+  position: relative;
+  display: grid;
+  min-height: 2.25rem;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.5rem;
+  color: #96a0aa;
+  font-size: 0.62rem;
+  font-weight: 850;
+}
+
+.besat-editor-workflow li:not(:last-child)::before {
+  position: absolute;
+  top: 1.3rem;
+  right: 0.7rem;
+  width: 1px;
+  height: calc(100% - 0.2rem);
+  background: #dfe4e8;
+  content: "";
+}
+
+.besat-editor-workflow li > span {
+  z-index: 1;
+  display: flex;
+  width: 1.5rem;
+  height: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d9e0e5;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 0.55rem;
+}
+
+.besat-editor-workflow li > span svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.besat-editor-workflow li b {
+  padding-top: 0.2rem;
+}
+
+.besat-editor-workflow li.is-current {
+  color: #b86d08;
+}
+
+.besat-editor-workflow li.is-current > span {
+  border-color: #e5a43b;
+  background: #fff5e3;
+  color: #b86d08;
+  box-shadow: 0 0 0 3px #fff9ef;
+}
+
+.besat-editor-workflow li.is-done {
+  color: #178d53;
+}
+
+.besat-editor-workflow li.is-done > span {
+  border-color: #178d53;
+  background: #178d53;
+  color: #fff;
+}
+
+.besat-editor-actionbar {
+  position: sticky;
+  z-index: 20;
+  bottom: 0;
+  display: flex;
+  min-height: 4.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  border: 1px solid var(--editor-border);
+  border-radius: 0.7rem 0.7rem 0 0;
+  background: rgba(255, 255, 255, 0.96);
+  padding: 0.7rem 0.9rem;
+  box-shadow: 0 -8px 25px rgba(15, 40, 63, 0.07);
+  backdrop-filter: blur(12px);
+}
+
+.besat-editor-actionbar > div {
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.besat-editor-actionbar small {
+  color: #8a96a1;
+  font-size: 0.58rem;
+  font-weight: 700;
+}
+
+.besat-editor-preview-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  background: rgba(5, 23, 40, 0.58);
+  padding: 2rem 1rem;
+  backdrop-filter: blur(5px);
+}
+
+.besat-editor-preview {
+  width: min(54rem, 100%);
+  overflow: hidden;
+  border: 1px solid #dfe4e8;
+  border-radius: 0.8rem;
+  background: #fff;
+  box-shadow: 0 24px 80px rgba(3, 22, 39, 0.24);
+}
+
+.besat-editor-preview > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid #e7ebee;
+  padding: 1rem 1.25rem;
+}
+
+.besat-editor-preview > header p {
+  color: #8a96a1;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.besat-editor-preview > header h2 {
+  margin-top: 0.25rem;
+  color: var(--editor-navy);
+  font-size: 1.2rem;
+  font-weight: 950;
+}
+
+.besat-editor-preview > article {
+  padding: clamp(1rem, 4vw, 2.5rem);
+}
+
+.besat-editor-preview > article > img {
+  width: 100%;
+  max-height: 28rem;
+  margin-bottom: 1.5rem;
+  border-radius: 0.7rem;
+  object-fit: cover;
+}
+
+.besat-editor-preview-summary {
+  margin-bottom: 1.25rem;
+  border-right: 3px solid var(--editor-amber);
+  padding: 0.5rem 0.8rem;
+  color: #5c6d7d;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 2;
+}
+
+.besat-editor-studio :where(button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid #c87f11;
+  outline-offset: 2px;
+}
+
+@media (min-width: 1024px) {
+  .besat-editor-layout.is-simple {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+  }
+
+  .besat-editor-right-column {
+    position: sticky;
+    top: 1rem;
+  }
+}
+
+@media (min-width: 1180px) {
+  .besat-editor-layout.is-advanced {
+    grid-template-columns: 14.5rem minmax(28rem, 1fr) 17.5rem;
+  }
+
+  .besat-editor-left-column,
+  .besat-editor-right-column {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 7rem);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+}
+
+@media (min-width: 820px) and (max-width: 1179px) {
+  .besat-editor-layout.is-advanced {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+  }
+
+  .besat-editor-layout.is-advanced .besat-editor-left-column {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .besat-editor-layout.is-advanced .besat-editor-document {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .besat-editor-layout.is-advanced .besat-editor-right-column {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 819px) {
+  .besat-editor-studio-header,
+  .besat-editor-actionbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .besat-editor-header-actions {
+    justify-content: space-between;
+  }
+
+  .besat-editor-layout.is-advanced,
+  .besat-editor-layout.is-simple {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .besat-editor-left-column {
+    order: 2;
+  }
+
+  .besat-editor-document {
+    order: 1;
+  }
+
+  .besat-editor-right-column {
+    order: 3;
+  }
+
+  .besat-editor-canvas,
+  .besat-editor-canvas.is-advanced {
+    min-height: 27rem;
+    padding-inline: 1rem;
+  }
+
+  .besat-editor-actionbar > div:last-child {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .besat-editor-actionbar button {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 520px) {
+  .besat-editor-studio-header {
+    margin-inline: -0.25rem;
+  }
+
+  .besat-editor-studio-title p {
+    display: none;
+  }
+
+  .besat-editor-header-actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+  }
+
+  .besat-editor-document-meta,
+  .besat-editor-document-label {
+    padding-inline: 0.85rem;
+  }
+
+  .besat-editor-document-label {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .besat-editor-inline-cover {
+    width: calc(100% - 1.7rem);
+    margin-inline: 0.85rem;
+  }
+
+  .besat-editor-actionbar > div:last-child {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .besat-editor-studio *,
+  .besat-editor-studio *::before,
+  .besat-editor-studio *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+/* BESAT_EDITORIAL_STUDIO_END */

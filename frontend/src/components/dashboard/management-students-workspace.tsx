@@ -206,11 +206,8 @@ export function ManagementStudentsWorkspace({
       const anchor = document.createElement("a");
       anchor.href = url;
       anchor.download = decodeURIComponent(result.filename ?? "students.xlsx");
-      anchor.style.display = "none";
-      document.body.appendChild(anchor);
       anchor.click();
-      anchor.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      URL.revokeObjectURL(url);
     } catch (reason) {
       setActionError(getApiErrorMessage(reason));
     }

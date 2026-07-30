@@ -7,8 +7,8 @@ export function PageMotion({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <main key={pathname} className="besat-page-enter">
+    <div key={pathname} className="besat-page-enter flex-1">
       {children}
-    </main>
+    </div>
   );
 }

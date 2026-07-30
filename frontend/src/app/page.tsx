@@ -1,4 +1,3 @@
-import { HomeDepartmentsSection } from "@/components/home/home-departments-section";
 import { HomeExperienceSection } from "@/components/home/home-experience-section";
 import { HomeIntroSection } from "@/components/home/home-intro-section";
 import { HomeNewsSection } from "@/components/home/home-news-section";
@@ -20,10 +19,7 @@ export default function HomePage() {
       <Reveal mode="lazy" direction="left" reserveClassName="min-h-[48rem] bg-[#fbfaf7]" delay={60}>
         <HomeExperienceSection />
       </Reveal>
-      <Reveal mode="lazy" direction="up" reserveClassName="min-h-[28rem] bg-white" delay={80}>
-        <HomeDepartmentsSection />
-      </Reveal>
-      <Reveal mode="lazy" direction="scale" reserveClassName="min-h-[28rem] bg-[#fbfaf7]" delay={100}>
+      <Reveal mode="lazy" direction="scale" reserveClassName="min-h-[28rem] bg-[#fbfaf7]" delay={80}>
         <HomeNewsSection />
       </Reveal>
     </PublicPageLayout>

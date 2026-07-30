@@ -99,7 +99,7 @@ class FrontendBackendContractTests(TestCase):
                 "album": "آلبوم تست",
                 "scope": "school",
                 "unit_id": None,
-                "status": "published",
+                "status": "draft",
             },
             format="json",
         )
@@ -120,7 +120,7 @@ class FrontendBackendContractTests(TestCase):
                 "scope": "school",
                 "unit_id": None,
                 "category": "فرهنگی",
-                "status": "published",
+                "status": "draft",
                 "author_role": "general_manager",
                 "published_at": "2026-07-11T08:00:00.000Z",
             },
@@ -129,12 +129,23 @@ class FrontendBackendContractTests(TestCase):
         self.assertEqual(content_response.status_code, 201, content_response.data)
         self.assertTrue(content_response.data["id"].startswith("news-"))
         self.assertEqual(content_response.data["body_html"], "<p>متن کامل خبر</p>")
+        content_id = content_response.data["id"]
+        for next_status in ("waiting_review", "approved", "published"):
+            content_response = self.client.patch(
+                f"/api/cms/content/{content_id}/",
+                {
+                    "status": next_status,
+                    "published_at": "2026-07-11",
+                },
+                format="json",
+            )
+            self.assertEqual(content_response.status_code, 200, content_response.data)
 
         self.client.force_authenticate(user=None)
         anonymous_content = self.client.get("/api/cms/content/")
         self.assertEqual(anonymous_content.status_code, 200)
         self.assertEqual(anonymous_content.data[0]["kind"], "news")
-        self.assertEqual(anonymous_content.data[0]["cover_image"], "/images/news.jpg")
+        self.assertEqual(anonymous_content.data[0]["cover_image_url"], "/images/news.jpg")
 
     def test_missing_cms_repository_paths_support_crud(self):
         self.authenticate_manager()

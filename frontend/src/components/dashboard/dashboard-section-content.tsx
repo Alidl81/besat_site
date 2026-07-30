@@ -89,7 +89,7 @@ export function DashboardSectionContent({
       case "staff":
         return <StaffManager unitId={scopedUnitId} />;
       case "content":
-        return <EditorialWorkspace unitId={scopedUnitId} authorRole="unit_manager" />;
+        return <EditorialWorkspace unitId={scopedUnitId} authorRole="unit_manager" canPublish={false} />;
       case "media":
         return <GalleryManager unitId={scopedUnitId} />;
       default:

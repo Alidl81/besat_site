@@ -140,6 +140,33 @@ class DashboardAPITests(TestCase):
         self.assertIn("cards", response.data)
         self.assertGreaterEqual(response.data["stats"]["content_total"], 4)
 
+    def test_panel_context_is_scoped_to_the_authenticated_user(self):
+        self.authenticate(self.unit_manager)
+
+        response = self.client.get("/api/dashboard/context/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["selected_unit_id"], self.unit_1.id)
+        self.assertEqual(response.data["units"], [
+            {"id": self.unit_1.id, "title": self.unit_1.title},
+        ])
+        self.assertEqual(response.data["children"], [])
+        self.assertEqual(response.data["unread_notifications"], 1)
+
+    def test_panel_context_rejects_an_inaccessible_unit(self):
+        self.authenticate(self.unit_manager)
+
+        response = self.client.get(
+            f"/api/dashboard/context/?unit={self.unit_2.id}"
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_panel_context_requires_authentication(self):
+        response = self.client.get("/api/dashboard/context/")
+
+        self.assertEqual(response.status_code, 401)
+
     def test_parent_cannot_access_general_dashboard(self):
         self.authenticate(self.parent)
 

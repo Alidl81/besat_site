@@ -3,10 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import {
+  clearBesatSession,
   readBesatSession,
+  redirectPathForRole,
   rolesForDashboardSegment,
   type BesatRole,
 } from "@/lib/auth/auth-session";
+import { getCurrentUser } from "@/services/auth-service";
 
 type DashboardGuardProps = {
   /** بخش داشبورد: admin | unit-manager | media | parents */
@@ -30,36 +33,39 @@ export function DashboardGuard({ segment, children }: DashboardGuardProps) {
   const [state, setState] = useState<GuardState>("checking");
 
   useEffect(() => {
-    function checkAccess() {
-      const session = readBesatSession();
+    const session = readBesatSession();
 
-      if (!session) {
-        const next =
-          typeof window !== "undefined"
-            ? window.location.pathname + window.location.search
-            : "/";
-        router.replace(`/login?next=${encodeURIComponent(next)}`);
-        setState("denied");
-        return;
-      }
-
-      const allowedRoles = rolesForDashboardSegment(segment);
-      const userRole = session.role as BesatRole;
-
-      if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
-        router.replace(session.redirectPath);
-        setState("denied");
-        return;
-      }
-
-      setState("allowed");
+    if (!session) {
+      const next =
+        typeof window !== "undefined"
+          ? window.location.pathname + window.location.search
+          : "/";
+      router.replace(`/login?next=${encodeURIComponent(next)}`);
+      return;
     }
 
-    checkAccess();
-    window.addEventListener("besat-auth-changed", checkAccess);
-
+    let active = true;
+    getCurrentUser(session.accessToken)
+      .then((user) => {
+        if (!active) return;
+        const allowedRoles = rolesForDashboardSegment(segment);
+        const userRole = user.role as BesatRole;
+        if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
+          router.replace(redirectPathForRole(userRole));
+          setState("denied");
+          return;
+        }
+        setState("allowed");
+      })
+      .catch(() => {
+        if (!active) return;
+        clearBesatSession();
+        const next = window.location.pathname + window.location.search;
+        router.replace(`/login?next=${encodeURIComponent(next)}`);
+        setState("denied");
+      });
     return () => {
-      window.removeEventListener("besat-auth-changed", checkAccess);
+      active = false;
     };
   }, [router, segment]);
 

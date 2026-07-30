@@ -11,17 +11,10 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    "playwright-report/**",
+    "test-results/**",
     "next-env.d.ts",
   ]),
-  {
-    rules: {
-      // Existing client data-loading and transition effects intentionally set
-      // local state. Keep these as visible advisory findings while avoiding a
-      // false release gate until each component is refactored separately.
-      "react-hooks/set-state-in-effect": "warn",
-      "@typescript-eslint/no-explicit-any": "warn",
-    },
-  },
 ]);
 
 export default eslintConfig;

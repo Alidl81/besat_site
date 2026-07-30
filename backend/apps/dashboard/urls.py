@@ -9,6 +9,7 @@ from .cms_views import (
 )
 
 from .views import (
+    DashboardContextAPIView,
     GeneralManagerDashboardAPIView,
     MediaDashboardAPIView,
     ParentsDashboardAPIView,
@@ -19,6 +20,11 @@ from .views import (
 app_name = "dashboard"
 
 urlpatterns = [
+    path(
+        "dashboard/context/",
+        DashboardContextAPIView.as_view(),
+        name="dashboard-context",
+    ),
     path(
         "dashboard/general-manager/",
         GeneralManagerDashboardAPIView.as_view(),

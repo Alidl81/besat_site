@@ -115,6 +115,13 @@ class ContactInfo(TimeStampedModel, ActiveModel):
 
 
 class ContactMessage(TimeStampedModel):
+    class MessageType(models.TextChoices):
+        GENERAL = "general", "ارتباط عمومی"
+        CRITICISM = "criticism", "انتقاد"
+        SUGGESTION = "suggestion", "پیشنهاد"
+        COMPLAINT = "complaint", "شکایت"
+        FEEDBACK = "feedback", "بازخورد"
+
     class Status(models.TextChoices):
         NEW = "new", "جدید"
         SEEN = "seen", "دیده‌شده"
@@ -144,6 +151,21 @@ class ContactMessage(TimeStampedModel):
     )
     message = models.TextField(
         verbose_name="متن پیام",
+    )
+    related_unit = models.ForeignKey(
+        "units.SchoolUnit",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="contact_messages",
+        verbose_name="واحد مرتبط",
+    )
+    message_type = models.CharField(
+        max_length=20,
+        choices=MessageType.choices,
+        default=MessageType.GENERAL,
+        db_index=True,
+        verbose_name="نوع پیام",
     )
     status = models.CharField(
         max_length=20,
@@ -206,6 +228,9 @@ class ContactMessage(TimeStampedModel):
 
         if self.message and len(self.message) < 10:
             errors["message"] = "متن پیام باید حداقل ۱۰ کاراکتر باشد."
+
+        if self.related_unit_id and not self.related_unit.is_active:
+            errors["related_unit"] = "واحد آموزشی انتخاب‌شده فعال نیست."
 
         if errors:
             raise ValidationError(errors)

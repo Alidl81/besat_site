@@ -199,6 +199,17 @@ class News(TimeStampedModel, ActiveModel):
         db_index=True,
         verbose_name="خبر ویژه؟",
     )
+    is_important = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="خبر مهم؟",
+    )
+    priority = models.PositiveSmallIntegerField(
+        default=0,
+        db_index=True,
+        verbose_name="اولویت نمایش",
+        help_text="عدد بزرگ‌تر در چیدمان خبرهای مهم زودتر نمایش داده می‌شود.",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -233,6 +244,7 @@ class News(TimeStampedModel, ActiveModel):
             models.Index(fields=("scope", "status")),
             models.Index(fields=("unit", "status")),
             models.Index(fields=("is_featured", "published_at")),
+            models.Index(fields=("is_important", "priority")),
             models.Index(fields=("category", "status")),
             models.Index(fields=("is_active", "status")),
         ]

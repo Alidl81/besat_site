@@ -69,7 +69,7 @@ export function requireAccount(
   return (
     accountFromRequest(request, database) ??
     apiError(
-      "برای استفاده از endpointهای پنل وارد حساب آزمایشی شوید.",
+      "برای استفاده از endpointهای پنل وارد حساب شوید.",
       401,
       "not_authenticated",
     )
@@ -106,6 +106,10 @@ export function filterRecords(records: MockRecord[], url: URL) {
     ["grade", ["grade_id", "requested_grade_id", "grade_title"]],
     ["profile_status", ["profile_status"]],
     ["education_status", ["education_status"]],
+    ["featured", ["is_featured"]],
+    ["important", ["is_important"]],
+    ["album", ["album"]],
+    ["category", ["category_id", "category_slug"]],
   ];
 
   for (const [queryName, fields] of directFilters) {
@@ -113,6 +117,20 @@ export function filterRecords(records: MockRecord[], url: URL) {
     if (!expected) continue;
     filtered = filtered.filter((record) =>
       fields.some((field) => same(record[field], expected)),
+    );
+  }
+
+  const dateFrom = url.searchParams.get("date_from");
+  if (dateFrom) {
+    filtered = filtered.filter(
+      (record) => String(record.event_date ?? "") >= dateFrom,
+    );
+  }
+
+  const dateTo = url.searchParams.get("date_to");
+  if (dateTo) {
+    filtered = filtered.filter(
+      (record) => String(record.event_date ?? "") <= dateTo,
     );
   }
 

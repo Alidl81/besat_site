@@ -1,5 +1,5 @@
 ﻿import { redirect } from "next/navigation";
 
 export default function UnitManagerRedirect() {
-  redirect("/dashboard/unit-manager/settings");
+  redirect("/dashboard/unit-manager");
 }

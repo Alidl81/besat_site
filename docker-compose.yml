@@ -53,7 +53,7 @@ services:
       # same-origin proxy backed by the bundled mock API.
       NEXT_PUBLIC_API_BASE_URL: /api/backend
       NEXT_SERVER_API_BASE_URL: http://127.0.0.1:3000/api/backend
-      BESAT_BACKEND_API_URL: http://127.0.0.1:3000/api
+      BESAT_BACKEND_API_URL: mock://local
       WATCHPACK_POLLING: "true"
     ports:
       - "3000:3000"

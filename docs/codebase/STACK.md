@@ -2,29 +2,31 @@
 
 ## Runtime Summary
 
-| Area | Value | Evidence |
+| Area | Version / implementation | Package manager |
 |---|---|---|
-| Frontend | TypeScript, Next.js 16.2.12, React 19.2.4 | `frontend/package.json` |
-| Backend | Python/Django served by Gunicorn | `backend/requirements.txt`, `backend/Dockerfile` |
-| Database | PostgreSQL 16 Alpine | `docker-compose.yml` |
-| Package managers | npm (frontend), pip (backend) | `frontend/package-lock.json`, `backend/requirements.txt` |
+| Frontend | Node 22 Alpine, Next.js 16.2.9, React 19.2.4, TypeScript 5 | npm with `package-lock.json` |
+| Backend | Python 3.12, Django 5.2–6.0, Django REST Framework 3.15–3.x | pip with `requirements.txt` |
+| Database | PostgreSQL 16 Alpine | Docker image |
 
-## Production Dependencies
+## Runtime Dependencies
 
-Next.js/React provide the browser UI; Django REST Framework, Simple JWT, and `django-cors-headers` provide the API, JWT authentication, and browser-origin policy. PostgreSQL is the Compose database.
+The frontend uses Next.js App Router and React. The backend uses Django REST Framework, Simple JWT, django-cors-headers, django-filter, drf-spectacular, psycopg, Gunicorn, and WhiteNoise. Docker Compose supplies PostgreSQL and the service network.
 
 ## Development Toolchain
 
-- `npm run dev`, `npm run build`, and `npm run lint` are defined in `frontend/package.json`.
-- Django tests run through `python manage.py test`.
-- Docker Compose starts `db`, `backend`, and `frontend`.
+- Frontend scripts: `dev`, `build`, `typecheck`, `lint`, Vitest unit tests, Playwright E2E tests, and an editor API smoke test.
+- Backend checks and tests use `python manage.py check` and `python manage.py test`.
+- Docker images use `node:22-alpine` and `python:3.12-slim`.
 
-## Environment and Config
+## Environment and Configuration
 
-Frontend API selection uses `NEXT_PUBLIC_DATA_SOURCE`, `NEXT_PUBLIC_API_BASE_URL`, and `NEXT_SERVER_API_BASE_URL`; backend configuration is in `backend/.env` and `backend/.env.example`. Do not commit secrets.
+Browser API traffic uses `NEXT_PUBLIC_API_BASE_URL`; the server-only upstream is `BESAT_BACKEND_API_URL`, with `NEXT_SERVER_API_BASE_URL` available for server-side calls. Templates are in `frontend/.env.example` and `backend/.env.example`; secrets must not be committed.
 
 ## Evidence
 
 - `frontend/package.json`
+- `frontend/package-lock.json`
+- `frontend/Dockerfile`
 - `backend/requirements.txt`
+- `backend/Dockerfile`
 - `docker-compose.yml`

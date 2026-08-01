@@ -2,28 +2,30 @@
 
 ## Naming Rules
 
-| Item | Rule | Example | Evidence |
-|---|---|---|---|
-| Frontend files | kebab-case | `excel-import.tsx` | `frontend/src/components/crud/` |
-| React components | PascalCase | `ExcelImport` | `frontend/src/components/crud/excel-import.tsx` |
-| Python modules | snake_case filenames | `test_frontend_contracts.py` | `backend/apps/core/` |
-| Env vars | upper snake case | `NEXT_PUBLIC_API_BASE_URL` | `docker-compose.yml` |
+| Item | Rule | Example |
+|---|---|---|
+| Frontend files | kebab-case | `dashboard-service.ts` |
+| React components | PascalCase | `DashboardGuard` |
+| Python modules and functions | snake_case | `test_panel_context_requires_authentication` |
+| Environment variables | upper snake case | `BESAT_BACKEND_API_URL` |
 
-## Formatting and Linting
+## Formatting and Static Checks
 
-Frontend linting uses ESLint through `npm run lint`. TypeScript strict mode is enabled. Backend formatting configuration is [TODO].
+Frontend linting uses ESLint and TypeScript strict mode. `npm run typecheck`, `npm run lint`, and `npm run build` are separate checks. Backend formatting configuration is [TODO].
 
 ## Imports and Errors
 
-Frontend uses the `@/` alias. `apiRequest` throws `ApiRequestError` for non-success responses; Django views use DRF serializers and permission classes.
+Frontend imports use the `@/` alias. `apiRequest` converts non-success HTTP responses into `ApiError` and performs one shared JWT refresh when appropriate. The proxy returns a structured `502` only for upstream transport failures. Django uses DRF serializers, authentication, and permission classes for API validation and authorization.
 
-## Testing
+## Tests
 
-Django tests are colocated in application test modules. No committed frontend unit or E2E runner configuration was found.
+Vitest tests use `*.test.ts(x)` files and Playwright tests live in `frontend/tests/e2e/`. Django tests are colocated in each feature app's `tests.py` or targeted `test_*.py` modules.
 
 ## Evidence
 
-- `frontend/package.json`
+- `frontend/eslint.config.mjs`
 - `frontend/tsconfig.json`
+- `frontend/vitest.config.ts`
+- `frontend/playwright.config.ts`
 - `frontend/src/lib/api/client.ts`
-- `backend/apps/accounts/views.py`
+- `backend/apps/dashboard/tests.py`

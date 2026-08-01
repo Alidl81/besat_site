@@ -2,25 +2,28 @@
 
 ## Integration Inventory
 
-| System | Type | Purpose | Auth model | Evidence |
-|---|---|---|---|---|
-| PostgreSQL | Database | Django application data | database URL environment variable | `docker-compose.yml`, `backend/config/settings/base.py` |
-| Django API | HTTP API | Frontend data operations | JWT Bearer token | `frontend/src/lib/api/client.ts`, `backend/config/settings/base.py` |
+| System | Purpose | Connection / auth |
+|---|---|---|
+| PostgreSQL | Django application data | `DATABASE_URL`; Compose service `db` |
+| Django REST API | Public content and authenticated dashboard/CMS operations | Same-origin Next.js proxy, JWT Bearer tokens |
+| Filesystem media/static | Django uploads and collected static files | Docker volumes / configured paths |
 
-## Data Stores
+## Frontend-to-Backend Gateway
 
-PostgreSQL is the Compose `db` service. Django also configures filesystem media at `/app/media` and static output at `/app/staticfiles` in the backend container.
+Browser requests use `/api/backend/*`. The App Router catch-all forwards method, query, body, files, cookies, and authorization headers to `BESAT_BACKEND_API_URL`. `mock://local` is an explicit test/development mode; real upstream failures return a structured `502` and are not replaced with fake domain data.
 
-## Credentials
+## Docker Networking
 
-Configuration reads environment variables and `backend/.env`; only templates such as `backend/.env.example` should be inspected or committed. [TODO] Define a production secret-rotation process.
+Compose places `db`, `backend`, and `frontend` on the default project network. The frontend reaches Django via the service hostname `backend`; host browsers reach Next.js on port 3000. Database and backend health checks gate dependent services.
 
-## Reliability and Observability
+## Credentials and Observability
 
-Compose defines health checks for database and backend. Backend logs are available through `docker compose logs backend`; no metrics or tracing integration was found.
+Environment templates document required variables. Only templates should be committed. Runtime evidence is available through Next.js request logs, Django logs, Compose health state, and `docker compose logs`; no metrics or distributed tracing integration was found.
 
 ## Evidence
 
 - `docker-compose.yml`
-- `backend/config/settings/base.py`
+- `frontend/src/app/api/backend/[...path]/route.ts`
+- `frontend/.env.example`
 - `backend/.env.example`
+- `backend/config/settings/base.py`

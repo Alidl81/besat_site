@@ -2,32 +2,32 @@
 
 ## Top Risks
 
-| Severity | Concern | Evidence | Impact | Suggested action |
-|---|---|---|---|---|
-| Medium | No committed frontend automated-test runner | `frontend/package.json` | Dashboard browser regressions rely on manual checks | [ASK USER] choose and approve a frontend test runner |
-| Medium | Browser template download has no API endpoint by design | `frontend/src/components/crud/excel-import.tsx` | Backend settings cannot fix a browser-only defect | Keep browser E2E coverage for the client-only flow |
-| Low | Root README status is stale relative to code | `README.md`, `frontend/package.json`, `backend/manage.py` | Misleading onboarding information | Update project status |
+| Severity | Concern | Evidence | Suggested action |
+|---|---|---|---|
+| Medium | Root README status says the frontend/backend are not created, contrary to the repository | `README.md`, `frontend/package.json`, `backend/manage.py` | Update onboarding status |
+| Medium | No committed CI workflow or coverage threshold was found | repository scan, `frontend/package.json` | [ASK USER] choose CI and coverage policy |
 
-## Technical Debt
+## Security and Configuration
 
-The scan reports large imported/static HTML and image assets under `frontend/public/images/home-slider/`; keep generated/imported assets separate from application source conventions.
+Backend settings support environment-provided secrets but include development fallbacks. Production must supply secrets and production settings; authentication and permission checks must remain enforced in Django. Local `.env` files are ignored and must not be committed.
 
-## Security Concerns
+## Fragile / High-Churn Areas
 
-| Risk | OWASP category | Evidence | Current mitigation | Gap |
-|---|---|---|---|---|
-| Default Django secret fallback | A02 | `backend/config/settings/base.py` | Environment configuration is supported | Production must supply a secret |
+Recent history shows high churn in `backend/config/urls.py`, `backend/config/settings/base.py`, `frontend/src/components/layout/site-header.tsx`, and `frontend/src/app/globals.css`. Changes in routing and shared layout deserve focused regression tests.
 
-## Fragile/High-Churn Areas
+## Intent vs. Reality
 
-`backend/config/urls.py`, `backend/config/settings/base.py`, and `frontend/src/components/layout/site-header.tsx` are high-churn according to the scan; make focused, verified changes.
+The root README describes an uncreated application, while the repository contains a working Next.js frontend, Django backend, Docker topology, and automated tests.
 
 ## [ASK USER] Questions
 
-1. [ASK USER] Which supported frontend E2E runner should be adopted for CI: Playwright, Cypress, or another team-standard tool?
+1. [ASK USER] Which CI provider and minimum unit/E2E coverage thresholds should be enforced?
 
 ## Evidence
 
-- `docs/codebase/.codebase-scan.txt`
-- `frontend/src/components/crud/excel-import.tsx`
+- `README.md`
+- `frontend/package.json`
+- `backend/manage.py`
+- `docker-compose.yml`
+- `frontend/playwright.config.ts`
 - `backend/config/settings/base.py`

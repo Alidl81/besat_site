@@ -2,34 +2,38 @@
 
 ## Top-Level Map
 
-| Path | Purpose | Evidence |
-|---|---|---|
-| `frontend/` | Next.js application | `frontend/package.json` |
-| `backend/` | Django API and domain apps | `backend/manage.py`, `backend/apps/` |
-| `docs/` | Shared contracts and repository documentation | `docs/backend_contracts/` |
-| `docker-compose.yml` | Local full-stack topology | `docker-compose.yml` |
+| Path | Purpose |
+|---|---|
+| `frontend/` | Next.js App Router UI, same-origin API route handler, API clients, Vitest, and Playwright tests |
+| `backend/` | Django/DRF API grouped into feature apps |
+| `docs/` | Shared implementation notes, API contracts, and codebase map |
+| `docker-compose.yml` | Local PostgreSQL, backend, and frontend topology |
 
 ## Entry Points
 
-- Frontend: `frontend/package.json` runs `next dev`.
-- Backend: `backend/entrypoint.sh` starts the Django/Gunicorn service.
-- Django routes begin in `backend/config/urls.py`.
+- Frontend commands are defined in `frontend/package.json`; routes live under `frontend/src/app/`.
+- The catch-all frontend API proxy is `frontend/src/app/api/backend/[...path]/route.ts`.
+- Django starts through `backend/entrypoint.sh`; root URLs are registered in `backend/config/urls.py`.
 
 ## Module Boundaries
 
-| Boundary | What belongs here | What must not be here |
-|---|---|---|
-| `frontend/src/components/` | UI and browser interaction | Django persistence |
-| `frontend/src/lib/` | API/auth/data adapters | page layout markup |
-| `backend/apps/` | Feature models, serializers, permissions, views | frontend presentation |
-| `backend/config/` | Django configuration and root routes | feature-specific business logic |
+| Boundary | Responsibility |
+|---|---|
+| `frontend/src/app/` | Pages, layouts, and Route Handlers |
+| `frontend/src/lib/api/` and `frontend/src/services/` | URL normalization, JWT headers, error handling, and domain API calls |
+| `frontend/src/lib/mock-api/` | Explicit `mock://local` development/test backend |
+| `backend/apps/*` | Feature models, serializers, views, permissions, and URL registration |
+| `backend/config/` | Django settings, root routing, WSGI, and ASGI |
 
-## Naming and Organization Rules
+## Naming and Organization
 
-Frontend source files use kebab-case; React component exports use PascalCase. Django is organized by feature app with familiar `models.py`, `serializers.py`, `views.py`, `urls.py`, and `tests.py` files. Frontend imports use `@/*` for `frontend/src/*`.
+Frontend files use kebab-case and React exports use PascalCase. Python modules use snake_case. Frontend imports map `@/*` to `frontend/src/*`; Django is organized by feature app.
 
 ## Evidence
 
-- `frontend/tsconfig.json`
+- `frontend/src/app/`
+- `frontend/src/lib/api/client.ts`
+- `frontend/src/app/api/backend/[...path]/route.ts`
 - `backend/apps/`
-- `docs/codebase/.codebase-scan.txt`
+- `backend/config/urls.py`
+- `frontend/tsconfig.json`

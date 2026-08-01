@@ -69,9 +69,8 @@ function createUpstreamUrl(request: Request, path: string[]) {
   const frontendUrl = new URL(request.url);
   const upstreamUrl = getBackendBaseUrl();
   const encodedPath = path.map((segment) => encodeURIComponent(segment)).join("/");
-  const trailingSlash = frontendUrl.pathname.endsWith("/") ? "/" : "";
 
-  upstreamUrl.pathname = `${upstreamUrl.pathname}${encodedPath}${trailingSlash}`;
+  upstreamUrl.pathname = `${upstreamUrl.pathname}${encodedPath}/`;
   upstreamUrl.search = frontendUrl.search;
   return upstreamUrl;
 }

@@ -164,7 +164,7 @@ export function PreregistrationCard({
   }
 
   const inputClass =
-    "h-12 w-full rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-[#0f2f4a] outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100";
+    "h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-[#0f2f4a] outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100";
 
   if (loadError) {
     return (
@@ -189,19 +189,34 @@ export function PreregistrationCard({
   }
 
   return (
-    <div dir="rtl" className="mx-auto w-full max-w-5xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
-      <header className="flex items-center gap-4 border-b border-slate-200 p-6 sm:p-8">
-        <BesatLogoMark size="md" />
-        <div>
-          <p className="text-sm font-black text-blue-700">مجتمع آموزشی بعثت</p>
-          <h1 className="mt-1 text-2xl font-black text-[#0f2f4a]">
+    <div dir="rtl" className="mx-auto grid w-full max-w-7xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.10)] lg:grid-cols-[0.92fr_1.08fr]">
+      <header className="relative flex min-h-72 flex-col justify-between overflow-hidden bg-[#062452] p-7 text-white sm:p-10 lg:min-h-[48rem]">
+        <div className="absolute -right-16 -top-16 size-52 rounded-full bg-blue-400/20 blur-3xl" />
+        <div className="absolute -bottom-20 -left-20 size-64 rounded-full bg-cyan-300/10 blur-3xl" />
+        <div className="relative z-10 flex items-center gap-4">
+          <BesatLogoMark size="lg" tone="light" />
+          <div>
+            <p className="text-sm font-black text-blue-300">مجتمع آموزشی بعثت</p>
+            <h1 className="mt-1 text-2xl font-black text-white">
             {registration.title || "پیش‌ثبت‌نام آنلاین"}
-          </h1>
+            </h1>
+          </div>
+        </div>
+        <div className="relative z-10 mt-8 rounded-[1.6rem] border border-white/10 bg-white/[0.07] p-5 backdrop-blur-sm">
+          <p className="text-sm font-bold leading-8 text-white/75">
+            {registration.description || "واحد آموزشی و پایه مورد نظر را انتخاب کنید و اطلاعات دانش‌آموز و ولی را با دقت وارد کنید."}
+          </p>
+          {registration.open_message ? (
+            <p className="mt-4 border-t border-white/10 pt-4 text-xs font-black leading-7 text-blue-200">{registration.open_message}</p>
+          ) : null}
         </div>
       </header>
 
-      <div className="p-6 sm:p-8">
-        {registration.description ? <p className="mb-6 text-sm font-bold leading-8 text-slate-600">{registration.description}</p> : null}
+      <div className="p-6 sm:p-8 lg:p-10">
+        <div className="mb-7 lg:hidden">
+          <p className="text-sm font-black text-blue-700">فرم درخواست</p>
+          <h2 className="mt-1 text-xl font-black text-[#0f2f4a]">اطلاعات پیش‌ثبت‌نام</h2>
+        </div>
 
         {!registration.is_open || (lockedToUnit && !scopedUnit?.accepts_registration) ? (
           <div role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-6 text-right">
@@ -224,7 +239,7 @@ export function PreregistrationCard({
         ) : (
           <form ref={formRef} noValidate onSubmit={handleSubmit} className="grid gap-5 md:grid-cols-2">
             {lockedToUnit ? (
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 md:col-span-2">
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 md:col-span-2">
                 <p className="text-xs font-black text-blue-700">واحد آموزشی</p>
                 <p className="mt-1 text-base font-black text-[#0f2f4a]">{scopedUnit?.title}</p>
                 <input type="hidden" name="requested_unit" value={selectedUnitId} />
@@ -266,12 +281,12 @@ export function PreregistrationCard({
 
             <label className="md:col-span-2">
               <span className="mb-2 block text-sm font-black text-[#0f2f4a]">توضیحات تکمیلی</span>
-              <textarea name="description" rows={4} className="w-full resize-y rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-bold leading-7 text-[#0f2f4a] outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100" />
+              <textarea name="description" rows={4} className="w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold leading-7 text-[#0f2f4a] outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100" />
             </label>
 
             {message ? <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm font-black text-rose-800 md:col-span-2">{message}</div> : null}
 
-            <button type="submit" disabled={state === "submitting" || !isOpen} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#12395b] px-6 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50 md:col-span-2">
+            <button type="submit" disabled={state === "submitting" || !isOpen} className="inline-flex min-h-13 items-center justify-center gap-2 rounded-2xl bg-[#12395b] px-6 text-sm font-black text-white shadow-lg shadow-blue-950/10 transition hover:-translate-y-0.5 hover:bg-[#0d2f4d] disabled:cursor-not-allowed disabled:opacity-50 md:col-span-2">
               <Send aria-hidden="true" className="size-4" />
               {state === "submitting" ? "در حال ثبت" : "ثبت درخواست پیش‌ثبت‌نام"}
             </button>
@@ -279,7 +294,7 @@ export function PreregistrationCard({
         )}
 
         <div className="mt-6 text-center">
-          <Link href="/" className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-5 text-sm font-black text-[#0f2f4a]">
+          <Link href="/" className="inline-flex min-h-11 items-center rounded-2xl border border-slate-200 bg-slate-50 px-5 text-sm font-black text-[#0f2f4a] transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
             بازگشت به سایت
           </Link>
         </div>

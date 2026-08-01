@@ -37,10 +37,6 @@ type BackendRouteContext = {
   params: Promise<{ path: string[] }>;
 };
 
-type StreamingRequestInit = RequestInit & {
-  duplex?: "half";
-};
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -155,7 +151,7 @@ async function forwardToBackend(
     }
 
     const upstreamUrl = createUpstreamUrl(request, path);
-    const init: StreamingRequestInit = {
+    const init: RequestInit = {
       method: request.method,
       headers: createUpstreamHeaders(request, requestId),
       cache: "no-store",
@@ -167,8 +163,10 @@ async function forwardToBackend(
     };
 
     if (request.method !== "GET" && request.method !== "HEAD") {
-      init.body = request.body;
-      init.duplex = "half";
+      const body = await request.arrayBuffer();
+      if (body.byteLength > 0) {
+        init.body = body;
+      }
     }
 
     const upstreamResponse = await fetch(upstreamUrl, init);

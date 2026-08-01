@@ -26,6 +26,10 @@ if [ "${SEED_PUBLIC_DATA:-0}" = "1" ]; then
   python manage.py seed_public_data
 fi
 
+if [ -n "${CMS_ADMIN_USERNAME:-}" ] || [ -n "${CMS_ADMIN_PASSWORD:-}" ]; then
+  python manage.py ensure_cms_admin
+fi
+
 if [ "${COLLECT_STATIC:-0}" = "1" ]; then
   python manage.py collectstatic --noinput
 fi

@@ -1,0 +1,128 @@
+import { PublicPageLayout } from "@/components/layout/public-page-layout";
+import { Container } from "@/components/shared/container";
+import { AnimatedCounter } from "@/components/shared/animated-counter";
+import type { AboutInfo } from "@/services/about-service";
+
+const stats: Array<{ target: number; label: string; before?: string }> = [
+  { target: 33, label: "سال سابقه درخشان" },
+  { target: 4000, label: "دانش‌آموز" },
+  { target: 900, label: "معلم و پرسنل" },
+  { target: 200, label: "عنوان کشوری" },
+];
+
+const honors = [
+  "کسب مدال برنز المپیاد جهانی IJSO در کشور تایلند",
+  "مقام جهانی در مسابقات فیراکاپ ۲۰۲۴ برزیل توسط دانش‌آموزان بعثتی",
+  "قبولی دانش‌آموزان در رشته‌های پزشکی، دندانپزشکی و مهندسی دانشگاه‌های برتر کشور",
+  "کسب مدال در المپیادهای علمی کشوری و بین‌المللی",
+];
+
+function safeImageUrl(value: string | null) {
+  if (!value) return null;
+  try {
+    const url = new URL(value, "http://localhost");
+    return url.protocol === "http:" || url.protocol === "https:" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function AboutLegacyPage({ page }: { page: AboutInfo }) {
+  const image = safeImageUrl(page.image);
+
+  return (
+    <PublicPageLayout>
+      <section className="relative overflow-hidden border-b border-slate-200 bg-white">
+        <Container className="py-14 md:py-20">
+          <div className="max-w-3xl text-right">
+            <p className="mb-4 text-sm font-black text-blue-700">درباره ما</p>
+            <h1 className="text-3xl font-black leading-[1.4] tracking-tight text-[#0f2f4a] md:text-5xl">
+              {page.title || "مجتمع تربیتی آموزشی بعثت"}
+            </h1>
+            <p className="mt-5 text-base leading-9 text-slate-600 md:text-lg">
+              با ۳۳ سال سابقه درخشان در عرصه تعلیم و تربیت
+            </p>
+          </div>
+        </Container>
+      </section>
+
+      <section className="border-b border-slate-200 bg-white py-10">
+        <Container>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            {stats.map((stat) => (
+              <div key={stat.label} className="rounded-[1.75rem] border border-slate-200 bg-[#f8fafc] p-6 text-center">
+                <div className="text-3xl font-black text-blue-600">
+                  <AnimatedCounter target={stat.target} before={stat.before} duration={1350} />
+                </div>
+                <p className="mt-2 text-xs font-bold leading-6 text-slate-500">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </Container>
+      </section>
+
+      {page.description || image ? (
+        <section className="bg-white py-14 md:py-16">
+          <Container>
+            <article className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white text-right shadow-sm">
+              {image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={image} alt={page.title || "درباره مجتمع بعثت"} className="max-h-[32rem] w-full object-cover" />
+              ) : null}
+              {page.description ? (
+                <p className="whitespace-pre-line p-8 text-sm leading-8 text-slate-600 md:text-base">
+                  {page.description}
+                </p>
+              ) : null}
+            </article>
+          </Container>
+        </section>
+      ) : null}
+
+      <section className="bg-[#f8fafc] py-14 md:py-16">
+        <Container>
+          <div className="mb-8 text-right">
+            <p className="mb-2 text-sm font-black text-blue-600">افتخارات</p>
+            <h2 className="text-3xl font-black text-[#062452]">برخی از افتخارات بعثت</h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {honors.map((honor) => (
+              <div key={honor} className="flex items-start gap-4 rounded-[1.5rem] border border-slate-200 bg-white p-5 text-right shadow-sm">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-lg">🏆</span>
+                <p className="text-sm font-bold leading-7 text-slate-600">{honor}</p>
+              </div>
+            ))}
+          </div>
+        </Container>
+      </section>
+
+      <section className="bg-white py-14 md:py-16">
+        <Container>
+          <div className="overflow-hidden rounded-[2rem] border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-8 text-right shadow-sm sm:p-10">
+            <h2 className="text-2xl font-black text-[#062452]">ارتباط با ما</h2>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div className="flex items-center gap-4">
+                <span className="flex size-12 items-center justify-center rounded-2xl bg-white text-xl shadow-sm">📍</span>
+                <div>
+                  <p className="text-xs font-black text-slate-400">نشانی</p>
+                  <p className="mt-1 text-sm font-black leading-7 text-[#062452]">
+                    مشهد، بلوار معلم، معلم ۶۹، مجتمع آموزشی بعثت
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="flex size-12 items-center justify-center rounded-2xl bg-white text-xl shadow-sm">📞</span>
+                <div>
+                  <p className="text-xs font-black text-slate-400">تلفن</p>
+                  <a href="tel:05138681999" className="mt-1 block text-sm font-black text-[#062452] transition hover:text-blue-700">
+                    ۰۵۱-۳۸۶۸۱۹۹۹ (داخلی ۴۰۰)
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Container>
+      </section>
+    </PublicPageLayout>
+  );
+}

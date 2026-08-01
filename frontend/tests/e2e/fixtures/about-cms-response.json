@@ -1,0 +1,89 @@
+{
+  "title": "درباره ما",
+  "page_title": "درباره مجتمع بعثت",
+  "meta_description": "معرفی مجتمع بعثت",
+  "path": "about",
+  "changed_date": "2026-07-30T10:00:00Z",
+  "placeholders": [
+    {
+      "slot": "content",
+      "label": "Content",
+      "language": "fa-ir",
+      "content": [
+        {
+          "id": 1,
+          "plugin_type": "AboutHeroPlugin",
+          "eyebrow": "درباره ما",
+          "title": "Hero از django CMS",
+          "subtitle": "محتوای مدیریت‌شده در بک‌اند",
+          "background_image": null,
+          "image_alt": "",
+          "cta_label": "",
+          "cta_url": ""
+        },
+        {
+          "id": 2,
+          "plugin_type": "AboutRichTextPlugin",
+          "heading": "معرفی",
+          "body_html": "<p>متن غنی امن از CMS</p>"
+        },
+        {
+          "id": 3,
+          "plugin_type": "AboutHistoryPlugin",
+          "heading": "تاریخچه",
+          "intro": "مسیر رشد مجموعه",
+          "items": [
+            { "id": 31, "year": "۱۳۷۲", "title": "آغاز فعالیت", "description": "شروع رسمی", "order": 1 }
+          ]
+        },
+        {
+          "id": 4,
+          "plugin_type": "AboutFoundersPlugin",
+          "heading": "بنیان‌گذاران",
+          "intro": "",
+          "items": [
+            { "id": 41, "full_name": "بنیان‌گذار نمونه تست", "role": "بنیان‌گذار", "bio": "شرح تست", "image": null, "image_alt": "", "order": 1 }
+          ]
+        },
+        {
+          "id": 5,
+          "plugin_type": "AboutValuesPlugin",
+          "heading": "ارزش‌ها",
+          "intro": "",
+          "items": [
+            { "id": 51, "title": "صداقت", "description": "ارزش تست", "icon": "⭐", "order": 1 }
+          ]
+        },
+        {
+          "id": 6,
+          "plugin_type": "AboutGoalsPlugin",
+          "heading": "اهداف",
+          "intro": "",
+          "items": [
+            { "id": 61, "title": "رشد علمی", "description": "هدف تست", "order": 1 }
+          ]
+        },
+        {
+          "id": 7,
+          "plugin_type": "AboutGalleryPlugin",
+          "heading": "گالری",
+          "intro": "",
+          "items": [
+            { "id": 71, "image": "https://example.com/school.jpg", "alt_text": "تصویر تست گالری", "caption": "نمای مجموعه", "order": 1 }
+          ]
+        },
+        {
+          "id": 8,
+          "plugin_type": "AboutVideoPlugin",
+          "heading": "ویدئوی معرفی",
+          "video_url": "https://www.aparat.com/v/testhash",
+          "poster": null,
+          "caption": "ویدئوی تست",
+          "autoplay": false
+        }
+      ],
+      "details": "http://127.0.0.1:3100/api/headless-cms/fa-ir/placeholders/1/1/content/",
+      "html": ""
+    }
+  ]
+}

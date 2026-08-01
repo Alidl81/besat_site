@@ -22,6 +22,10 @@ if [ "${RUN_MIGRATIONS:-1}" = "1" ]; then
   python manage.py migrate --noinput
 fi
 
+if [ "${ENSURE_ABOUT_CMS_PAGE:-1}" = "1" ]; then
+  python manage.py ensure_about_cms_page
+fi
+
 if [ "${SEED_PUBLIC_DATA:-0}" = "1" ]; then
   python manage.py seed_public_data
 fi

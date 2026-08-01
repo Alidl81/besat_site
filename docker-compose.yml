@@ -28,6 +28,7 @@ services:
     environment:
       DATABASE_URL: postgres://besat_user:besat_password@db:5432/besat_site
       SEED_PUBLIC_DATA: "1"
+      ENSURE_ABOUT_CMS_PAGE: "1"
     ports:
       - "8000:8000"
     volumes:
@@ -49,11 +50,15 @@ services:
     container_name: besat_frontend
     restart: unless-stopped
     environment:
-      # The updated frontend's supported development data source is its
-      # same-origin proxy backed by the bundled mock API.
+      # The existing data source remains unchanged for all non-About pages.
       NEXT_PUBLIC_API_BASE_URL: /api/backend
       NEXT_SERVER_API_BASE_URL: http://127.0.0.1:3000/api/backend
       BESAT_BACKEND_API_URL: mock://local
+      # Only /about uses the real headless django CMS endpoint.
+      USE_DJANGO_CMS_ABOUT: "true"
+      DJANGO_CMS_API_BASE_URL: http://backend:8000/api/headless-cms
+      DJANGO_CMS_ABOUT_LANGUAGE: fa-ir
+      ABOUT_FALLBACK_API_URL: http://backend:8000/api/about/
       WATCHPACK_POLLING: "true"
     ports:
       - "3000:3000"

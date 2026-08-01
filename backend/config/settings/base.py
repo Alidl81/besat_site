@@ -24,6 +24,7 @@ def csv_env(name: str, default: str = "") -> list[str]:
     value = env(name, default=default)
     return [item.strip() for item in value.split(",") if item.strip()]
 
+
 SECRET_KEY = env("SECRET_KEY", default="unsafe-development-key-change-me")
 DEBUG = env.bool("DEBUG", default=False)
 ENABLE_API_DOCS = env.bool("ENABLE_API_DOCS", default=DEBUG)
@@ -32,11 +33,13 @@ ALLOWED_HOSTS = csv_env("ALLOWED_HOSTS", "localhost,127.0.0.1")
 
 LANGUAGE_CODE = env("LANGUAGE_CODE", default="fa-ir")
 TIME_ZONE = env("TIME_ZONE", default="Asia/Tehran")
+CMS_CONTENT_LANGUAGE = env("CMS_CONTENT_LANGUAGE", default=LANGUAGE_CODE)
 
 USE_I18N = True
 USE_TZ = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+SITE_ID = env.int("SITE_ID", default=1)
 
 
 DJANGO_APPS = [
@@ -45,6 +48,7 @@ DJANGO_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "django.contrib.sites",
     "django.contrib.staticfiles",
 ]
 
@@ -54,6 +58,11 @@ THIRD_PARTY_APPS = [
     "django_filters",
     "drf_spectacular",
     "rest_framework_simplejwt.token_blacklist",
+    "treebeard",
+    "sekizai",
+    "menus",
+    "cms",
+    "djangocms_rest",
 ]
 
 LOCAL_APPS = [
@@ -87,6 +96,10 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "cms.middleware.user.CurrentUserMiddleware",
+    "cms.middleware.page.CurrentPageMiddleware",
+    "cms.middleware.toolbar.ToolbarMiddleware",
+    "cms.middleware.language.LanguageCookieMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -102,8 +115,11 @@ TEMPLATES = [
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
+                "django.template.context_processors.i18n",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "sekizai.context_processors.sekizai",
+                "cms.context_processors.cms_settings",
             ],
         },
     }
@@ -238,4 +254,46 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
-    
+
+
+# django CMS is intentionally headless: the public cms.urls catch-all is not
+# mounted. This template is used only by the CMS editing interface.
+CMS_CONFIRM_VERSION4 = True
+ABOUT_CMS_TEMPLATE = "about/cms/about_editor.html"
+ABOUT_CMS_REVERSE_ID = "about-headless"
+LANGUAGES = ((CMS_CONTENT_LANGUAGE, "فارسی"),)
+CMS_LANGUAGES = {
+    SITE_ID: [
+        {
+            "code": CMS_CONTENT_LANGUAGE,
+            "name": "فارسی",
+            "fallbacks": [],
+            "public": True,
+            "hide_untranslated": False,
+            "redirect_on_fallback": False,
+        }
+    ]
+}
+CMS_TEMPLATES = [
+    (ABOUT_CMS_TEMPLATE, "صفحه درباره ما (Headless)"),
+]
+CMS_PERMISSION = False
+CMS_PLACEHOLDER_CONF = {
+    f"{ABOUT_CMS_TEMPLATE} content": {
+        "name": "محتوای صفحه درباره ما",
+        "plugins": [
+            "AboutHeroPlugin",
+            "AboutRichTextPlugin",
+            "AboutHistoryPlugin",
+            "AboutFoundersPlugin",
+            "AboutValuesPlugin",
+            "AboutGoalsPlugin",
+            "AboutGalleryPlugin",
+            "AboutVideoPlugin",
+        ],
+        "limits": {
+            "global": 50,
+            "AboutHeroPlugin": 1,
+        },
+    }
+}

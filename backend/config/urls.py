@@ -12,6 +12,7 @@ admin.site.index_title = "داشبورد مدیریت"
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
+    path("api/headless-cms/", include("djangocms_rest.urls")),
     path("api/", include("apps.core.urls")),
     path("api/", include("apps.site_settings.urls")),
     path("api/", include("apps.units.urls")),

@@ -1,30 +1,70 @@
 # Technology Stack
 
-## Runtime Summary
+## Core Sections (Required)
+
+### 1) Runtime Summary
 
 | Area | Value | Evidence |
-|---|---|---|
-| Frontend | TypeScript, Next.js 16.2.12, React 19.2.4 | `frontend/package.json` |
-| Backend | Python/Django served by Gunicorn | `backend/requirements.txt`, `backend/Dockerfile` |
-| Database | PostgreSQL 16 Alpine | `docker-compose.yml` |
-| Package managers | npm (frontend), pip (backend) | `frontend/package-lock.json`, `backend/requirements.txt` |
+|------|-------|----------|
+| Backend language | Python | backend/manage.py |
+| Backend runtime | Python 3.12 in the container | backend/Dockerfile |
+| Frontend language | TypeScript and React | frontend/tsconfig.json; frontend/package.json |
+| Frontend runtime | Node.js 22 on Alpine in the container | frontend/Dockerfile |
+| Package managers | pip requirements and npm lockfile | backend/requirements.txt; frontend/package-lock.json |
+| Build systems | Django management/Gunicorn and Next.js | backend/entrypoint.sh; frontend/package.json |
 
-## Production Dependencies
+### 2) Production Frameworks and Dependencies
 
-Next.js/React provide the browser UI; Django REST Framework, Simple JWT, and `django-cors-headers` provide the API, JWT authentication, and browser-origin policy. PostgreSQL is the Compose database.
+| Dependency | Version | Role in system | Evidence |
+|------------|---------|----------------|----------|
+| Django | >=5.2,<6.1 | Backend web framework and ORM | backend/requirements.txt |
+| Django REST Framework | >=3.15,<4.0 | REST API | backend/requirements.txt |
+| django CMS | >=5.0.9,<5.1 | Headless About-page CMS | backend/requirements.txt |
+| djangocms-rest | >=1.2,<1.3 | CMS REST serialization | backend/requirements.txt |
+| Simple JWT | >=5.3,<6.0 | API authentication | backend/requirements.txt; backend/config/settings/base.py |
+| psycopg | >=3.2,<4.0 | PostgreSQL driver | backend/requirements.txt |
+| Next.js | ^16.2.12 | Frontend App Router framework | frontend/package.json |
+| React | 19.2.4 | Frontend rendering | frontend/package.json |
+| Tiptap | ^3.27.1 | Dashboard rich-content editing | frontend/package.json |
 
-## Development Toolchain
+### 3) Development Toolchain
 
-- `npm run dev`, `npm run build`, and `npm run lint` are defined in `frontend/package.json`.
-- Django tests run through `python manage.py test`.
-- Docker Compose starts `db`, `backend`, and `frontend`.
+| Tool | Purpose | Evidence |
+|------|---------|----------|
+| ESLint 9 with Next rules | Frontend linting | frontend/eslint.config.mjs |
+| TypeScript 5 strict mode | Static checks | frontend/tsconfig.json |
+| Playwright 1.62 | Unit-contract and E2E tests | frontend/package.json; frontend/playwright.config.ts |
+| Django test runner | Backend tests | backend/manage.py; backend/apps/about/test_headless_cms.py |
+| GitHub Actions | About CMS CI | .github/workflows/about-headless-cms.yml |
+| Docker Compose | Local integrated runtime | docker-compose.yml |
 
-## Environment and Config
+### 4) Key Commands
 
-Frontend API selection uses `NEXT_PUBLIC_DATA_SOURCE`, `NEXT_PUBLIC_API_BASE_URL`, and `NEXT_SERVER_API_BASE_URL`; backend configuration is in `backend/.env` and `backend/.env.example`. Do not commit secrets.
+    cd backend
+    pip install -r requirements.txt
+    python manage.py check
+    python manage.py test
 
-## Evidence
+    cd frontend
+    npm ci
+    npm run lint
+    npx tsc --noEmit
+    npm run build
+    npm run test:about
 
-- `frontend/package.json`
-- `backend/requirements.txt`
-- `docker-compose.yml`
+### 5) Environment and Config
+
+- Config sources: backend/config/settings/, backend/.env.example, frontend/.env.example, docker-compose.yml.
+- Required or deployment-sensitive variables include SECRET_KEY, DATABASE_URL, ALLOWED_HOSTS, CORS_ALLOWED_ORIGINS, CSRF_TRUSTED_ORIGINS, BESAT_BACKEND_API_URL, and the About CMS variables documented in docs/ABOUT_HEADLESS_CMS.md.
+- The committed examples contain variable names and non-secret defaults; backend/.env and frontend local env files are ignored by .gitignore.
+- PostgreSQL is the declared deployed database; backend settings default to SQLite for local development.
+
+### 6) Evidence
+
+- backend/requirements.txt
+- backend/Dockerfile
+- backend/config/settings/base.py
+- frontend/package.json
+- frontend/tsconfig.json
+- frontend/Dockerfile
+- docker-compose.yml

@@ -1,3 +1,5 @@
+from urllib.parse import urlsplit
+
 import nh3
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
@@ -22,6 +24,16 @@ from .models import (
     AboutValues,
     AboutVideo,
 )
+
+
+def _filter_absolute_http_urls(tag, attribute, value):
+    if attribute not in {"href", "src"}:
+        return value
+
+    parsed = urlsplit(value)
+    if parsed.scheme.lower() in {"http", "https"} and parsed.netloc:
+        return value
+    return None
 
 
 class AbsoluteImageSerializerMixin:
@@ -126,7 +138,11 @@ class AboutRichTextPluginSerializer(GenericPluginSerializer):
         fields = ("id", "plugin_type", "parent_plugin_type", "heading", "body_html")
 
     def get_body_html(self, obj):
-        return nh3.clean(obj.body_html or "")
+        return nh3.clean(
+            obj.body_html or "",
+            attribute_filter=_filter_absolute_http_urls,
+            url_schemes={"http", "https"},
+        )
 
 
 class AboutHistoryPluginSerializer(GenericPluginSerializer):

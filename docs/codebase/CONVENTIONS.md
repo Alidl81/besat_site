@@ -1,29 +1,51 @@
 # Coding Conventions
 
-## Naming Rules
+## Core Sections (Required)
+
+### 1) Naming Rules
 
 | Item | Rule | Example | Evidence |
-|---|---|---|---|
-| Frontend files | kebab-case | `excel-import.tsx` | `frontend/src/components/crud/` |
-| React components | PascalCase | `ExcelImport` | `frontend/src/components/crud/excel-import.tsx` |
-| Python modules | snake_case filenames | `test_frontend_contracts.py` | `backend/apps/core/` |
-| Env vars | upper snake case | `NEXT_PUBLIC_API_BASE_URL` | `docker-compose.yml` |
+|------|------|---------|----------|
+| Python files/functions | snake_case | ensure_about_cms_page.py; validate_http_url | backend/apps/about |
+| Python classes | PascalCase | AboutPageSerializer | backend/apps/about/serializers.py |
+| Frontend files | kebab-case for components/services | about-cms-page.tsx | frontend/src/components/about |
+| TypeScript components/types | PascalCase | AboutCmsPage | frontend/src/services/about-service.ts |
+| TypeScript functions/variables | camelCase | resolveAboutPage | frontend/src/services/about-service.ts |
+| Environment variables | upper snake case | USE_DJANGO_CMS_ABOUT | frontend/.env.example |
 
-## Formatting and Linting
+### 2) Formatting and Linting
 
-Frontend linting uses ESLint through `npm run lint`. TypeScript strict mode is enabled. Backend formatting configuration is [TODO].
+- Frontend formatter: no separate formatter configuration was found; TypeScript style is enforced primarily by ESLint and compiler checks.
+- Frontend linter: ESLint 9 with Next core-web-vitals and TypeScript presets in frontend/eslint.config.mjs.
+- React set-state-in-effect and explicit-any findings are configured as warnings.
+- TypeScript uses strict mode, noEmit, bundler resolution, and isolatedModules in frontend/tsconfig.json.
+- Python formatter/linter: [TODO] no repository configuration was found.
+- Commands: npm run lint and npx tsc --noEmit.
 
-## Imports and Errors
+### 3) Import and Module Conventions
 
-Frontend uses the `@/` alias. `apiRequest` throws `ApiRequestError` for non-success responses; Django views use DRF serializers and permission classes.
+- Frontend code uses @/ for imports rooted at frontend/src.
+- Python code uses absolute app imports for cross-app dependencies and relative imports within a feature.
+- No barrel-export policy is documented; representative code imports concrete modules.
 
-## Testing
+### 4) Error and Logging Conventions
 
-Django tests are colocated in application test modules. No committed frontend unit or E2E runner configuration was found.
+- DRF views return serialized API errors; project-wide authentication, throttling, and JSON rendering are configured in backend/config/settings/base.py.
+- Frontend request helpers throw for non-success responses; the About CMS adapter catches CMS failures and falls back to the legacy API.
+- The backend proxy returns a stable 502 payload with a request ID.
+- Logging is mostly framework defaults and console warnings. [TODO] No structured application logging or sensitive-field redaction policy was found.
 
-## Evidence
+### 5) Testing Conventions
 
-- `frontend/package.json`
-- `frontend/tsconfig.json`
-- `frontend/src/lib/api/client.ts`
-- `backend/apps/accounts/views.py`
+- Django uses tests.py and test_*.py files inside each app with django.test.TestCase and DRF APIClient.
+- Frontend uses *.spec.ts under frontend/tests and Playwright expect assertions.
+- Test data is created in each test or loaded from explicit fixtures.
+- Coverage expectation: [TODO] no enforced threshold was found.
+
+### 6) Evidence
+
+- frontend/eslint.config.mjs
+- frontend/tsconfig.json
+- frontend/src/services/about-service.ts
+- backend/apps/about/test_headless_cms.py
+- backend/config/settings/base.py

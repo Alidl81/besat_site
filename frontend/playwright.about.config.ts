@@ -1,5 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
+const aboutAppPort = process.env.ABOUT_E2E_PORT ?? "3217";
+const aboutBaseUrl = "http://127.0.0.1:" + aboutAppPort;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "about-cms.spec.ts",
@@ -7,7 +10,7 @@ export default defineConfig({
   fullyParallel: false,
   reporter: "line",
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: aboutBaseUrl,
     browserName: "chromium",
     channel: process.env.PLAYWRIGHT_CHANNEL,
     headless: true,
@@ -20,8 +23,9 @@ export default defineConfig({
       timeout: 30_000,
     },
     {
-      command: "npm run dev -- --port 3000",
-      url: "http://127.0.0.1:3000/about",
+      command:
+        "npm run dev -- --hostname 127.0.0.1 --port " + aboutAppPort,
+      url: aboutBaseUrl + "/about",
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {

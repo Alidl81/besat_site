@@ -41,6 +41,10 @@ It creates or repairs one django CMS page with:
 - public access enabled
 - navigation disabled
 
+If the configured reverse ID and the About slug already belong to different
+pages, the command stops without modifying either page. An administrator must
+reconcile that ambiguous duplicate before startup can continue.
+
 ## Supported plugins
 
 The `content` placeholder accepts only:

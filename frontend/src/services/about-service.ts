@@ -138,6 +138,13 @@ function asString(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback;
 }
 
+function asRequiredString(value: unknown, field: string) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error("Invalid django CMS field: " + field + ".");
+  }
+  return value.trim();
+}
+
 function asNullableString(value: unknown) {
   return typeof value === "string" && value.trim() ? value : null;
 }
@@ -150,8 +157,11 @@ function asOrder(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
-function records(value: unknown) {
-  return Array.isArray(value) ? value.filter(isRecord) : [];
+function requiredRecords(value: unknown, field: string) {
+  if (!Array.isArray(value) || !value.every(isRecord)) {
+    throw new Error("Invalid django CMS collection: " + field + ".");
+  }
+  return value;
 }
 
 function normalizePlugin(raw: UnknownRecord): AboutCmsPlugin | null {
@@ -160,8 +170,7 @@ function normalizePlugin(raw: UnknownRecord): AboutCmsPlugin | null {
 
   switch (pluginType) {
     case "AboutHeroPlugin": {
-      const title = asString(raw.title).trim();
-      if (!title) return null;
+      const title = asRequiredString(raw.title, pluginType + ".title");
       return {
         ...base,
         plugin_type: pluginType,
@@ -175,8 +184,7 @@ function normalizePlugin(raw: UnknownRecord): AboutCmsPlugin | null {
       };
     }
     case "AboutRichTextPlugin": {
-      const bodyHtml = asString(raw.body_html).trim();
-      if (!bodyHtml) return null;
+      const bodyHtml = asRequiredString(raw.body_html, pluginType + ".body_html");
       return {
         ...base,
         plugin_type: pluginType,
@@ -188,12 +196,12 @@ function normalizePlugin(raw: UnknownRecord): AboutCmsPlugin | null {
       return {
         ...base,
         plugin_type: pluginType,
-        heading: asString(raw.heading, "تاریخچه"),
+        heading: asRequiredString(raw.heading, pluginType + ".heading"),
         intro: asString(raw.intro),
-        items: records(raw.items).map((item) => ({
+        items: requiredRecords(raw.items, pluginType + ".items").map((item) => ({
           id: asId(item.id),
           year: asString(item.year),
-          title: asString(item.title),
+          title: asRequiredString(item.title, pluginType + ".items[].title"),
           description: asString(item.description),
           order: asOrder(item.order),
         })),
@@ -202,11 +210,11 @@ function normalizePlugin(raw: UnknownRecord): AboutCmsPlugin | null {
       return {
         ...base,
         plugin_type: pluginType,
-        heading: asString(raw.heading, "بنیان‌گذاران"),
+        heading: asRequiredString(raw.heading, pluginType + ".heading"),
         intro: asString(raw.intro),
-        items: records(raw.items).map((item) => ({
+        items: requiredRecords(raw.items, pluginType + ".items").map((item) => ({
           id: asId(item.id),
-          full_name: asString(item.full_name),
+          full_name: asRequiredString(item.full_name, pluginType + ".items[].full_name"),
           role: asString(item.role),
           bio: asString(item.bio),
           image: asNullableString(item.image),
@@ -218,11 +226,11 @@ function normalizePlugin(raw: UnknownRecord): AboutCmsPlugin | null {
       return {
         ...base,
         plugin_type: pluginType,
-        heading: asString(raw.heading, "ارزش‌ها"),
+        heading: asRequiredString(raw.heading, pluginType + ".heading"),
         intro: asString(raw.intro),
-        items: records(raw.items).map((item) => ({
+        items: requiredRecords(raw.items, pluginType + ".items").map((item) => ({
           id: asId(item.id),
-          title: asString(item.title),
+          title: asRequiredString(item.title, pluginType + ".items[].title"),
           description: asString(item.description),
           icon: asString(item.icon),
           order: asOrder(item.order),
@@ -232,11 +240,11 @@ function normalizePlugin(raw: UnknownRecord): AboutCmsPlugin | null {
       return {
         ...base,
         plugin_type: pluginType,
-        heading: asString(raw.heading, "اهداف"),
+        heading: asRequiredString(raw.heading, pluginType + ".heading"),
         intro: asString(raw.intro),
-        items: records(raw.items).map((item) => ({
+        items: requiredRecords(raw.items, pluginType + ".items").map((item) => ({
           id: asId(item.id),
-          title: asString(item.title),
+          title: asRequiredString(item.title, pluginType + ".items[].title"),
           description: asString(item.description),
           order: asOrder(item.order),
         })),
@@ -245,19 +253,18 @@ function normalizePlugin(raw: UnknownRecord): AboutCmsPlugin | null {
       return {
         ...base,
         plugin_type: pluginType,
-        heading: asString(raw.heading, "گالری"),
+        heading: asRequiredString(raw.heading, pluginType + ".heading"),
         intro: asString(raw.intro),
-        items: records(raw.items).map((item) => ({
+        items: requiredRecords(raw.items, pluginType + ".items").map((item) => ({
           id: asId(item.id),
-          image: asNullableString(item.image),
-          alt_text: asString(item.alt_text),
+          image: asRequiredString(item.image, pluginType + ".items[].image"),
+          alt_text: asRequiredString(item.alt_text, pluginType + ".items[].alt_text"),
           caption: asString(item.caption),
           order: asOrder(item.order),
         })),
       };
     case "AboutVideoPlugin": {
-      const videoUrl = asString(raw.video_url).trim();
-      if (!videoUrl) return null;
+      const videoUrl = asRequiredString(raw.video_url, pluginType + ".video_url");
       return {
         ...base,
         plugin_type: pluginType,
@@ -276,10 +283,15 @@ function normalizePlugin(raw: UnknownRecord): AboutCmsPlugin | null {
 export function parseDjangoCmsAboutResponse(payload: unknown): AboutCmsPage {
   if (!isRecord(payload)) throw new Error("Invalid django CMS page payload.");
 
-  const placeholders = records(payload.placeholders);
-  const contentPlaceholder =
-    placeholders.find((placeholder) => placeholder.slot === "content") ?? placeholders[0];
-  const plugins = records(contentPlaceholder?.content)
+  const placeholders = requiredRecords(payload.placeholders, "placeholders");
+  const contentPlaceholder = placeholders.find(
+    (placeholder) => placeholder.slot === "content",
+  );
+  if (!contentPlaceholder) {
+    throw new Error("The django CMS about page has no content placeholder.");
+  }
+
+  const plugins = requiredRecords(contentPlaceholder.content, "content.plugins")
     .map(normalizePlugin)
     .filter((plugin): plugin is AboutCmsPlugin => plugin !== null);
 

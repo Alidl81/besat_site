@@ -71,6 +71,34 @@ test("falls back when django CMS returns an empty or incompatible contract", asy
   expect(result.source).toBe("legacy");
 });
 
+test("falls back when the content placeholder is missing", async () => {
+  const result = await resolveAboutPage({
+    useCms: true,
+    fetchCms: async () => ({
+      ...fixture,
+      placeholders: [{ slot: "sidebar", content: fixture.placeholders[0].content }],
+    }),
+    fetchLegacy: async () => legacyPage,
+  });
+
+  expect(result.source).toBe("legacy");
+});
+
+test("falls back when a recognized plugin has a malformed contract", async () => {
+  const result = await resolveAboutPage({
+    useCms: true,
+    fetchCms: async () => ({
+      ...fixture,
+      placeholders: [
+        { slot: "content", content: [{ plugin_type: "AboutHistoryPlugin" }] },
+      ],
+    }),
+    fetchLegacy: async () => legacyPage,
+  });
+
+  expect(result.source).toBe("legacy");
+});
+
 test("does not call django CMS when the feature flag is disabled", async () => {
   let cmsCalls = 0;
   const result = await resolveAboutPage({

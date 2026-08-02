@@ -1,35 +1,51 @@
 # Codebase Structure
 
-## Top-Level Map
+## Core Sections (Required)
+
+### 1) Top-Level Map
 
 | Path | Purpose | Evidence |
-|---|---|---|
-| `frontend/` | Next.js application | `frontend/package.json` |
-| `backend/` | Django API and domain apps | `backend/manage.py`, `backend/apps/` |
-| `docs/` | Shared contracts and repository documentation | `docs/backend_contracts/` |
-| `docker-compose.yml` | Local full-stack topology | `docker-compose.yml` |
+|------|---------|----------|
+| backend/ | Django project, feature apps, migrations, API, and deployment files | backend/manage.py; backend/config/urls.py |
+| frontend/ | Next.js public site, dashboard, services, proxy, and tests | frontend/package.json; frontend/src/app |
+| docs/ | Shared product notes, API contracts, and architecture documentation | README.md; docs/backend_contracts/README.md |
+| .github/workflows/ | Continuous-integration workflows | .github/workflows/about-headless-cms.yml |
+| docker-compose.yml | Integrated frontend/backend/database runtime | docker-compose.yml |
+| README.md | Project intent, data rules, and workflow guidance | README.md |
 
-## Entry Points
+### 2) Entry Points
 
-- Frontend: `frontend/package.json` runs `next dev`.
-- Backend: `backend/entrypoint.sh` starts the Django/Gunicorn service.
-- Django routes begin in `backend/config/urls.py`.
+- Backend CLI entry: backend/manage.py.
+- Backend web entry: backend/config/wsgi.py, launched by backend/entrypoint.sh through Gunicorn.
+- Backend route entry: backend/config/urls.py.
+- Frontend route entry: frontend/src/app; commands are selected by frontend/package.json.
+- Frontend backend-proxy entry: frontend/src/app/api/backend/[...path]/route.ts.
+- Secondary startup task: backend/apps/about/management/commands/ensure_about_cms_page.py.
 
-## Module Boundaries
+### 3) Module Boundaries
 
 | Boundary | What belongs here | What must not be here |
-|---|---|---|
-| `frontend/src/components/` | UI and browser interaction | Django persistence |
-| `frontend/src/lib/` | API/auth/data adapters | page layout markup |
-| `backend/apps/` | Feature models, serializers, permissions, views | frontend presentation |
-| `backend/config/` | Django configuration and root routes | feature-specific business logic |
+|----------|-------------------|------------------------|
+| backend/apps/<feature>/ | Feature models, serializers, permissions, URLs, views, migrations, tests | Browser rendering |
+| backend/config/ | Cross-project settings, URL assembly, ASGI/WSGI | Feature-specific domain rules |
+| frontend/src/app/ | Next App Router pages, layouts, and route handlers | Django persistence logic |
+| frontend/src/components/ | Reusable UI and feature rendering | Direct database access |
+| frontend/src/services/ and src/lib/api/ | API contracts, normalization, request adapters | Page layout |
+| docs/backend_contracts/ | Frontend-driven backend contracts | Executable runtime code |
 
-## Naming and Organization Rules
+### 4) Naming and Organization Rules
 
-Frontend source files use kebab-case; React component exports use PascalCase. Django is organized by feature app with familiar `models.py`, `serializers.py`, `views.py`, `urls.py`, and `tests.py` files. Frontend imports use `@/*` for `frontend/src/*`.
+- Django apps are domain/feature directories using snake_case Python files.
+- Frontend component and service filenames use kebab-case; exported components and types use PascalCase.
+- Tests are co-located in Django apps and placed in frontend/tests for Playwright.
+- TypeScript imports may use the @/ alias, mapped to frontend/src by frontend/tsconfig.json.
+- Generated output such as frontend/.next, frontend/test-results, backend/staticfiles, and Python caches is not source.
 
-## Evidence
+### 5) Evidence
 
-- `frontend/tsconfig.json`
-- `backend/apps/`
-- `docs/codebase/.codebase-scan.txt`
+- docs/codebase/.codebase-scan.txt was used during discovery and intentionally removed after documentation.
+- backend/config/urls.py
+- backend/apps/about/
+- frontend/src/app/
+- frontend/src/services/about-service.ts
+- frontend/tsconfig.json

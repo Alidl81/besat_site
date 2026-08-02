@@ -1,11 +1,11 @@
 from tempfile import TemporaryDirectory
 
-from cms.api import add_plugin
+from cms.api import add_plugin, create_page
 from cms.models import Page, PageContent
 from cms.plugin_pool import plugin_pool
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.core.management import call_command
+from django.core.management import call_command, CommandError
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
@@ -174,7 +174,12 @@ class HeadlessAboutCmsTests(TestCase):
             "AboutRichTextPlugin",
             settings.CMS_CONTENT_LANGUAGE,
             heading="معرفی",
-            body_html='<p>متن امن</p><script>alert("x")</script>',
+            body_html=(
+                '<p>متن امن</p><script>alert("x")</script>'
+                '<a href="mailto:unsafe@example.com">unsafe</a>'
+                '<a href="/relative">relative</a>'
+                '<a href="https://example.com/about">safe</a>'
+            ),
         )
 
         history = add_plugin(
@@ -312,6 +317,29 @@ class HeadlessAboutCmsTests(TestCase):
         )
         self.assertEqual(self.page.get_path(settings.CMS_CONTENT_LANGUAGE), "about")
 
+    def test_management_command_fails_safely_for_conflicting_about_pages(self):
+        self.page.reverse_id = "legacy-about"
+        self.page.save(update_fields=["reverse_id"])
+        conflicting_page = create_page(
+            title="Conflicting About",
+            template=settings.ABOUT_CMS_TEMPLATE,
+            language=settings.CMS_CONTENT_LANGUAGE,
+            slug="conflicting-about",
+            reverse_id=settings.ABOUT_CMS_REVERSE_ID,
+            in_navigation=False,
+        )
+
+        with self.assertRaisesMessage(
+            CommandError,
+            "reverse ID and /about slug belong to different pages",
+        ):
+            call_command("ensure_about_cms_page", verbosity=0)
+
+        self.page.refresh_from_db()
+        conflicting_page.refresh_from_db()
+        self.assertEqual(self.page.get_path(settings.CMS_CONTENT_LANGUAGE), "about")
+        self.assertEqual(conflicting_page.reverse_id, settings.ABOUT_CMS_REVERSE_ID)
+
     def test_all_requested_plugins_are_registered(self):
         self.assertTrue(set(EXPECTED_PLUGIN_TYPES).issubset(plugin_pool.plugins.keys()))
 
@@ -352,6 +380,9 @@ class HeadlessAboutCmsTests(TestCase):
         rich_text_payload = payload_by_type["AboutRichTextPlugin"]
         self.assertIn("متن امن", rich_text_payload["body_html"])
         self.assertNotIn("<script", rich_text_payload["body_html"].lower())
+        self.assertNotIn("mailto:", rich_text_payload["body_html"])
+        self.assertNotIn('href="/relative"', rich_text_payload["body_html"])
+        self.assertIn("https://example.com/about", rich_text_payload["body_html"])
 
         history_item = payload_by_type["AboutHistoryPlugin"]["items"][0]
         self.assertEqual(history_item["year"], "۱۳۷۲")

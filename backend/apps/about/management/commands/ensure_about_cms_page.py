@@ -2,7 +2,7 @@ from cms.api import create_page, create_page_content
 from cms.models import Page, PageContent
 from django.conf import settings
 from django.contrib.sites.models import Site
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 
@@ -14,20 +14,31 @@ class Command(BaseCommand):
         language = settings.CMS_CONTENT_LANGUAGE
         site = Site.objects.get_current()
 
-        page = (
+        reverse_id_page = (
             Page.objects.filter(site=site, reverse_id=settings.ABOUT_CMS_REVERSE_ID)
             .first()
         )
-        if page is None:
-            page = (
-                Page.objects.filter(
-                    site=site,
-                    urls__language=language,
-                    urls__slug="about",
-                )
-                .distinct()
-                .first()
+        slug_page = (
+            Page.objects.filter(
+                site=site,
+                urls__language=language,
+                urls__slug="about",
             )
+            .distinct()
+            .first()
+        )
+
+        if (
+            reverse_id_page is not None
+            and slug_page is not None
+            and reverse_id_page.pk != slug_page.pk
+        ):
+            raise CommandError(
+                "The About CMS reverse ID and /about slug belong to different pages; "
+                "resolve the duplicate pages before rerunning this command."
+            )
+
+        page = reverse_id_page or slug_page
 
         created = page is None
         if created:

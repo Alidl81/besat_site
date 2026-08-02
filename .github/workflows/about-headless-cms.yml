@@ -3,7 +3,7 @@ name: About Headless CMS
 on:
   push:
     branches:
-      - agent/headless-django-cms-about
+      - CMS
   pull_request:
     paths:
       - "backend/apps/about/**"

@@ -11,7 +11,7 @@ test("renders the existing AboutPage API when django CMS returns an error", asyn
 
   await expect(page.getByRole("heading", { name: "Fallback AboutPage API", level: 1 })).toBeVisible();
   await expect(page.getByText("محتوای fallback از API فعلی AboutPage")).toBeVisible();
-  await expect(page.getByText("سال سابقه درخشان")).toBeVisible();
+  await expect(page.getByText("سال سابقه درخشان", { exact: true })).toBeVisible();
 });
 
 test("renders all requested django CMS About plugins", async ({ page, request }) => {

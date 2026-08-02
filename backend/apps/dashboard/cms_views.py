@@ -1,4 +1,5 @@
 from django.db.models import Q
+from django.utils import timezone
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
@@ -51,6 +52,25 @@ class UnitScopedCMSViewSet(ModelViewSet):
 class CMSStudentViewSet(UnitScopedCMSViewSet):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
+
+    @action(detail=False, methods=("get",), url_path="summary")
+    def summary(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+        completed = queryset.filter(
+            national_code__isnull=False,
+            unit__isnull=False,
+        ).exclude(national_code="")
+
+        return Response(
+            {
+                "total": queryset.count(),
+                "completed_profiles": completed.count(),
+                "new_this_year": queryset.filter(
+                    created_at__year=timezone.now().year,
+                ).count(),
+                "incomplete_profiles": queryset.exclude(pk__in=completed).count(),
+            }
+        )
 
 
 class CMSClassViewSet(UnitScopedCMSViewSet):

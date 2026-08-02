@@ -172,6 +172,7 @@ class CMSRegistrationRequestUpdateSerializer(serializers.ModelSerializer):
         valid_statuses = {
             RegistrationRequest.Status.NEW,
             RegistrationRequest.Status.REVIEWING,
+            RegistrationRequest.Status.NEEDS_DOCUMENTS,
             RegistrationRequest.Status.CONTACTED,
             RegistrationRequest.Status.ACCEPTED,
             RegistrationRequest.Status.REJECTED,

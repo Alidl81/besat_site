@@ -92,3 +92,17 @@ class InternalMessage(TimeStampedModel):
 
     class Meta:
         ordering = ("-created_at", "-id")
+
+
+class PanelService(TimeStampedModel):
+    title = models.CharField(max_length=255)
+    description = models.TextField(null=True, blank=True)
+    icon = models.CharField(max_length=100, default="link")
+    url = models.URLField(max_length=500)
+    is_external = models.BooleanField(default=False)
+    audiences = models.JSONField(default=list, blank=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ("order", "title", "id")

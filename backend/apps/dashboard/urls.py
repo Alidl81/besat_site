@@ -15,11 +15,27 @@ from .views import (
     ParentsDashboardAPIView,
     UnitManagerDashboardAPIView,
 )
+from .panel_views import (
+    ParentChildDetailAPIView,
+    ParentChildrenAPIView,
+    ParentProgramsAPIView,
+    ParentRegistrationsAPIView,
+    PanelServicesAPIView,
+    ReportsExportAPIView,
+    ReportsOverviewAPIView,
+)
 
 
 app_name = "dashboard"
 
 urlpatterns = [
+    path("parents/children/", ParentChildrenAPIView.as_view(), name="parent-children"),
+    path("parents/children/<int:pk>/", ParentChildDetailAPIView.as_view(), name="parent-child-detail"),
+    path("parents/programs/", ParentProgramsAPIView.as_view(), name="parent-programs"),
+    path("parents/registrations/", ParentRegistrationsAPIView.as_view(), name="parent-registrations"),
+    path("cms/reports/overview/", ReportsOverviewAPIView.as_view(), name="cms-reports-overview"),
+    path("cms/reports/export/", ReportsExportAPIView.as_view(), name="cms-reports-export"),
+    path("cms/services/", PanelServicesAPIView.as_view(), name="cms-services"),
     path(
         "dashboard/context/",
         DashboardContextAPIView.as_view(),

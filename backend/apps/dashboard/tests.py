@@ -8,6 +8,7 @@ from apps.gallery.models import GalleryItem
 from apps.news.models import News
 from apps.units.models import SchoolUnit
 
+from .models import Program, Student
 
 User = get_user_model()
 
@@ -69,6 +70,18 @@ class DashboardAPITests(TestCase):
             unit=self.unit_1,
             role=UserUnitMembership.UnitRole.PARENT,
             is_active=True,
+        )
+        self.student = Student.objects.create(
+            full_name="فرزند والد",
+            national_code="1234567890",
+            unit=self.unit_1,
+            class_title="اول الف",
+            parent=self.parent,
+        )
+        Program.objects.create(
+            title="برنامه واحد",
+            unit=self.unit_1,
+            date="2026-08-02T08:00:00Z",
         )
 
         News.objects.create(
@@ -234,3 +247,37 @@ class DashboardAPITests(TestCase):
         response = self.client.get("/api/dashboard/general-manager/")
 
         self.assertEqual(response.status_code, 401)
+
+    def test_student_summary_is_registered_and_scoped(self):
+        self.authenticate(self.general_manager)
+
+        response = self.client.get("/api/cms/students/summary/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["total"], 1)
+        self.assertEqual(response.data["completed_profiles"], 1)
+
+    def test_parent_records_are_registered_and_scoped_to_the_parent(self):
+        self.authenticate(self.parent)
+
+        children = self.client.get("/api/parents/children/")
+        detail = self.client.get(f"/api/parents/children/{self.student.id}/")
+        programs = self.client.get("/api/parents/programs/")
+
+        self.assertEqual(children.status_code, 200)
+        self.assertEqual(children.data[0]["id"], self.student.id)
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.data["id"], self.student.id)
+        self.assertEqual(programs.status_code, 200)
+        self.assertEqual(programs.data["count"], 1)
+
+    def test_reports_are_registered_and_require_general_manager(self):
+        self.authenticate(self.general_manager)
+        allowed = self.client.get("/api/cms/reports/overview/")
+
+        self.authenticate(self.unit_manager)
+        denied = self.client.get("/api/cms/reports/overview/")
+
+        self.assertEqual(allowed.status_code, 200)
+        self.assertIn("metrics", allowed.data)
+        self.assertEqual(denied.status_code, 403)

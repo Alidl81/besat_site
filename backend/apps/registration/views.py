@@ -1,5 +1,6 @@
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import filters, status
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -193,3 +194,60 @@ class CMSRegistrationRequestViewSet(ModelViewSet):
             return CMSRegistrationRequestUpdateSerializer
 
         return CMSRegistrationRequestSerializer
+
+    @action(detail=False, methods=("get",), url_path="summary")
+    def summary(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+        return Response(
+            {
+                "total": queryset.count(),
+                "reviewing": queryset.filter(
+                    status=RegistrationRequest.Status.REVIEWING,
+                ).count(),
+                "accepted": queryset.filter(
+                    status=RegistrationRequest.Status.ACCEPTED,
+                ).count(),
+                "rejected": queryset.filter(
+                    status=RegistrationRequest.Status.REJECTED,
+                ).count(),
+                "needs_documents": queryset.filter(
+                    status=RegistrationRequest.Status.NEEDS_DOCUMENTS,
+                ).count(),
+            }
+        )
+
+    def _change_status(self, request, status_value):
+        registration_request = self.get_object()
+        serializer = CMSRegistrationRequestUpdateSerializer(
+            registration_request,
+            data={
+                "status": status_value,
+                "admin_note": request.data.get(
+                    "admin_note",
+                    registration_request.admin_note,
+                ),
+            },
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(CMSRegistrationRequestSerializer(registration_request).data)
+
+    @action(detail=True, methods=("post",), url_path="approve")
+    def approve(self, request, pk=None):
+        return self._change_status(request, RegistrationRequest.Status.ACCEPTED)
+
+    @action(detail=True, methods=("post",), url_path="reject")
+    def reject(self, request, pk=None):
+        return self._change_status(request, RegistrationRequest.Status.REJECTED)
+
+    @action(detail=True, methods=("post",), url_path="contact")
+    def contact(self, request, pk=None):
+        return self._change_status(request, RegistrationRequest.Status.CONTACTED)
+
+    @action(detail=True, methods=("post",), url_path="request-documents")
+    def request_documents(self, request, pk=None):
+        return self._change_status(
+            request,
+            RegistrationRequest.Status.NEEDS_DOCUMENTS,
+        )

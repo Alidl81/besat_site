@@ -104,6 +104,7 @@ class RegistrationRequest(TimeStampedModel):
     class Status(models.TextChoices):
         NEW = "new", "جدید"
         REVIEWING = "reviewing", "در حال بررسی"
+        NEEDS_DOCUMENTS = "needs_documents", "نیازمند مدارک"
         CONTACTED = "contacted", "تماس گرفته‌شده"
         ACCEPTED = "accepted", "پذیرفته‌شده"
         REJECTED = "rejected", "ردشده"

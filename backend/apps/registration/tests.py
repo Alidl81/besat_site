@@ -273,4 +273,23 @@ class RegistrationCMSAPITests(TestCase):
 
         self.request_1.refresh_from_db()
         self.assertEqual(self.request_1.status, RegistrationRequest.Status.REVIEWING)
+
+    def test_summary_and_status_actions_are_registered(self):
+        self.authenticate(self.general_manager)
+
+        summary = self.client.get("/api/cms/registration-requests/summary/")
+        action = self.client.post(
+            f"/api/cms/registration-requests/{self.request_1.id}/request-documents/",
+            {"admin_note": "در حال بررسی"},
+            format="json",
+        )
+
+        self.assertEqual(summary.status_code, 200)
+        self.assertEqual(summary.data["total"], 2)
+        self.assertEqual(action.status_code, 200)
+        self.request_1.refresh_from_db()
+        self.assertEqual(
+            self.request_1.status,
+            RegistrationRequest.Status.NEEDS_DOCUMENTS,
+        )
         self.assertEqual(self.request_1.admin_note, "در حال بررسی")

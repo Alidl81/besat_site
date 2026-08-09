@@ -6,7 +6,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
-from apps.accounts.models import UserUnitMembership
+from apps.accounts.models import UserProfile, UserUnitMembership
+from apps.accounts.selectors import get_or_create_user_profile
 
 from .models import RegistrationInfo, RegistrationRequest
 from .permissions import (
@@ -90,7 +91,12 @@ def create_registration_request_response(request):
         context={"request": request},
     )
     serializer.is_valid(raise_exception=True)
-    registration_request = serializer.save()
+    submitted_by = None
+    if request.user.is_authenticated:
+        profile = get_or_create_user_profile(request.user)
+        if profile.role == UserProfile.Role.PARENT:
+            submitted_by = request.user
+    registration_request = serializer.save(submitted_by=submitted_by)
 
     return Response(
         {

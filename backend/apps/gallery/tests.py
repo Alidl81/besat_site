@@ -14,7 +14,7 @@ from rest_framework.test import APIClient
 from apps.accounts.models import UserProfile, UserUnitMembership
 from apps.units.models import SchoolUnit
 
-from apps.gallery.models import GalleryItem
+from apps.gallery.models import GalleryItem, MediaAsset
 
 
 User = get_user_model()
@@ -402,6 +402,37 @@ class GalleryCMSPermissionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 1)
         self.assertEqual(response.data["results"][0]["id"], self.unit_1_item.id)
+
+    def test_media_library_filters_are_scoped_to_the_authenticated_unit(self):
+        own_file = make_test_image(name="own-media.webp")
+        other_file = make_test_image(name="other-media.webp")
+        MediaAsset.objects.create(
+            title="رسانه واحد من",
+            file=own_file,
+            media_type=MediaAsset.MediaType.IMAGE,
+            content_type="image/webp",
+            size=own_file.size,
+            unit=self.unit_1,
+            uploaded_by=self.unit_media,
+        )
+        MediaAsset.objects.create(
+            title="رسانه واحد دیگر",
+            file=other_file,
+            media_type=MediaAsset.MediaType.IMAGE,
+            content_type="image/webp",
+            size=other_file.size,
+            unit=self.unit_2,
+            uploaded_by=self.general_manager,
+        )
+
+        self.authenticate(self.unit_media)
+        response = self.client.get(
+            f"/api/cms/media/?unit={self.unit_1.id}&media_type=image&search=واحد"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["title"], "رسانه واحد من")
 
     def test_unit_media_can_create_gallery_item_for_own_unit(self):
         self.authenticate(self.unit_media)

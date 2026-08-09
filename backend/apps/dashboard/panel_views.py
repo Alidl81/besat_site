@@ -9,7 +9,11 @@ from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAuthenticatedAndActiveProfile
 from apps.accounts.selectors import get_or_create_user_profile
+from apps.announcements.models import Announcement
+from apps.gallery.models import GalleryItem
+from apps.news.models import News
 from apps.registration.models import RegistrationRequest
+from apps.staff.models import StaffMember
 
 from .models import PanelService, Program, Student
 from .views import user_is_general_manager, user_is_parent
@@ -110,16 +114,9 @@ class ParentRegistrationsAPIView(APIView):
         if not user_is_parent(request.user):
             raise PermissionDenied("Only parent accounts can view registrations.")
 
-        profile = get_or_create_user_profile(request.user)
-        identifiers = Q()
-        if profile.phone:
-            identifiers |= Q(parent_phone=profile.phone)
-        if request.user.email:
-            identifiers |= Q(parent_email__iexact=request.user.email)
-        if not identifiers:
-            return Response([])
-
-        registrations = RegistrationRequest.objects.filter(identifiers).select_related(
+        registrations = RegistrationRequest.objects.filter(
+            submitted_by=request.user,
+        ).select_related(
             "requested_unit",
         )
         return Response(
@@ -171,12 +168,41 @@ class ReportsOverviewAPIView(APIView):
                 "id": unit.id,
                 "title": unit.title,
                 "students_count": Student.objects.filter(unit=unit).count(),
-                "staff_count": 0,
+                "staff_count": StaffMember.objects.filter(
+                    is_active=True,
+                    scope=StaffMember.Scope.UNIT,
+                    unit=unit,
+                ).count(),
                 "new_registrations_count": RegistrationRequest.objects.filter(
                     requested_unit=unit,
                     created_at__year=timezone.now().year,
                 ).count(),
-                "published_content_count": 0,
+                "published_content_count": (
+                    News.objects.filter(
+                        is_active=True,
+                        status=News.Status.PUBLISHED,
+                        scope=News.Scope.UNIT,
+                        unit=unit,
+                        published_at__isnull=False,
+                        published_at__lte=timezone.localdate(),
+                    ).count()
+                    + Announcement.objects.filter(
+                        is_active=True,
+                        status=Announcement.Status.PUBLISHED,
+                        scope=Announcement.Scope.UNIT,
+                        unit=unit,
+                        published_at__isnull=False,
+                        published_at__lte=timezone.localdate(),
+                    ).count()
+                    + GalleryItem.objects.filter(
+                        is_active=True,
+                        status=GalleryItem.Status.PUBLISHED,
+                        scope=GalleryItem.Scope.UNIT,
+                        unit=unit,
+                        published_at__isnull=False,
+                        published_at__lte=timezone.localdate(),
+                    ).count()
+                ),
                 "is_active": unit.is_active,
             }
             for unit in units

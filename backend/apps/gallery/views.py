@@ -41,6 +41,10 @@ class CMSMediaAssetViewSet(ModelViewSet):
     permission_classes = (IsAuthenticated,)
     parser_classes = (MultiPartParser, FormParser)
     http_method_names = ("get", "post", "delete", "head", "options")
+    filterset_fields = ("unit", "media_type")
+    search_fields = ("title", "alt_text", "caption")
+    ordering_fields = ("created_at", "title", "size")
+    ordering = ("-created_at", "-id")
 
     def get_queryset(self):
         queryset = MediaAsset.objects.select_related("unit", "uploaded_by")

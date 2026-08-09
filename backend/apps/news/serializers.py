@@ -3,6 +3,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.content.rich_text import render_tiptap_html
 from apps.core.serializers import AbsoluteMediaURLMixin
 from apps.units.models import SchoolUnit
 
@@ -103,6 +104,15 @@ class NewsListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
 
 
 class NewsDetailSerializer(NewsListSerializer):
+    body_html = serializers.SerializerMethodField()
+    body_json = serializers.SerializerMethodField()
+
+    def get_body_html(self, obj):
+        return render_tiptap_html(obj.editor_json) if obj.editor_json else None
+
+    def get_body_json(self, obj):
+        return obj.editor_json
+
     class Meta(NewsListSerializer.Meta):
         fields = (
             "id",
@@ -110,6 +120,8 @@ class NewsDetailSerializer(NewsListSerializer):
             "slug",
             "summary",
             "content_json",
+            "body_html",
+            "body_json",
             "cover_image",
             "published_at",
             "category",

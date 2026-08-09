@@ -6,6 +6,7 @@ from apps.accounts.models import UserProfile, UserUnitMembership
 from apps.announcements.models import Announcement
 from apps.gallery.models import GalleryItem
 from apps.news.models import News
+from apps.registration.models import RegistrationRequest
 from apps.units.models import SchoolUnit
 
 from .models import Program, Student
@@ -270,6 +271,26 @@ class DashboardAPITests(TestCase):
         self.assertEqual(detail.data["id"], self.student.id)
         self.assertEqual(programs.status_code, 200)
         self.assertEqual(programs.data["count"], 1)
+
+    def test_parent_registrations_are_scoped_by_account_not_contact_details(self):
+        owned = RegistrationRequest.objects.create(
+            student_full_name="فرزند ثبت‌شده",
+            parent_phone="09120000000",
+            requested_unit=self.unit_1,
+            submitted_by=self.parent,
+        )
+        RegistrationRequest.objects.create(
+            student_full_name="درخواست هم‌نام",
+            parent_phone="09120000000",
+            requested_unit=self.unit_1,
+            submitted_by=self.general_manager,
+        )
+        self.authenticate(self.parent)
+
+        response = self.client.get("/api/parents/registrations/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item["id"] for item in response.data], [owned.id])
 
     def test_reports_are_registered_and_require_general_manager(self):
         self.authenticate(self.general_manager)

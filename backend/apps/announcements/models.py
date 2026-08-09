@@ -15,6 +15,7 @@ from apps.core.models import (
     TimeStampedModel,
 )
 from apps.core.utils import normalize_text
+from apps.content.rich_text import extract_tiptap_plain_text, validate_tiptap_document
 
 from .utils import (
     default_announcement_content_json,
@@ -153,6 +154,12 @@ class Announcement(
         blank=True,
         verbose_name="محتوای ساختاریافته",
     )
+    editor_json = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name="سند اصلی ویرایشگر",
+        help_text="نمایش بدون تبدیل سند Tiptap برای ویرایش مجدد.",
+    )
     content_text = models.TextField(
         null=True,
         blank=True,
@@ -224,10 +231,19 @@ class Announcement(
         if isinstance(self.cover_image_url, str):
             self.cover_image_url = self.cover_image_url.strip() or None
 
-        self.content_json = validate_editorjs_content(self.content_json)
-        self.content_text = extract_editorjs_plain_text(self.content_json) or None
-
         errors = {}
+
+        self.content_json = validate_editorjs_content(self.content_json)
+        if self.editor_json is not None:
+            try:
+                self.editor_json = validate_tiptap_document(self.editor_json)
+            except ValueError as exc:
+                errors["editor_json"] = str(exc)
+        self.content_text = (
+            extract_tiptap_plain_text(self.editor_json)
+            if self.editor_json is not None and "editor_json" not in errors
+            else extract_editorjs_plain_text(self.content_json)
+        ) or None
 
         if not self.title:
             errors["title"] = "عنوان اطلاعیه الزامی است."

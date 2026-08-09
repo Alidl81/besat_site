@@ -1,13 +1,20 @@
 from datetime import timedelta
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from apps.accounts.models import UserProfile
 from apps.announcements.models import Announcement, AnnouncementCategory
 from apps.gallery.models import GalleryItem
 from apps.news.models import News, NewsCategory
 from apps.units.models import SchoolUnit
+
+from .models import ContentRevision
+
+
+User = get_user_model()
 
 
 def valid_content_json(text="متن تست"):
@@ -259,3 +266,120 @@ class ContentAggregateAPITests(TestCase):
         titles = [item["title"] for item in response.data["results"]]
 
         self.assertEqual(titles, sorted(titles))
+
+
+class CMSContentRevisionTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username="editor",
+            password="password123",
+        )
+        profile, _ = UserProfile.objects.get_or_create(user=self.user)
+        profile.role = UserProfile.Role.GENERAL_MANAGER
+        profile.is_active = True
+        profile.save()
+        self.client.force_authenticate(user=self.user)
+
+    @staticmethod
+    def native_document(text):
+        return {
+            "type": "doc",
+            "content": [
+                {
+                    "type": "heading",
+                    "attrs": {"level": 2},
+                    "content": [{"type": "text", "text": text}],
+                },
+                {
+                    "type": "table",
+                    "content": [
+                        {
+                            "type": "tableRow",
+                            "content": [
+                                {
+                                    "type": "tableCell",
+                                    "content": [
+                                        {
+                                            "type": "paragraph",
+                                            "content": [{"type": "text", "text": "سلول جدول"}],
+                                        }
+                                    ],
+                                }
+                            ],
+                        }
+                    ],
+                },
+                {
+                    "type": "besatGalleryBlock",
+                    "attrs": {"items": [{"src": "https://example.com/image.jpg"}]},
+                },
+            ],
+        }
+
+    def create_content(self, title="سند بدون افت اطلاعات"):
+        return self.client.post(
+            "/api/cms/content/",
+            {
+                "kind": "news",
+                "title": title,
+                "summary": "خلاصه محتوا",
+                "body_html": f"<h2>{title}</h2>",
+                "body_json": self.native_document(title),
+                "scope": "school",
+            },
+            format="json",
+        )
+
+    def test_cms_preserves_native_editor_document_and_creates_revision(self):
+        response = self.create_content()
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["body_json"], self.native_document("سند بدون افت اطلاعات"))
+        self.assertIn("data-besat-gallery-item", response.data["body_html"])
+        self.assertEqual(ContentRevision.objects.count(), 1)
+        revision = ContentRevision.objects.get()
+        self.assertEqual(revision.snapshot["body_json"], response.data["body_json"])
+
+    def test_direct_native_delete_removes_content_revisions(self):
+        created = self.create_content()
+        self.assertEqual(created.status_code, 201)
+        content_id = int(created.data["id"].removeprefix("news-"))
+
+        News.objects.get(pk=content_id).delete()
+
+        self.assertFalse(
+            ContentRevision.objects.filter(
+                content_kind=ContentRevision.Kind.NEWS,
+                object_id=content_id,
+            ).exists()
+        )
+
+    def test_autosave_coalesces_recent_revision_and_restore_returns_snapshot(self):
+        created = self.create_content("نسخه اول")
+        self.assertEqual(created.status_code, 201)
+        content_id = created.data["id"]
+
+        autosave = self.client.patch(
+            f"/api/cms/content/{content_id}/",
+            {
+                "title": "نسخه دوم",
+                "body_html": "<p>نسخه دوم</p>",
+                "body_json": self.native_document("نسخه دوم"),
+                "autosave": True,
+            },
+            format="json",
+        )
+        self.assertEqual(autosave.status_code, 200)
+        self.assertEqual(ContentRevision.objects.count(), 1)
+
+        revisions = self.client.get(f"/api/cms/content/{content_id}/revisions/")
+        self.assertEqual(revisions.status_code, 200)
+        self.assertEqual(revisions.data[0]["snapshot"]["title"], "نسخه دوم")
+
+        restored = self.client.post(
+            f"/api/cms/content/{content_id}/revisions/{revisions.data[0]['id']}/restore/",
+            format="json",
+        )
+        self.assertEqual(restored.status_code, 200)
+        self.assertEqual(restored.data["title"], "نسخه دوم")

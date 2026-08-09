@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from html import escape
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -18,6 +18,9 @@ from apps.announcements.models import Announcement, AnnouncementCategory
 from apps.news.models import News, NewsCategory
 from apps.news.permissions import get_accessible_unit_ids, is_general_manager
 from apps.units.models import SchoolUnit
+
+from .models import ContentRevision
+from .rich_text import render_tiptap_html
 
 
 CONTENT_MODELS = {
@@ -295,14 +298,20 @@ def serialize_content_item(request, kind, item):
         and item.published_at > today
         else item.status
     )
+    body_json = item.editor_json or _editorjs_to_tiptap(item.content_json)
+    body_html = (
+        render_tiptap_html(item.editor_json)
+        if item.editor_json is not None
+        else _editorjs_to_html(item.content_json)
+    )
     return {
         "id": _content_id(kind, item.id),
         "kind": kind,
         "title": item.title,
         "slug": item.slug,
         "summary": item.summary,
-        "body_html": _editorjs_to_html(item.content_json),
-        "body_json": _editorjs_to_tiptap(item.content_json),
+        "body_html": body_html,
+        "body_json": body_json,
         "cover_image_url": _absolute_file_or_fallback(
             request,
             item.cover_image,
@@ -389,6 +398,14 @@ class CMSContentViewSet(GenericViewSet):
         except DjangoValidationError as exc:
             self._raise_validation(exc)
 
+        self._record_revision(
+            kind,
+            item,
+            request.user,
+            autosave=bool(request.data.get("autosave")),
+            note="ایجاد محتوا",
+        )
+
         return Response(
             serialize_content_item(request, kind, item),
             status=status.HTTP_201_CREATED,
@@ -407,6 +424,7 @@ class CMSContentViewSet(GenericViewSet):
         if item is None:
             raise NotFound("محتوا یافت نشد.")
         self._ensure_write_access(request.user, item.scope, item.unit_id)
+        ContentRevision.objects.filter(content_kind=kind, object_id=item.id).delete()
         item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -435,6 +453,14 @@ class CMSContentViewSet(GenericViewSet):
         except DjangoValidationError as exc:
             self._raise_validation(exc)
 
+        self._record_revision(
+            kind,
+            item,
+            request.user,
+            autosave=bool(request.data.get("autosave")),
+            note="ذخیره خودکار" if request.data.get("autosave") else "ویرایش محتوا",
+        )
+
         return Response(serialize_content_item(request, kind, item))
 
     def _workflow_item(self, request, pk, review=False):
@@ -454,11 +480,12 @@ class CMSContentViewSet(GenericViewSet):
 
         return kind, item
 
-    def _workflow_response(self, request, kind, item):
+    def _workflow_response(self, request, kind, item, note):
         try:
             item.save()
         except DjangoValidationError as exc:
             self._raise_validation(exc)
+        self._record_revision(kind, item, request.user, note=note)
         return Response(serialize_content_item(request, kind, item))
 
     @action(detail=True, methods=("post",), url_path="submit-review")
@@ -470,7 +497,7 @@ class CMSContentViewSet(GenericViewSet):
             )
         item.status = item.Status.WAITING_REVIEW
         item.updated_by = request.user
-        return self._workflow_response(request, kind, item)
+        return self._workflow_response(request, kind, item, "ارسال برای بررسی")
 
     @action(detail=True, methods=("post",), url_path="approve")
     def approve(self, request, pk=None):
@@ -481,7 +508,7 @@ class CMSContentViewSet(GenericViewSet):
             )
         item.status = item.Status.APPROVED
         item.updated_by = request.user
-        return self._workflow_response(request, kind, item)
+        return self._workflow_response(request, kind, item, "تأیید محتوا")
 
     @action(detail=True, methods=("post",), url_path="reject")
     def reject(self, request, pk=None):
@@ -492,7 +519,7 @@ class CMSContentViewSet(GenericViewSet):
             )
         item.status = item.Status.REJECTED
         item.updated_by = request.user
-        return self._workflow_response(request, kind, item)
+        return self._workflow_response(request, kind, item, "رد محتوا")
 
     @action(detail=True, methods=("post",), url_path="publish")
     def publish(self, request, pk=None):
@@ -505,7 +532,7 @@ class CMSContentViewSet(GenericViewSet):
         item.published_at = timezone.localdate()
         item.published_by = request.user
         item.updated_by = request.user
-        return self._workflow_response(request, kind, item)
+        return self._workflow_response(request, kind, item, "انتشار محتوا")
 
     @action(detail=True, methods=("post",), url_path="schedule")
     def schedule(self, request, pk=None):
@@ -529,7 +556,104 @@ class CMSContentViewSet(GenericViewSet):
         item.published_at = scheduled_date
         item.published_by = request.user
         item.updated_by = request.user
-        return self._workflow_response(request, kind, item)
+        return self._workflow_response(request, kind, item, "زمان‌بندی انتشار")
+
+    @action(detail=True, methods=("get",), url_path="revisions")
+    def revisions(self, request, pk=None):
+        kind, object_id = _parse_content_id(pk)
+        model, _ = CONTENT_MODELS[kind]
+        item = model.objects.filter(pk=object_id).first()
+        if item is None:
+            raise NotFound("محتوا یافت نشد.")
+        self._ensure_write_access(request.user, item.scope, item.unit_id)
+        revisions = ContentRevision.objects.filter(
+            content_kind=kind,
+            object_id=item.id,
+        ).select_related("actor__profile")[:50]
+        return Response(
+            [
+                {
+                    "id": revision.id,
+                    "created_at": revision.created_at,
+                    "updated_at": revision.updated_at,
+                    "note": revision.note,
+                    "actor": (
+                        {
+                            "id": revision.actor_id,
+                            "full_name": getattr(revision.actor.profile, "full_name", None)
+                            or revision.actor.get_username(),
+                        }
+                        if revision.actor_id
+                        else None
+                    ),
+                    "snapshot": revision.snapshot,
+                }
+                for revision in revisions
+            ]
+        )
+
+    @action(
+        detail=True,
+        methods=("post",),
+        url_path=r"revisions/(?P<revision_id>[^/.]+)/restore",
+    )
+    def restore_revision(self, request, pk=None, revision_id=None):
+        kind, object_id = _parse_content_id(pk)
+        model, category_model = CONTENT_MODELS[kind]
+        item = model.objects.filter(pk=object_id).first()
+        if item is None:
+            raise NotFound("محتوا یافت نشد.")
+        self._ensure_write_access(request.user, item.scope, item.unit_id)
+        revision = ContentRevision.objects.filter(
+            pk=revision_id,
+            content_kind=kind,
+            object_id=item.id,
+        ).first()
+        if revision is None:
+            raise NotFound("نسخه موردنظر یافت نشد.")
+
+        snapshot = revision.snapshot if isinstance(revision.snapshot, dict) else {}
+        scope = snapshot.get("scope", item.scope)
+        unit_id = snapshot.get("unit_id", item.unit_id)
+        self._ensure_write_access(request.user, scope, unit_id)
+        category_id = snapshot.get("category_id")
+        category = (
+            category_model.objects.filter(pk=category_id).first()
+            if category_id is not None
+            else None
+        )
+        for field_name in (
+            "title",
+            "slug",
+            "summary",
+            "content_json",
+            "editor_json",
+            "scope",
+            "unit_id",
+            "cover_image_url",
+            "is_featured",
+            "is_active",
+        ):
+            if field_name in snapshot:
+                setattr(item, field_name, snapshot[field_name])
+        item.category = category
+        if is_general_manager(request.user):
+            item.status = snapshot.get("status", item.status)
+            published_at = snapshot.get("published_at")
+            item.published_at = (
+                datetime.fromisoformat(published_at).date()
+                if isinstance(published_at, str) and published_at
+                else None
+            )
+            if item.status == item.Status.PUBLISHED:
+                item.published_by = request.user
+        item.updated_by = request.user
+        try:
+            item.save()
+        except DjangoValidationError as exc:
+            self._raise_validation(exc)
+        self._record_revision(kind, item, request.user, note="بازگردانی نسخه")
+        return Response(serialize_content_item(request, kind, item))
 
     def _visible_queryset(self, user, model):
         queryset = model.objects.all()
@@ -670,9 +794,14 @@ class CMSContentViewSet(GenericViewSet):
             summary = title
 
         body_html = data.get("body_html")
-        content_json = (
-            _tiptap_to_editorjs(data.get("body_json"))
+        editor_json = (
+            data.get("body_json")
             if "body_json" in data and data.get("body_json") is not None
+            else current("editor_json")
+        )
+        content_json = (
+            _tiptap_to_editorjs(editor_json)
+            if editor_json is not None
             else _html_to_editorjs(body_html)
             if "body_html" in data
             else current("content_json", _html_to_editorjs(""))
@@ -701,6 +830,7 @@ class CMSContentViewSet(GenericViewSet):
             "slug": data.get("slug", current("slug", "")),
             "summary": summary,
             "content_json": content_json,
+            "editor_json": editor_json,
             "scope": scope,
             "unit_id": unit_id,
             "category": category,
@@ -712,6 +842,54 @@ class CMSContentViewSet(GenericViewSet):
             "is_active": True,
         }
         return values
+
+    @staticmethod
+    def _revision_snapshot(kind, item):
+        body_json = item.editor_json or _editorjs_to_tiptap(item.content_json)
+        body_html = (
+            render_tiptap_html(item.editor_json)
+            if item.editor_json is not None
+            else _editorjs_to_html(item.content_json)
+        )
+        return {
+            "kind": kind,
+            "title": item.title,
+            "slug": item.slug,
+            "summary": item.summary,
+            "body_html": body_html,
+            "body_json": body_json,
+            "content_json": item.content_json,
+            "editor_json": item.editor_json,
+            "cover_image_url": item.cover_image_url,
+            "scope": item.scope,
+            "unit_id": item.unit_id,
+            "category_id": item.category_id,
+            "status": item.status,
+            "published_at": item.published_at.isoformat() if item.published_at else None,
+            "is_featured": item.is_featured,
+            "is_active": item.is_active,
+        }
+
+    def _record_revision(self, kind, item, actor, autosave=False, note=None):
+        snapshot = self._revision_snapshot(kind, item)
+        if autosave:
+            latest = ContentRevision.objects.filter(
+                content_kind=kind,
+                object_id=item.id,
+            ).first()
+            if latest and latest.created_at >= timezone.now() - timedelta(seconds=60):
+                latest.snapshot = snapshot
+                latest.actor = actor
+                latest.note = note
+                latest.save()
+                return latest
+        return ContentRevision.objects.create(
+            content_kind=kind,
+            object_id=item.id,
+            snapshot=snapshot,
+            actor=actor,
+            note=note,
+        )
 
     def _ensure_write_access(self, user, scope, unit_id):
         if is_general_manager(user):

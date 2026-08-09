@@ -69,6 +69,31 @@ class RegistrationPublicAPITests(TestCase):
         self.assertEqual(RegistrationRequest.objects.count(), 1)
         self.assertEqual(response.data["message"], "درخواست پیش‌ثبت‌نام با موفقیت ثبت شد.")
 
+    def test_authenticated_parent_is_recorded_as_registration_owner(self):
+        RegistrationInfo.objects.create(title="ثبت‌نام", is_open=True, is_active=True)
+        parent = User.objects.create_user(
+            username="parent-owner",
+            password="password123",
+            email="owner@example.com",
+        )
+        profile, _ = UserProfile.objects.get_or_create(user=parent)
+        profile.role = UserProfile.Role.PARENT
+        profile.save()
+        self.client.force_authenticate(user=parent)
+
+        response = self.client.post(
+            "/api/registration-requests/",
+            {
+                "student_full_name": "دانش‌آموز جدید",
+                "parent_phone": "09120000000",
+                "requested_unit": self.unit.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(RegistrationRequest.objects.get().submitted_by, parent)
+
     def test_cannot_create_registration_request_when_registration_is_closed(self):
         RegistrationInfo.objects.create(
             title="ثبت‌نام",

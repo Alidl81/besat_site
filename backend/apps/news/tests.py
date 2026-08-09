@@ -165,6 +165,43 @@ class NewsPublicAPITests(TestCase):
         self.assertEqual(response.data["title"], "خبر جزئیات")
         self.assertIn("content_json", response.data)
 
+    def test_news_detail_exposes_lossless_editor_document_when_available(self):
+        item = self.create_news(
+            title="خبر با جدول",
+            slug="native-document-news",
+        )
+        item.editor_json = {
+            "type": "doc",
+            "content": [
+                {
+                    "type": "table",
+                    "content": [
+                        {
+                            "type": "tableRow",
+                            "content": [
+                                {
+                                    "type": "tableCell",
+                                    "content": [
+                                        {
+                                            "type": "paragraph",
+                                            "content": [{"type": "text", "text": "سلول"}],
+                                        }
+                                    ],
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+        }
+        item.save()
+
+        response = self.client.get("/api/news/native-document-news/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["body_json"], item.editor_json)
+        self.assertIn("<table>", response.data["body_html"])
+
     def test_draft_news_detail_returns_404(self):
         self.create_news(
             title="خبر پیش‌نویس",

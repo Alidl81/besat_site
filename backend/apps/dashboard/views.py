@@ -315,6 +315,9 @@ class GeneralManagerDashboardAPIView(APIView):
         responses=DashboardResponseSerializer,
     )
     def get(self, request):
+        if user_is_unit_manager(request.user):
+            # Unit managers share the Admin shell, but retain unit-scoped metrics.
+            return UnitManagerDashboardAPIView().get(request)
         if not user_is_general_manager(request.user):
             raise PermissionDenied("شما اجازه دسترسی به داشبورد مدیر کل را ندارید.")
 

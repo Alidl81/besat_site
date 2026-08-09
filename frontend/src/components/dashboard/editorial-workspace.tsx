@@ -35,6 +35,7 @@ import { panelService } from "@/services/panel-service";
 import type {
   ContentItem,
   ContentKind,
+  ContentRevision,
   NamedOption,
 } from "@/types/panel-api";
 import type { AccountRole } from "@/lib/data/domain-types";
@@ -159,6 +160,10 @@ function EditorialEditor({
     readingMinutes: 1,
   });
   const [uploading, setUploading] = useState(false);
+  const [revisionCache, setRevisions] = useState<ContentRevision[]>([]);
+  const [revisionsContentId, setRevisionsContentId] = useState<string | null>(null);
+  const [revisionLoadPending, setRevisionsLoading] = useState(false);
+  const [revisionPreview, setRevisionPreview] = useState<ContentRevision | null>(null);
   const coverInput = useRef<HTMLInputElement>(null);
   const editorRef = useRef<RichEditorHandle>(null);
   const editVersion = useRef(0);
@@ -175,6 +180,37 @@ function EditorialEditor({
     if (!open) return;
     panelService.contentCategories().then(setCategories).catch(() => setCategories([]));
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !currentItem?.id) return;
+
+    const contentId = currentItem.id;
+    let active = true;
+    queueMicrotask(() => {
+      if (active) setRevisionsLoading(true);
+    });
+    panelService.contentRevisions(contentId)
+      .then((items) => {
+        if (!active) return;
+        setRevisions(items);
+        setRevisionsContentId(String(contentId));
+      })
+      .catch(() => {
+        if (!active) return;
+        setRevisions([]);
+        setRevisionsContentId(String(contentId));
+      })
+      .finally(() => {
+        if (active) setRevisionsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [currentItem?.id, currentItem?.updated_at, open]);
+
+  const revisions =
+    open && revisionsContentId === String(currentItem?.id ?? "") ? revisionCache : [];
+  const revisionsLoading = revisionLoadPending && open && Boolean(currentItem?.id);
 
   const payload = useMemo(
     () => ({
@@ -198,14 +234,16 @@ function EditorialEditor({
   const persist = useCallback(async (
     snapshot = payload,
     versionAtStart = editVersion.current,
+    autosave = false,
   ) => {
     if (!snapshot.title) throw new Error("عنوان محتوا الزامی است.");
 
     const operation = async () => {
       const existing = currentItemRef.current;
+      const requestPayload = autosave ? { ...snapshot, autosave: true } : snapshot;
       const saved = existing
-        ? await panelService.updateContent(existing.id, snapshot)
-        : await panelService.createContent(snapshot);
+        ? await panelService.updateContent(existing.id, requestPayload)
+        : await panelService.createContent(requestPayload);
       currentItemRef.current = saved;
       setCurrentItem(saved);
       if (editVersion.current === versionAtStart) {
@@ -260,7 +298,7 @@ function EditorialEditor({
     if (!open || !dirty || !payload.title) return;
     const versionAtSchedule = editVersion.current;
     const timer = window.setTimeout(() => {
-      persist(payload, versionAtSchedule)
+      persist(payload, versionAtSchedule, true)
         .then((saved) => {
           currentItemRef.current = saved;
         })
@@ -309,7 +347,10 @@ function EditorialEditor({
     setSaving(true);
     setErrorText("");
     try {
-      const media = await panelService.uploadMedia(file);
+      const media = await panelService.uploadMedia(file, {
+        unitId,
+        altText: draft.title,
+      });
       update("coverImageUrl", media.url);
     } catch (reason) {
       setErrorText(getApiErrorMessage(reason));
@@ -321,11 +362,35 @@ function EditorialEditor({
 
   async function uploadEditorMedia(file: File) {
     try {
-      return await panelService.uploadMedia(file);
+      return await panelService.uploadMedia(file, {
+        unitId,
+        altText: file.name,
+      });
     } catch (reason) {
       const message = getApiErrorMessage(reason);
       setErrorText(message);
       throw reason;
+    }
+  }
+
+  async function restoreRevision(revision: ContentRevision) {
+    if (!currentItem || !window.confirm("نسخه انتخاب‌شده جایگزین محتوای فعلی شود؟")) return;
+    setSaving(true);
+    setErrorText("");
+    try {
+      const saved = await panelService.restoreContentRevision(currentItem.id, revision.id);
+      currentItemRef.current = saved;
+      setCurrentItem(saved);
+      setDraft(draftFrom(saved, defaultKind, unitId));
+      setDirty(false);
+      setRevisionPreview(null);
+      onSaved(saved);
+      setSaveState("saved");
+    } catch (reason) {
+      setSaveState("error");
+      setErrorText(getApiErrorMessage(reason));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -400,8 +465,40 @@ function EditorialEditor({
           <label className="besat-editor-switch"><input type="checkbox" checked={draft.isFeatured} onChange={(event) => update("isFeatured", event.target.checked)} /><span aria-hidden="true" /><b>نمایش به‌عنوان محتوای ویژه</b></label>
         </div>
       </details>
+
+      <details className="besat-editor-setting-group">
+        <summary>نسخه‌های محتوا <EditorIcon name="chevron-down" /></summary>
+        <div className="besat-editor-setting-body">
+          {revisionsLoading ? <p className="text-xs font-bold text-slate-500">در حال دریافت نسخه‌ها...</p> : null}
+          {!revisionsLoading && !currentItem ? <p className="text-xs font-bold text-slate-500">پس از نخستین ذخیره، نسخه‌ها اینجا نمایش داده می‌شوند.</p> : null}
+          {!revisionsLoading && currentItem && !revisions.length ? <p className="text-xs font-bold text-slate-500">نسخه‌ای ثبت نشده است.</p> : null}
+          {!revisionsLoading && revisions.length ? (
+            <ol className="besat-editor-revisions">
+              {revisions.map((revision) => (
+                <li key={revision.id}>
+                  <div>
+                    <b>{revision.note ?? "ذخیره محتوا"}</b>
+                    <span>{revision.actor?.full_name ?? "کاربر حذف‌شده"} · {formatDate(revision.updated_at)}</span>
+                  </div>
+                  <div className="flex gap-1">
+                    <button type="button" onClick={() => { setRevisionPreview(revision); setPreviewOpen(true); }} className="panel-icon-button !size-8" aria-label="پیش‌نمایش نسخه"><PanelIcon name="eye" className="size-4" /></button>
+                    <button type="button" disabled={saving} onClick={() => void restoreRevision(revision)} className="panel-icon-button !size-8" aria-label="بازگردانی نسخه"><PanelIcon name="document" className="size-4" /></button>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : null}
+        </div>
+      </details>
     </aside>
   );
+
+  const previewContent = revisionPreview?.snapshot ?? {
+    title: draft.title,
+    summary: draft.summary,
+    body_html: draft.bodyHtml,
+    cover_image_url: draft.coverImageUrl,
+  };
 
   return (
     <form onSubmit={(event: FormEvent) => { event.preventDefault(); void save(); }} className="besat-editor-studio" dir="rtl">
@@ -418,7 +515,7 @@ function EditorialEditor({
             <i aria-hidden="true" />
             {saving || uploading ? "در حال ذخیره یا بارگذاری..." : dirty ? "تغییرات ذخیره‌نشده" : saveState === "saved" ? `ذخیره شد · ${formatDate(currentItem?.updated_at ?? null)}` : "ذخیره خودکار فعال است"}
           </span>
-          <button type="button" onClick={() => setPreviewOpen(true)} className="panel-secondary-button"><PanelIcon name="eye" className="size-4" />پیش‌نمایش</button>
+          <button type="button" onClick={() => { setRevisionPreview(null); setPreviewOpen(true); }} className="panel-secondary-button"><PanelIcon name="eye" className="size-4" />پیش‌نمایش</button>
         </div>
       </header>
 
@@ -428,7 +525,13 @@ function EditorialEditor({
         {mode === "advanced" ? (
           <aside dir="rtl" className="besat-editor-left-column">
             <EditorDocumentOutline editorRef={editorRef} outline={outline} />
-            <ContentBlockInserter value="" onChange={(html) => editorRef.current?.insertHtml(html)} unitId={unitId} variant="sidebar" />
+            <ContentBlockInserter
+              value=""
+              onChange={(html) => editorRef.current?.insertHtml(html)}
+              unitId={unitId}
+              variant="sidebar"
+              onUploadState={setUploading}
+            />
           </aside>
         ) : null}
 
@@ -475,16 +578,16 @@ function EditorialEditor({
       </footer>
 
       {previewOpen ? (
-        <div className="besat-editor-preview-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPreviewOpen(false); }}>
+        <div className="besat-editor-preview-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { setPreviewOpen(false); setRevisionPreview(null); } }}>
           <section role="dialog" aria-modal="true" aria-labelledby="editor-preview-title" className="besat-editor-preview">
-            <header><div><p>پیش‌نمایش قبل از انتشار</p><h2 id="editor-preview-title">{draft.title || "عنوان محتوا"}</h2></div><button type="button" onClick={() => setPreviewOpen(false)} aria-label="بستن پیش‌نمایش"><EditorIcon name="close" /></button></header>
+            <header><div><p>{revisionPreview ? "پیش‌نمایش نسخه ثبت‌شده" : "پیش‌نمایش قبل از انتشار"}</p><h2 id="editor-preview-title">{previewContent.title || "عنوان محتوا"}</h2></div><button type="button" onClick={() => { setPreviewOpen(false); setRevisionPreview(null); }} aria-label="بستن پیش‌نمایش"><EditorIcon name="close" /></button></header>
             <article>
-              {draft.coverImageUrl ? (
+              {previewContent.cover_image_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={draft.coverImageUrl} alt="" />
+                <img src={previewContent.cover_image_url} alt="" />
               ) : null}
-              {draft.summary ? <p className="besat-editor-preview-summary">{draft.summary}</p> : null}
-              <RichContentRenderer html={draft.bodyHtml} />
+              {previewContent.summary ? <p className="besat-editor-preview-summary">{previewContent.summary}</p> : null}
+              <RichContentRenderer html={previewContent.body_html} />
             </article>
           </section>
         </div>

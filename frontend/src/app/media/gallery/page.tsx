@@ -1,5 +1,5 @@
 ﻿import { redirect } from "next/navigation";
 
 export default function MediaRedirect() {
-  redirect("/dashboard/media/gallery");
+  redirect("/dashboard/content-manager/albums");
 }

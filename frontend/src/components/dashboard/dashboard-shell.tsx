@@ -1,4 +1,6 @@
-﻿import Link from "next/link";
+"use client";
+
+import Link from "next/link";
 import { PanelLogoutButton } from "@/components/auth/panel-logout-button";
 import { BesatLogoMark } from "@/components/shared/besat-logo";
 import { DashboardOverview } from "@/components/dashboard/panel-overviews";
@@ -6,12 +8,13 @@ import { DashboardSectionContent } from "@/components/dashboard/dashboard-sectio
 import { DashboardTopbar } from "@/components/dashboard/dashboard-topbar";
 import { DashboardMobileMenu } from "@/components/dashboard/dashboard-mobile-menu";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
-import type { DashboardPageData, DashboardPageKey } from "@/components/dashboard/dashboard-data";
+import type { DashboardPageData, DashboardPageKey, DashboardMenuRole } from "@/components/dashboard/dashboard-data";
+import { readBesatSession } from "@/lib/auth/auth-session";
 
 type DashboardShellProps = {
   data: DashboardPageData;
   activeKey?: DashboardPageKey;
-  panel: "admin" | "unitManager" | "media" | "parents";
+  panel: "admin" | "contentManager" | "parents";
 };
 
 function SidebarMenu({
@@ -28,7 +31,7 @@ function SidebarMenu({
       className={
         mobile
           ? "grid max-h-[65vh] gap-1 overflow-y-auto p-3"
-          : "besat-panel-menu-scroll min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 pb-3"
+          : "besat-panel-menu-scroll min-h-0 flex-1 space-y-1 overflow-y-visible px-3 pb-3"
       }
       aria-label="منوی پنل"
     >
@@ -57,9 +60,9 @@ function Sidebar({ data, activeKey }: { data: DashboardPageData; activeKey: stri
   return (
     <aside className="hidden xl:block">
       <div className="besat-dashboard-sidebar sticky top-0 flex h-dvh min-h-0 flex-col overflow-hidden text-white">
-        <Link href="/" className="besat-dashboard-brand mx-4 mb-3 mt-5 flex shrink-0 flex-col items-center border-b border-white/18 pb-5 text-center">
-          <BesatLogoMark size="md" tone="light" className="!h-20 !w-20" />
-          <span className="mt-2 text-base font-black text-white">مجتمع آموزشی بعثت</span>
+        <Link href="/" className="besat-dashboard-brand mx-3 mb-2 mt-3 flex shrink-0 items-center gap-2 border-b border-white/18 pb-3 text-right">
+          <BesatLogoMark size="sm" tone="light" className="!h-11 !w-11" />
+          <span className="text-sm font-black text-white">مجتمع آموزشی بعثت</span>
         </Link>
 
         <SidebarMenu data={data} activeKey={activeKey} />
@@ -79,8 +82,15 @@ function Sidebar({ data, activeKey }: { data: DashboardPageData; activeKey: stri
 }
 
 export function DashboardShell({ data, activeKey = "overview", panel }: DashboardShellProps) {
-  const activeItem = data.menu.find((item) => item.key === activeKey) ?? data.menu[0];
-  const profileItem = data.menu.find((item) => item.key === "profile");
+  const role = readBesatSession()?.role as DashboardMenuRole | undefined;
+  const visibleData = {
+    ...data,
+    menu: data.menu.filter(
+      (item) => !item.roles || item.roles.includes(role ?? "parent"),
+    ),
+  };
+  const activeItem = visibleData.menu.find((item) => item.key === activeKey) ?? visibleData.menu[0];
+  const profileItem = visibleData.menu.find((item) => item.key === "profile");
   const isOverview = activeItem.key === "overview";
 
   return (
@@ -89,13 +99,13 @@ export function DashboardShell({ data, activeKey = "overview", panel }: Dashboar
         رفتن به محتوای اصلی
       </a>
       <div className="grid min-h-screen xl:grid-cols-[17rem_minmax(0,1fr)]">
-        <Sidebar data={data} activeKey={activeItem.key} />
+        <Sidebar data={visibleData} activeKey={activeItem.key} />
 
         <section className="min-w-0">
           <DashboardTopbar
             panel={panel}
-            profileHref={profileItem?.href ?? data.currentPath}
-            mobileMenu={<DashboardMobileMenu data={data} activeKey={activeItem.key} />}
+            profileHref={profileItem?.href ?? visibleData.currentPath}
+            mobileMenu={<DashboardMobileMenu data={visibleData} activeKey={activeItem.key} />}
           />
 
           <div id="dashboard-content" tabIndex={-1} className="mx-auto w-full max-w-[112rem] px-4 py-6 sm:px-6 lg:px-7 lg:py-7">
@@ -104,22 +114,22 @@ export function DashboardShell({ data, activeKey = "overview", panel }: Dashboar
                 <div className="flex items-center gap-2">
                   {!isOverview ? <PanelIcon name={activeItem.icon} className="size-6 text-[#0c4479]" /> : null}
                   <h1 className="text-2xl font-black tracking-tight text-[#102b4a] sm:text-[1.65rem]">
-                    {isOverview ? data.title : activeItem.label}
+                    {isOverview ? visibleData.title : activeItem.label}
                   </h1>
                 </div>
                 <p className="mt-2 max-w-3xl text-sm font-bold leading-7 text-slate-500">
-                  {isOverview ? data.description : activeItem.description}
+                  {isOverview ? visibleData.description : activeItem.description}
                 </p>
               </div>
             </header>
 
             {isOverview ? (
-              <DashboardOverview panel={panel} data={data} />
+              <DashboardOverview panel={panel} data={visibleData} />
             ) : (
               <DashboardSectionContent
                 panel={panel}
                 sectionKey={activeItem.key}
-                roleTitle={data.roleTitle}
+                roleTitle={visibleData.roleTitle}
               />
             )}
           </div>

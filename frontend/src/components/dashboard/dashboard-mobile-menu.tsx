@@ -17,10 +17,26 @@ export function DashboardMobileMenu({
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
+  const scrollPosition = useRef(0);
 
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    if (!open) return () => { document.body.style.overflow = ""; };
+    if (!open) return;
+
+    const body = document.body;
+    const root = document.documentElement;
+    const previous = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+      overscrollBehavior: root.style.overscrollBehavior,
+    };
+    scrollPosition.current = window.scrollY;
+    body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollPosition.current}px`;
+    body.style.width = "100%";
+    root.style.overscrollBehavior = "none";
 
     const focusable = drawerRef.current?.querySelectorAll<HTMLElement>(
       'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
@@ -47,7 +63,12 @@ export function DashboardMobileMenu({
 
     window.addEventListener("keydown", onKeyDown);
     return () => {
-      document.body.style.overflow = "";
+      body.style.overflow = previous.overflow;
+      body.style.position = previous.position;
+      body.style.top = previous.top;
+      body.style.width = previous.width;
+      root.style.overscrollBehavior = previous.overscrollBehavior;
+      window.scrollTo(0, scrollPosition.current);
       window.removeEventListener("keydown", onKeyDown);
       trigger?.focus();
     };

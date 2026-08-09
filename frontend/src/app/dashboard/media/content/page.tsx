@@ -1,9 +1,4 @@
-import type { Metadata } from "next";
-import { dashboardPages } from "@/components/dashboard/dashboard-data";
-import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-
-export const metadata: Metadata = { title: "مدیریت محتوا | مدرسه بعثت" };
-
+import { redirect } from "next/navigation";
 export default function Page() {
-  return <DashboardShell panel="media" data={dashboardPages.media} activeKey="content" />;
+  redirect("/dashboard/content-manager/content");
 }

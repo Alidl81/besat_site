@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PanelIcon } from "@/components/dashboard/panel-icons";
 import { sanitizeCmsHtml } from "@/lib/content/sanitize-cms-html";
 
 type GalleryItem = {
@@ -277,7 +278,7 @@ function GalleryBlock({
             aria-label="بستن"
             className="absolute right-4 top-4 z-20 flex size-11 items-center justify-center rounded-2xl bg-white/10 text-xl font-black text-white transition duration-300 hover:bg-white/20"
           >
-            ✕
+            <PanelIcon name="close" className="size-5" />
           </button>
 
           {items.length > 1 ? (

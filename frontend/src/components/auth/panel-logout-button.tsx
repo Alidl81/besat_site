@@ -2,9 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { logoutAccount } from "@/lib/api/account-api";
-import { isApiMode } from "@/lib/data/repository";
-import { clearBesatSession, readBesatSession } from "@/lib/auth/auth-session";
+import { destroySession } from "@/lib/auth/login-service";
+import { clearBesatSession } from "@/lib/auth/auth-session";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
 
 export function PanelLogoutButton() {
@@ -14,12 +13,8 @@ export function PanelLogoutButton() {
   async function handleLogout() {
     if (loading) return;
     setLoading(true);
-    const session = readBesatSession();
-
     try {
-      if (isApiMode() && session) {
-        await logoutAccount(session.accessToken, { refresh: session.refreshToken });
-      }
+      await destroySession();
     } catch {
       // silent
     } finally {

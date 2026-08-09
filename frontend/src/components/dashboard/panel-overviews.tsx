@@ -19,7 +19,7 @@ import type {
 } from "@/types/panel-api";
 import type { DashboardPageData } from "@/components/dashboard/dashboard-data";
 
-type PanelKind = "admin" | "unitManager" | "media" | "parents";
+type PanelKind = "admin" | "contentManager" | "parents";
 
 const toneClasses: Record<PanelMetric["tone"], string> = {
   blue: "bg-[#eef4fb] text-[#1c66bd]",
@@ -255,6 +255,6 @@ export function DashboardOverview({
   if (error) return <PanelError message={error} onRetry={reload} />;
   if (!data) return <PanelEmpty title="داشبورد از بک‌اند پاسخی دریافت نکرد." />;
   if (panel === "parents") return <ParentOverview payload={data as ParentDashboard} />;
-  if (panel === "media") return <MediaOverview payload={data as MediaDashboard} />;
+  if (panel === "contentManager") return <MediaOverview payload={data as MediaDashboard} />;
   return <AdminOverview payload={data as AdminDashboard} />;
 }

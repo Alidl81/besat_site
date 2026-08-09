@@ -1,5 +1,5 @@
-﻿import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
-export default function UnitManagerRedirect() {
-  redirect("/dashboard/unit-manager");
+export default function RemovedUnitProgramsAlias() {
+  notFound();
 }

@@ -56,6 +56,10 @@ export function RegistrationWorkspace({
   const [detailLoading, setDetailLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
+  const [noteAction, setNoteAction] = useState<
+    "reject" | "request-documents" | null
+  >(null);
+  const [noteText, setNoteText] = useState("");
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -110,17 +114,25 @@ export function RegistrationWorkspace({
 
   async function runAction(
     action: "approve" | "reject" | "request-documents" | "contact",
-  ) {
-    if (!detail) return;
+    note?: string,
+  ): Promise<boolean> {
+    if (!detail) return false;
     let payload: Record<string, unknown> = {};
     if (action === "reject" || action === "request-documents") {
-      const note = window.prompt(
-        action === "reject"
-          ? "دلیل رد درخواست را وارد کنید:"
-          : "مدارک موردنیاز یا توضیحات را وارد کنید:",
-      );
-      if (note === null) return;
-      payload = { note };
+      if (note === undefined) {
+        setNoteText("");
+        setNoteAction(action);
+        return false;
+      }
+      if (!note.trim()) {
+        setActionError(
+          action === "reject"
+            ? "ثبت دلیل رد درخواست الزامی است."
+            : "شرح مدارک موردنیاز یا توضیحات را وارد کنید.",
+        );
+        return false;
+      }
+      payload = { admin_note: note.trim() };
     }
     setWorking(true);
     setActionError(null);
@@ -128,8 +140,10 @@ export function RegistrationWorkspace({
       const updated = await panelService.registrationAction(detail.id, action, payload);
       setDetail(updated);
       reload();
+      return true;
     } catch (reason) {
       setActionError(getApiErrorMessage(reason));
+      return false;
     } finally {
       setWorking(false);
     }
@@ -154,6 +168,47 @@ export function RegistrationWorkspace({
   return (
     <div className="space-y-5">
       {actionError ? <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-black text-rose-700">{actionError}</p> : null}
+      {noteAction ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !working) setNoteAction(null);
+          }}
+        >
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="registration-note-title"
+            className="w-full max-w-lg rounded-lg bg-white p-5 shadow-2xl"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const action = noteAction;
+              void runAction(action, noteText).then((completed) => {
+                if (completed) setNoteAction(null);
+              });
+            }}
+          >
+            <h2 id="registration-note-title" className="text-base font-black text-[#173652]">
+              {noteAction === "reject" ? "دلیل رد درخواست" : "درخواست تکمیل مدارک"}
+            </h2>
+            <label className="mt-4 block text-xs font-black text-slate-600">
+              <span>{noteAction === "reject" ? "دلیل" : "مدارک موردنیاز یا توضیحات"}</span>
+              <textarea
+                autoFocus
+                required
+                value={noteText}
+                onChange={(event) => setNoteText(event.target.value)}
+                className="panel-input mt-2 min-h-28 w-full resize-y"
+              />
+            </label>
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button type="button" disabled={working} onClick={() => setNoteAction(null)} className="panel-secondary-button">انصراف</button>
+              <button disabled={working} type="submit" className="panel-primary-button">{working ? "در حال ثبت..." : "ثبت"}</button>
+            </div>
+          </form>
+        </div>
+      ) : null}
       {summary ? (
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           {summaryCards.map(([title, value, icon, tone]) => (

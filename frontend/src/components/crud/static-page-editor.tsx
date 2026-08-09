@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ContentBlockInserter } from "@/components/cms/content-block-inserter";
 import { RichEditor } from "@/components/editor/rich-editor";
 import { staticPagesRepository } from "@/lib/data/repositories";
+import { panelService } from "@/services/panel-service";
 import type { StaticPageRecord } from "@/lib/data/domain-types";
 
 type StaticPageEditorProps = {
@@ -57,6 +58,10 @@ export function StaticPageEditor({ slug }: StaticPageEditorProps) {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function uploadEditorMedia(file: File) {
+    return panelService.uploadMedia(file, { altText: file.name });
   }
 
   return (
@@ -135,6 +140,7 @@ export function StaticPageEditor({ slug }: StaticPageEditorProps) {
             <RichEditor
               value={bodyHtml}
               onChange={setBodyHtml}
+              onUploadMedia={uploadEditorMedia}
               placeholder="محتوای صفحه درباره ما را اینجا بنویسید..."
             />
 

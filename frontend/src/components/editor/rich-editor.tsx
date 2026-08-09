@@ -609,15 +609,6 @@ function createDragHandleElement() {
   return element;
 }
 
-function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("file-read-failed"));
-    reader.onerror = () => reject(reader.error ?? new Error("file-read-failed"));
-    reader.readAsDataURL(file);
-  });
-}
-
 export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEditor({
   value,
   onChange,
@@ -649,9 +640,10 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   async function uploadAndInsert(current: Editor, file: File, position?: number) {
     onUploadState?.(true);
     try {
-      const uploaded = onUploadMedia
-        ? await onUploadMedia(file)
-        : { url: await readFileAsDataUrl(file) };
+      if (!onUploadMedia) {
+        throw new Error("برای بارگذاری رسانه، اتصال سرویس رسانه الزامی است.");
+      }
+      const uploaded = await onUploadMedia(file);
       const imageNode = { type: "image", attrs: { src: uploaded.url, alt: file.name, title: file.name } };
       if (typeof position === "number") {
         current.chain().focus().insertContentAt(position, imageNode).run();
@@ -686,7 +678,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
         },
       }),
       Link.configure({ openOnClick: false, autolink: true, defaultProtocol: "https" }),
-      Image.configure({ inline: false, allowBase64: true }),
+      Image.configure({ inline: false, allowBase64: false }),
       TableKit.configure({ table: { resizable: mode === "advanced" } }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Placeholder.configure({

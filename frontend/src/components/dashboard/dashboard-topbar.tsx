@@ -13,7 +13,7 @@ import { panelService } from "@/services/panel-service";
 import type { PanelContext } from "@/types/panel-api";
 
 type DashboardTopbarProps = {
-  panel: "admin" | "unitManager" | "media" | "parents";
+  panel: "admin" | "contentManager" | "parents";
   profileHref: string;
   mobileMenu: ReactNode;
 };
@@ -184,10 +184,8 @@ export function DashboardTopbar({
             href={
               panel === "parents"
                 ? "/dashboard/parents/messages"
-                : panel === "media"
-                  ? "/dashboard/media/messages"
-                  : panel === "unitManager"
-                    ? "/dashboard/unit-manager/messages"
+                : panel === "contentManager"
+                  ? "/dashboard/content-manager/messages"
                     : "/dashboard/admin/messages"
             }
             className="panel-icon-button relative"

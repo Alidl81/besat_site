@@ -4,50 +4,32 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   clearBesatSession,
-  readBesatSession,
   redirectPathForRole,
   rolesForDashboardSegment,
+  sessionFromUser,
+  writeBesatSession,
   type BesatRole,
 } from "@/lib/auth/auth-session";
 import { getCurrentUser } from "@/services/auth-service";
 
 type DashboardGuardProps = {
-  /** بخش داشبورد: admin | unit-manager | media | parents */
+  /** بخش داشبورد: admin | content-manager | parents */
   segment: string;
   children: ReactNode;
 };
 
 type GuardState = "checking" | "allowed" | "denied";
 
-/**
- * محافظ دسترسی پنل‌ها (سمت کلاینت).
- *
- * - اگر کاربر لاگین نباشد → هدایت به /login با بازگشت بعدی
- * - اگر نقش کاربر مجاز نباشد → هدایت به پنل خودش
- *
- * این محافظ برای تست با npm کافی است. هنگام آماده شدن بک‌اند،
- * می‌توان آن را با middleware مبتنی بر cookie تکمیل کرد.
- */
 export function DashboardGuard({ segment, children }: DashboardGuardProps) {
   const router = useRouter();
   const [state, setState] = useState<GuardState>("checking");
 
   useEffect(() => {
-    const session = readBesatSession();
-
-    if (!session) {
-      const next =
-        typeof window !== "undefined"
-          ? window.location.pathname + window.location.search
-          : "/";
-      router.replace(`/login?next=${encodeURIComponent(next)}`);
-      return;
-    }
-
     let active = true;
-    getCurrentUser(session.accessToken)
+    getCurrentUser()
       .then((user) => {
         if (!active) return;
+        writeBesatSession(sessionFromUser(user));
         const allowedRoles = rolesForDashboardSegment(segment);
         const userRole = user.role as BesatRole;
         if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {

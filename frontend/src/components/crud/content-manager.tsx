@@ -6,6 +6,7 @@ import { Field, Select, StatusBadge, TextArea, TextInput } from "@/components/cr
 import { ContentBlockInserter } from "@/components/cms/content-block-inserter";
 import { RichEditor } from "@/components/editor/rich-editor";
 import { contentRepository } from "@/lib/data/repositories";
+import { panelService } from "@/services/panel-service";
 import type {
   ContentKind,
   ContentRecord,
@@ -132,6 +133,10 @@ function ContentForm({
   );
   const [status, setStatus] = useState<PublishStatus>(initial?.status ?? "draft");
 
+  async function uploadEditorMedia(file: File) {
+    return panelService.uploadMedia(file, { unitId, altText: file.name });
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await onSubmit({
@@ -200,6 +205,7 @@ function ContentForm({
         <RichEditor
           value={bodyHtml}
           onChange={setBodyHtml}
+          onUploadMedia={uploadEditorMedia}
           placeholder={`متن کامل ${kind === "news" ? "خبر" : "اطلاعیه"} را اینجا بنویسید...`}
         />
       </Field>

@@ -1,5 +1,5 @@
 ﻿import { redirect } from "next/navigation";
 
 export default function MediaRedirect() {
-  redirect("/dashboard/media/announcements");
+  redirect("/dashboard/content-manager/announcements");
 }

@@ -888,7 +888,7 @@ button.besat-accent-button * {
   box-shadow: 0 8px 20px rgba(41, 24, 4, 0.2);
 }
 
-@media (min-width: 1280px) and (max-height: 900px) {
+  @media (min-width: 1280px) and (max-height: 900px) {
   .besat-dashboard-brand {
     margin-top: 0.65rem;
     margin-bottom: 0.35rem;
@@ -932,6 +932,13 @@ button.besat-accent-button * {
   .besat-dashboard-sidebar-footer .dashboard-sidebar-link {
     min-height: 2.2rem;
     padding-block: 0.3rem;
+  }
+}
+
+@media (min-width: 1280px) and (max-height: 699px) {
+  .besat-panel-menu-scroll {
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
   }
 }
 
@@ -2111,22 +2118,35 @@ button.besat-accent-button * {
 .besat-editor-revisions {
   display: grid;
   gap: 0.35rem;
-  margin-top: 0.65rem;
 }
 
-.besat-editor-revisions button {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.15rem 0.4rem;
+.besat-editor-revisions li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
   border: 1px solid #e6eaed;
   border-radius: 0.5rem;
   padding: 0.55rem;
   text-align: right;
 }
 
-.besat-editor-revisions button:hover {
+.besat-editor-revisions li:hover {
   border-color: #d8aa5e;
   background: #fffaf1;
+}
+
+.besat-editor-revisions li > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.besat-editor-revisions .panel-icon-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
 }
 
 .besat-editor-revisions b {

@@ -2,13 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { EditorIcon, type EditorIconName } from "@/components/editor/editor-icons";
-import { galleryRepository } from "@/lib/data/repositories";
+import { getApiErrorMessage } from "@/lib/api/client";
+import { panelService } from "@/services/panel-service";
+import type { MediaAsset } from "@/types/panel-api";
 
 type ContentBlockInserterProps = {
   value: string;
   onChange: (nextValue: string) => void;
   unitId?: string | null;
   variant?: "default" | "sidebar";
+  onUploadState?: (uploading: boolean) => void;
 };
 
 type BlockType = "gallery" | "media" | "quote" | "highlight";
@@ -17,8 +20,20 @@ type MediaDraft = {
   id: string;
   title: string;
   src: string;
+  mediaType: "image" | "video";
   origin: "library" | "upload" | "url";
 };
+
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const SUPPORTED_MEDIA_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "video/mp4",
+  "video/webm",
+  "video/ogg",
+]);
 
 function escapeHtml(value: string) {
   return value
@@ -28,11 +43,11 @@ function escapeHtml(value: string) {
     .replace(/"/g, "&quot;");
 }
 
-function isVideoSource(src: string) {
+function isVideoSource(src: string, mediaType?: MediaDraft["mediaType"]) {
+  if (mediaType === "video") return true;
   const normalized = src.toLowerCase();
 
   return (
-    normalized.startsWith("data:video/") ||
     normalized.endsWith(".mp4") ||
     normalized.endsWith(".webm") ||
     normalized.endsWith(".ogg") ||
@@ -55,7 +70,7 @@ function buildMediaElement(media: MediaDraft, className = "h-56 w-full rounded-3
   const src = escapeHtml(media.src);
   const title = escapeHtml(media.title);
 
-  if (isVideoSource(media.src)) {
+  if (isVideoSource(media.src, media.mediaType)) {
     return `<video src="${src}" controls class="${className} bg-slate-950 object-cover"></video>`;
   }
 
@@ -66,7 +81,7 @@ function buildGalleryBlock(items: MediaDraft[]) {
   const cards = items
     .map((item) => {
       const src = escapeHtml(item.src);
-      const type = isVideoSource(item.src) ? "video" : "image";
+      const type = isVideoSource(item.src, item.mediaType) ? "video" : "image";
 
       return `<div data-besat-gallery-item data-type="${type}" data-src="${src}"></div>`;
     })
@@ -110,74 +125,44 @@ function buildHighlightBlock(title: string, body: string) {
 </section>`;
 }
 
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-
-      if (!result) {
-        reject(new Error("empty-file-result"));
-        return;
-      }
-
-      resolve(result);
-    };
-
-    reader.onerror = () => reject(new Error("file-read-failed"));
-    reader.readAsDataURL(file);
-  });
+function mediaDraftFromAsset(asset: MediaAsset): MediaDraft {
+  return {
+    id: `media-${asset.id}`,
+    title: asset.title,
+    src: asset.url,
+    mediaType: asset.media_type,
+    origin: "library",
+  };
 }
 
-function optimizeImageFile(file: File): Promise<string> {
-  if (!file.type.startsWith("image/")) {
-    return readFileAsDataUrl(file);
+function getUrlMediaType(url: string): MediaDraft["mediaType"] {
+  return isVideoSource(url) ? "video" : "image";
+}
+
+function isSafeMediaUrl(url: string) {
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
   }
+}
 
-  return new Promise((resolve) => {
-    const objectUrl = URL.createObjectURL(file);
-    const image = new window.Image();
-
-    image.onload = () => {
-      const maxSide = 1280;
-      const ratio = Math.min(1, maxSide / Math.max(image.width, image.height));
-      const width = Math.max(1, Math.round(image.width * ratio));
-      const height = Math.max(1, Math.round(image.height * ratio));
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-
-      const context = canvas.getContext("2d");
-
-      if (!context) {
-        URL.revokeObjectURL(objectUrl);
-        readFileAsDataUrl(file).then(resolve);
-        return;
-      }
-
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, width, height);
-      context.drawImage(image, 0, 0, width, height);
-
-      URL.revokeObjectURL(objectUrl);
-      resolve(canvas.toDataURL("image/jpeg", 0.82));
-    };
-
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      readFileAsDataUrl(file).then(resolve);
-    };
-
-    image.src = objectUrl;
-  });
+function fileValidationMessage(file: File): string | null {
+  if (!SUPPORTED_MEDIA_TYPES.has(file.type)) {
+    return "نوع فایل پشتیبانی نمی شود.";
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return "حجم فایل نباید بیشتر از 25 مگابایت باشد.";
+  }
+  return null;
 }
 export function ContentBlockInserter({
   value,
   onChange,
   unitId = null,
   variant = "default",
+  onUploadState,
 }: ContentBlockInserterProps) {
   const [open, setOpen] = useState(false);
   const [activeType, setActiveType] = useState<BlockType>("gallery");
@@ -191,27 +176,31 @@ export function ContentBlockInserter({
   const [highlightTitle, setHighlightTitle] = useState("");
   const [highlightBody, setHighlightBody] = useState("");
   const [errorText, setErrorText] = useState("");
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
 
-    galleryRepository.list().then((allItems) => {
-      const visibleItems = allItems
-        .filter((item) => {
-          if (item.status === "rejected") return false;
-          if (!unitId) return true;
-          return item.unit_id === unitId || item.scope === "school";
-        })
-        .map((item) => ({
-          id: `library-${item.id}`,
-          title: item.title,
-          src: item.image,
-          origin: "library" as const,
-        }));
-
-      setLibraryItems(visibleItems);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setLibraryItems(null);
     });
+
+    void panelService
+      .mediaAssets(unitId ? { unit: unitId, page_size: 100 } : { page_size: 100 })
+      .then((response) => {
+        if (!cancelled) setLibraryItems(response.results.map(mediaDraftFromAsset));
+      })
+      .catch((reason) => {
+        if (cancelled) return;
+        setLibraryItems([]);
+        setErrorText(getApiErrorMessage(reason));
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, unitId]);
 
   const allMediaItems = [...customItems, ...(libraryItems ?? [])];
@@ -260,11 +249,17 @@ export function ContentBlockInserter({
       return;
     }
 
+    if (!isSafeMediaUrl(src)) {
+      setErrorText("نشانی رسانه معتبر نیست.");
+      return;
+    }
+
     const id = `url-${Date.now()}`;
     const item: MediaDraft = {
       id,
       title: directTitle.trim() || "مدیای لینک‌شده",
       src,
+      mediaType: getUrlMediaType(src),
       origin: "url",
     };
 
@@ -281,8 +276,16 @@ export function ContentBlockInserter({
     if (!files || files.length === 0) return;
 
     const fileArray = Array.from(files);
+    setUploading(true);
+    onUploadState?.(true);
 
     for (const file of fileArray) {
+      const validationMessage = fileValidationMessage(file);
+      if (validationMessage) {
+        setErrorText(validationMessage);
+        continue;
+      }
+
       if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
         setErrorText("فقط فایل عکس یا ویدیو قابل انتخاب است.");
         continue;
@@ -291,12 +294,18 @@ export function ContentBlockInserter({
       const id = `upload-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
       try {
-        const result = await optimizeImageFile(file);
+        const result = await panelService.uploadMedia(file, {
+          unitId,
+          title: directTitle.trim() || file.name,
+          altText: directTitle.trim() || file.name,
+          caption: directTitle.trim(),
+        });
 
         const item: MediaDraft = {
           id,
           title: file.name,
-          src: result,
+          src: result.url,
+          mediaType: result.media_type,
           origin: "upload",
         };
 
@@ -306,6 +315,10 @@ export function ContentBlockInserter({
         setErrorText("خواندن فایل انجام نشد.");
       }
     }
+
+    setUploading(false);
+    onUploadState?.(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   function insertSelectedBlock() {
@@ -428,6 +441,7 @@ export function ContentBlockInserter({
                       ref={fileInputRef}
                       type="file"
                       accept="image/*,video/*"
+                      multiple
                       className="hidden"
                       onChange={(event) => handleFiles(event.target.files)}
                     />
@@ -435,6 +449,7 @@ export function ContentBlockInserter({
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
                       className="mt-4 h-11 w-full rounded-2xl bg-[#12395b] px-5 text-sm font-black text-white transition hover:bg-[#0d2f4d]"
                     >
                       انتخاب فایل‌ها از سیستم
@@ -499,7 +514,7 @@ export function ContentBlockInserter({
                                   : "border-slate-200 hover:border-blue-200"
                               }`}
                             >
-                              {isVideoSource(item.src) ? (
+                              {isVideoSource(item.src, item.mediaType) ? (
                                 <video
                                   src={item.src}
                                   muted

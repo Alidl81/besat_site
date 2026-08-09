@@ -15,6 +15,8 @@
     "mock:reset": "node scripts/reset-mock-db.mjs"
   },
   "dependencies": {
+    "@iconify-icons/tabler": "^1.2.95",
+    "@iconify/react": "^6.0.2",
     "@tiptap/extension-character-count": "3.27.1",
     "@tiptap/extension-drag-handle": "3.27.1",
     "@tiptap/extension-file-handler": "3.27.1",
@@ -29,7 +31,7 @@
     "@tiptap/starter-kit": "^3.27.1",
     "isomorphic-dompurify": "^3.20.0",
     "lucide-react": "^1.27.0",
-    "next": "16.2.9",
+    "next": "16.3.0",
     "pannellum": "^2.5.7",
     "react": "19.2.4",
     "react-dom": "19.2.4"
@@ -44,7 +46,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "eslint-config-next": "16.3.0",
     "jsdom": "^30.0.1",
     "tailwindcss": "^4",
     "typescript": "^5",

@@ -1,11 +1,5 @@
-﻿import type { Metadata } from "next";
-import { dashboardPages } from "@/components/dashboard/dashboard-data";
-import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "اطلاعیه‌ها | مدرسه بعثت",
-};
-
-export default function DashboardPage() {
-  return <DashboardShell panel="media" data={dashboardPages.media} activeKey="announcements" />;
+export default function Page() {
+  redirect("/dashboard/content-manager/announcements");
 }

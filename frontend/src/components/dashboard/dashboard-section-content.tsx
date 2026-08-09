@@ -24,7 +24,7 @@ import {
 } from "@/components/dashboard/supplementary-workspaces";
 
 type DashboardSectionContentProps = {
-  panel: "admin" | "unitManager" | "media" | "parents";
+  panel: "admin" | "contentManager" | "parents";
   sectionKey: string;
   roleTitle: string;
 };
@@ -44,7 +44,12 @@ export function DashboardSectionContent({
     return () => window.clearTimeout(timer);
   }, []);
 
-  const scopedUnitId = searchParams.get("unit") ?? (panel === "admin" ? null : unitId);
+  const session = readBesatSession();
+  const userRole = session?.role;
+  const scopedUnitId = searchParams.get("unit") ?? (
+    userRole === "unit_manager" || userRole === "unit_media" ? unitId : null
+  );
+  const canPublishContent = userRole === "general_manager";
 
   if (sectionKey === "profile") return <PanelProfileContent roleTitle={roleTitle} />;
   if (sectionKey === "messages") return <MessagingPanel />;
@@ -54,7 +59,7 @@ export function DashboardSectionContent({
       case "events":
         return <EventsWorkspace />;
       case "announcements":
-        return <EditorialWorkspace unitId={scopedUnitId} authorRole="general_manager" initialKind="announcement" />;
+        return <EditorialWorkspace unitId={scopedUnitId} authorRole="general_manager" canPublish={canPublishContent} initialKind="announcement" />;
       case "reports":
         return <ManagementReportsWorkspace />;
       case "settings":
@@ -68,7 +73,7 @@ export function DashboardSectionContent({
       case "services":
         return <ServicesWorkspace />;
       case "content":
-        return <EditorialWorkspace unitId={scopedUnitId} authorRole="general_manager" />;
+        return <EditorialWorkspace unitId={scopedUnitId} authorRole="general_manager" canPublish={canPublishContent} />;
       case "gallery":
         return <GalleryManager unitId={scopedUnitId} />;
       case "pages":
@@ -82,34 +87,21 @@ export function DashboardSectionContent({
     }
   }
 
-  if (panel === "unitManager") {
-    switch (sectionKey) {
-      case "students":
-        return <ManagementStudentsWorkspace unitId={scopedUnitId} />;
-      case "staff":
-        return <StaffManager unitId={scopedUnitId} />;
-      case "content":
-        return <EditorialWorkspace unitId={scopedUnitId} authorRole="unit_manager" canPublish={false} />;
-      case "media":
-        return <GalleryManager unitId={scopedUnitId} />;
-      default:
-        return null;
-    }
-  }
-
-  if (panel === "media") {
+  if (panel === "contentManager") {
     switch (sectionKey) {
       case "content":
-        return <EditorialWorkspace unitId={scopedUnitId} authorRole="unit_media" canPublish={false} />;
+        return <EditorialWorkspace unitId={scopedUnitId} authorRole="unit_media" canPublish={canPublishContent} />;
       case "news":
-        return <EditorialWorkspace unitId={scopedUnitId} authorRole="unit_media" canPublish={false} initialKind="news" />;
+        return <EditorialWorkspace unitId={scopedUnitId} authorRole="unit_media" canPublish={canPublishContent} initialKind="news" />;
       case "announcements":
-        return <EditorialWorkspace unitId={scopedUnitId} authorRole="unit_media" canPublish={false} initialKind="announcement" />;
+        return <EditorialWorkspace unitId={scopedUnitId} authorRole="unit_media" canPublish={canPublishContent} initialKind="announcement" />;
+      case "calendar":
+        return <EventsWorkspace />;
       case "media":
       case "albums":
         return <GalleryManager unitId={scopedUnitId} canPublish={false} />;
       case "review":
-        return <EditorialWorkspace unitId={scopedUnitId} authorRole="unit_media" canPublish={false} reviewOnly />;
+        return <EditorialWorkspace unitId={scopedUnitId} authorRole="unit_media" canPublish={canPublishContent} reviewOnly />;
       case "services":
         return <ServicesWorkspace />;
       default:

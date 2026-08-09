@@ -2,5 +2,5 @@
 import { DashboardGuard } from "@/components/auth/dashboard-guard";
 
 export default function DashboardSegmentLayout({ children }: { children: ReactNode }) {
-  return <DashboardGuard segment="media">{children}</DashboardGuard>;
+  return <DashboardGuard segment="content-manager">{children}</DashboardGuard>;
 }

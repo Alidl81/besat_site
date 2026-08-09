@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { galleryRepository } from "@/lib/data/repositories";
-import type { GalleryItemRecord } from "@/lib/data/domain-types";
+import { EditorIcon } from "@/components/editor/editor-icons";
+import { getApiErrorMessage } from "@/lib/api/client";
+import { panelService } from "@/services/panel-service";
+import type { MediaAsset } from "@/types/panel-api";
 
 type MediaPickerDialogProps = {
   open: boolean;
@@ -14,11 +16,20 @@ type MediaPickerDialogProps = {
 
 type MediaTab = "upload" | "url" | "library";
 
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const SUPPORTED_MEDIA_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "video/mp4",
+  "video/webm",
+  "video/ogg",
+]);
+
 
 function getMediaSourceLabel(src: string) {
   if (!src) return "No media selected";
-  if (src.startsWith("data:image/")) return "تصویر انتخاب‌شده از سیستم";
-  if (src.startsWith("data:video/")) return "ویدیوی انتخاب‌شده از سیستم";
   if (src.length <= 80) return src;
 
   return `${src.slice(0, 44)}...${src.slice(-20)}`;
@@ -26,7 +37,6 @@ function getMediaSourceLabel(src: string) {
 function isVideoSource(src: string) {
   const normalized = src.toLowerCase();
   return (
-    normalized.startsWith("data:video/") ||
     normalized.endsWith(".mp4") ||
     normalized.endsWith(".webm") ||
     normalized.endsWith(".ogg") ||
@@ -34,6 +44,15 @@ function isVideoSource(src: string) {
     normalized.includes(".webm?") ||
     normalized.includes(".ogg?")
   );
+}
+
+function isSafeMediaUrl(url: string) {
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
 }
 
 function MediaPreview({ src, title }: { src: string; title: string }) {
@@ -72,10 +91,11 @@ export function MediaPickerDialog({
   onClose,
 }: MediaPickerDialogProps) {
   const [activeTab, setActiveTab] = useState<MediaTab>("upload");
-  const [libraryItems, setLibraryItems] = useState<GalleryItemRecord[] | null>(null);
+  const [libraryItems, setLibraryItems] = useState<MediaAsset[] | null>(null);
   const [selectedUrl, setSelectedUrl] = useState(value);
   const [fileName, setFileName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [errorText, setErrorText] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -90,15 +110,19 @@ export function MediaPickerDialog({
       setIsDragging(false);
     });
 
-    galleryRepository.list().then((items) => {
-      if (cancelled) return;
-      const visibleItems = items.filter((item) => {
-        if (!unitId) return true;
-        return item.unit_id === unitId || item.scope === "school";
-      });
-
-      setLibraryItems(visibleItems);
+    queueMicrotask(() => {
+      if (!cancelled) setLibraryItems(null);
     });
+    void panelService
+      .mediaAssets(unitId ? { unit: unitId, page_size: 100 } : { page_size: 100 })
+      .then((response) => {
+        if (!cancelled) setLibraryItems(response.results);
+      })
+      .catch((reason) => {
+        if (cancelled) return;
+        setLibraryItems([]);
+        setErrorText(getApiErrorMessage(reason));
+      });
     return () => {
       cancelled = true;
       window.cancelAnimationFrame(frame);
@@ -118,46 +142,51 @@ export function MediaPickerDialog({
 
   if (!open) return null;
 
-  function handleFile(file: File | null) {
+  async function handleFile(file: File | null) {
     setErrorText("");
 
     if (!file) return;
 
-    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
-      setErrorText("فقط فایل عکس یا ویدیو قابل انتخاب است.");
+    if (!SUPPORTED_MEDIA_TYPES.has(file.type)) {
+      setErrorText("نوع فایل پشتیبانی نمی شود.");
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setErrorText("حجم فایل نباید بیشتر از 25 مگابایت باشد.");
       return;
     }
 
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-
-      if (!result) {
-        setErrorText("خواندن فایل انجام نشد.");
-        return;
-      }
-
-      setSelectedUrl(result);
-      setFileName(file.name);
-    };
-
-    reader.onerror = () => {
-      setErrorText("خواندن فایل انجام نشد.");
-    };
-
-    reader.readAsDataURL(file);
+    setIsUploading(true);
+    try {
+      const asset = await panelService.uploadMedia(file, {
+        unitId,
+        title: file.name,
+        altText: file.name,
+      });
+      setSelectedUrl(asset.url);
+      setFileName(asset.title);
+    } catch (reason) {
+      setErrorText(getApiErrorMessage(reason));
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setIsDragging(false);
-    handleFile(event.dataTransfer.files[0] ?? null);
+    void handleFile(event.dataTransfer.files[0] ?? null);
   }
 
   function confirmSelection() {
     if (!canConfirm) return;
-    onSelect(selectedUrl.trim());
+    const url = selectedUrl.trim();
+    if (!isSafeMediaUrl(url)) {
+      setErrorText("نشانی رسانه معتبر نیست.");
+      return;
+    }
+    onSelect(url);
     onClose();
   }
 
@@ -193,7 +222,7 @@ export function MediaPickerDialog({
             aria-label="بستن"
             className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
           >
-            ✕
+            <EditorIcon name="close" className="size-5" />
           </button>
         </div>
 
@@ -235,11 +264,11 @@ export function MediaPickerDialog({
                   type="file"
                   accept="image/*,video/*"
                   className="hidden"
-                  onChange={(event) => handleFile(event.target.files?.[0] ?? null)}
+                  onChange={(event) => void handleFile(event.target.files?.[0] ?? null)}
                 />
 
                 <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-white text-2xl text-blue-700 shadow-sm">
-                  ⤴
+                  <EditorIcon name="upload" className="size-6" />
                 </div>
 
                 <p className="text-base font-black text-[#062452]">
@@ -258,6 +287,7 @@ export function MediaPickerDialog({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
                   className="mt-5 inline-flex h-12 items-center justify-center rounded-2xl bg-[#12395b] px-6 text-sm font-black text-white transition hover:bg-[#0d2f4d]"
                 >
                   انتخاب از سیستم
@@ -295,26 +325,26 @@ export function MediaPickerDialog({
                 ) : (
                   <div className="grid max-h-[28rem] gap-4 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
                     {libraryItems.map((item) => {
-                      const selected = selectedUrl === item.image;
+                      const selected = selectedUrl === item.url;
 
                       return (
                         <button
                           key={item.id}
                           type="button"
-                          onClick={() => setSelectedUrl(item.image)}
+                          onClick={() => setSelectedUrl(item.url)}
                           className={`overflow-hidden rounded-3xl border bg-white text-right transition ${
                             selected
                               ? "border-blue-400 ring-4 ring-blue-100"
                               : "border-slate-200 hover:border-blue-200"
                           }`}
                         >
-                          <MediaPreview src={item.image} title={item.title} />
+                          <MediaPreview src={item.url} title={item.title} />
                           <div className="p-4">
                             <p className="line-clamp-1 text-sm font-black text-[#062452]">
                               {item.title}
                             </p>
                             <p className="mt-1 text-xs font-bold text-slate-400">
-                              {item.album ?? "بدون آلبوم"}
+                              {item.media_type === "video" ? "ویدیو" : "تصویر"}
                             </p>
                           </div>
                         </button>

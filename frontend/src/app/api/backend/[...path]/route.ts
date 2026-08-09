@@ -1,24 +1,10 @@
-import { handleMockApiRequest } from "@/lib/mock-api/handler";
-
-const DEFAULT_BACKEND_API_URL = "mock://local";
-const UPSTREAM_TIMEOUT_MS = 30_000;
-
-const REQUEST_HEADERS_TO_REMOVE = [
-  "connection",
-  "content-length",
-  "expect",
-  "host",
-  "keep-alive",
-  "proxy-authorization",
-  "proxy-connection",
-  "te",
-  "trailer",
-  "transfer-encoding",
-  "upgrade",
-  "x-forwarded-for",
-  "x-forwarded-host",
-  "x-forwarded-proto",
-];
+import { requestBackend } from "@/lib/server/backend-client";
+import {
+  appendSessionCookies,
+  clearSessionCookies,
+  readCookie,
+  sessionCookieNames,
+} from "@/lib/server/session-cookies";
 
 const RESPONSE_HEADERS_TO_REMOVE = [
   "connection",
@@ -27,6 +13,7 @@ const RESPONSE_HEADERS_TO_REMOVE = [
   "keep-alive",
   "proxy-authenticate",
   "proxy-connection",
+  "set-cookie",
   "te",
   "trailer",
   "transfer-encoding",
@@ -39,56 +26,6 @@ type BackendRouteContext = {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function getBackendBaseUrl() {
-  const configuredUrl =
-    process.env.BESAT_BACKEND_API_URL ?? DEFAULT_BACKEND_API_URL;
-  const backendUrl = new URL(configuredUrl);
-
-  if (!["http:", "https:"].includes(backendUrl.protocol)) {
-    throw new Error("Unsupported backend protocol");
-  }
-
-  backendUrl.hash = "";
-  backendUrl.search = "";
-  backendUrl.pathname = `${backendUrl.pathname.replace(/\/+$/, "")}/`;
-  return backendUrl;
-}
-
-function createUpstreamUrl(request: Request, path: string[]) {
-  if (
-    path.length === 0 ||
-    path.some(
-      (segment) =>
-        segment === "." || segment === ".." || segment.includes("\0"),
-    )
-  ) {
-    throw new Error("Invalid backend path");
-  }
-
-  const frontendUrl = new URL(request.url);
-  const upstreamUrl = getBackendBaseUrl();
-  const encodedPath = path.map((segment) => encodeURIComponent(segment)).join("/");
-
-  upstreamUrl.pathname = `${upstreamUrl.pathname}${encodedPath}/`;
-  upstreamUrl.search = frontendUrl.search;
-  return upstreamUrl;
-}
-
-function createUpstreamHeaders(request: Request, requestId: string) {
-  const headers = new Headers(request.headers);
-
-  for (const header of REQUEST_HEADERS_TO_REMOVE) {
-    headers.delete(header);
-  }
-
-  const frontendUrl = new URL(request.url);
-  headers.set("accept-encoding", "identity");
-  headers.set("x-request-id", requestId);
-  headers.set("x-forwarded-host", frontendUrl.host);
-  headers.set("x-forwarded-proto", frontendUrl.protocol.replace(":", ""));
-  return headers;
-}
 
 function createClientHeaders(upstreamResponse: Response) {
   const headers = new Headers(upstreamResponse.headers);
@@ -117,62 +54,109 @@ function createProxyError(requestId: string, status = 502) {
   );
 }
 
+function isCrossOriginMutation(request: Request) {
+  if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return false;
+  const origin = request.headers.get("origin");
+  return origin !== null && origin !== new URL(request.url).origin;
+}
+
+async function readRefreshPayload(response: Response) {
+  try {
+    const payload = (await response.json()) as {
+      access?: unknown;
+      refresh?: unknown;
+    };
+    return typeof payload.access === "string" && typeof payload.refresh === "string"
+      ? { access: payload.access, refresh: payload.refresh }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 async function forwardToBackend(
   request: Request,
   { params }: BackendRouteContext,
 ) {
   const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID();
 
+  if (isCrossOriginMutation(request)) {
+    return Response.json(
+      {
+        detail: "درخواست از مبدأ نامعتبر پذیرفته نشد.",
+        code: "invalid_origin",
+        request_id: requestId,
+      },
+      { status: 403, headers: { "cache-control": "no-store", "x-request-id": requestId } },
+    );
+  }
+
   try {
     const { path } = await params;
-    const configuredUrl =
-      process.env.BESAT_BACKEND_API_URL ?? DEFAULT_BACKEND_API_URL;
+    const body =
+      request.method === "GET" || request.method === "HEAD"
+        ? null
+        : await request.arrayBuffer();
+    const explicitAuthorization = request.headers.has("authorization");
+    const access = explicitAuthorization
+      ? null
+      : readCookie(request.headers.get("cookie"), sessionCookieNames.access);
+    const refresh = explicitAuthorization
+      ? null
+      : readCookie(request.headers.get("cookie"), sessionCookieNames.refresh);
 
-    if (configuredUrl === "mock://local") {
-      const mockRequest =
-        request.method === "HEAD"
-          ? new Request(request.url, {
-              method: "GET",
-              headers: request.headers,
-            })
-          : request;
-      const mockResponse = await handleMockApiRequest(mockRequest, path);
-
-      if (request.method === "HEAD") {
-        return new Response(null, {
-          status: mockResponse.status,
-          statusText: mockResponse.statusText,
-          headers: mockResponse.headers,
-        });
-      }
-
-      return mockResponse;
-    }
-
-    const upstreamUrl = createUpstreamUrl(request, path);
-    const init: RequestInit = {
+    let upstreamResponse = await requestBackend({
+      requestUrl: request.url,
+      path,
       method: request.method,
-      headers: createUpstreamHeaders(request, requestId),
-      cache: "no-store",
-      redirect: "manual",
-      signal: AbortSignal.any([
-        request.signal,
-        AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-      ]),
-    };
+      headers: request.headers,
+      body,
+      requestId,
+      accessToken: access,
+    });
+    let refreshedTokens: { access: string; refresh: string } | null = null;
+    let clearCookies = false;
 
-    if (request.method !== "GET" && request.method !== "HEAD") {
-      const body = await request.arrayBuffer();
-      if (body.byteLength > 0) {
-        init.body = body;
+    if (upstreamResponse.status === 401 && refresh && !explicitAuthorization) {
+      const refreshResponse = await requestBackend({
+        requestUrl: request.url,
+        path: ["auth", "refresh"],
+        method: "POST",
+        headers: { accept: "application/json", "content-type": "application/json" },
+        body: JSON.stringify({ refresh }),
+        requestId,
+      });
+      refreshedTokens = await readRefreshPayload(refreshResponse);
+
+      if (refreshedTokens) {
+        upstreamResponse = await requestBackend({
+          requestUrl: request.url,
+          path,
+          method: request.method,
+          headers: request.headers,
+          body,
+          requestId,
+          accessToken: refreshedTokens.access,
+        });
+      } else {
+        clearCookies = true;
       }
     }
 
-    const upstreamResponse = await fetch(upstreamUrl, init);
     const responseHeaders = createClientHeaders(upstreamResponse);
-
+    responseHeaders.set("cache-control", "no-store");
     if (!responseHeaders.has("x-request-id")) {
       responseHeaders.set("x-request-id", requestId);
+    }
+    if (refreshedTokens) appendSessionCookies(responseHeaders, refreshedTokens);
+    if (clearCookies) clearSessionCookies(responseHeaders);
+
+    if (request.method === "HEAD") {
+      return new Response(null, {
+        status: upstreamResponse.status,
+        statusText: upstreamResponse.statusText,
+        headers: responseHeaders,
+      });
     }
 
     return new Response(upstreamResponse.body, {

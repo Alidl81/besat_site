@@ -32,9 +32,11 @@ export type SchoolUnit = {
 
 export type CurrentUser = {
   id: ApiId;
+  username?: string;
   full_name: string;
   role: UserRole;
   unit_id: ApiId | null;
+  redirect_path?: string;
 };
 
 export type UserPermissions = {

@@ -6,6 +6,21 @@ export type PanelListResponse<T, TSummary = never> = ApiListResponse<T> & {
 
 export type NamedOption = { id: ApiId; title: string };
 
+export type MediaAsset = {
+  id: ApiId;
+  title: string;
+  url: string;
+  media_type: "image" | "video";
+  content_type: string;
+  size: number;
+  alt_text: string;
+  caption: string;
+  unit: ApiId | null;
+  uploaded_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type PanelContext = {
   user: {
     id: ApiId;
@@ -211,6 +226,22 @@ export type ContentSummary = {
   waiting_review: number;
   scheduled: number;
   published: number;
+};
+
+export type ContentRevision = {
+  id: ApiId;
+  created_at: string;
+  updated_at: string;
+  note: string | null;
+  actor: { id: ApiId; full_name: string } | null;
+  snapshot: {
+    title: string;
+    summary: string | null;
+    body_html: string;
+    body_json: Record<string, unknown> | null;
+    cover_image_url: string | null;
+    status: PublishStatus;
+  };
 };
 
 export type ParentChildSummary = {

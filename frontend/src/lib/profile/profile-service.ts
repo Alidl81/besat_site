@@ -4,7 +4,6 @@
   uploadAccountAvatar,
   type AccountProfile,
 } from "@/lib/api/account-api";
-import { readBesatSession } from "@/lib/auth/auth-session";
 
 export type ProfileFormValues = {
   fullName: string;
@@ -21,21 +20,16 @@ export type ChangePasswordFormValues = {
 };
 
 export async function loadProfile(): Promise<AccountProfile | null> {
-  const session = readBesatSession();
-  if (!session) return null;
   try {
-    return await getAccountProfile(session.accessToken);
+    return await getAccountProfile();
   } catch {
     return null;
   }
 }
 
 export async function saveProfile(values: ProfileFormValues): Promise<{ ok: boolean; message: string }> {
-  const session = readBesatSession();
-  if (!session) return { ok: false, message: "لطفاً ابتدا وارد شوید." };
-
   try {
-    await updateAccountProfile(session.accessToken, {
+    await updateAccountProfile(undefined, {
       full_name: values.fullName,
       phone: values.phone,
       email: values.email,
@@ -43,7 +37,7 @@ export async function saveProfile(values: ProfileFormValues): Promise<{ ok: bool
     });
 
     if (values.avatar) {
-      await uploadAccountAvatar(session.accessToken, values.avatar);
+      await uploadAccountAvatar(undefined, values.avatar);
     }
 
     return { ok: true, message: "اطلاعات پروفایل با موفقیت ذخیره شد." };
@@ -55,9 +49,6 @@ export async function saveProfile(values: ProfileFormValues): Promise<{ ok: bool
 export async function changePassword(
   values: ChangePasswordFormValues,
 ): Promise<{ ok: boolean; message: string }> {
-  const session = readBesatSession();
-  if (!session) return { ok: false, message: "لطفاً ابتدا وارد شوید." };
-
   if (values.newPassword !== values.confirmPassword) {
     return { ok: false, message: "رمز عبور جدید و تکرار آن یکسان نیستند." };
   }
@@ -67,7 +58,6 @@ export async function changePassword(
     const { apiRequest } = await import("@/lib/api/client");
     await apiRequest("me/change-password/", {
       method: "POST",
-      token: session.accessToken,
       body: JSON.stringify({
         current_password: values.currentPassword,
         new_password: values.newPassword,

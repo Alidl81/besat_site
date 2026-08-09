@@ -32,6 +32,8 @@ export type PublicNewsItem = {
 };
 
 export type PublicNewsDetail = PublicNewsItem & {
+  body_html?: string | null;
+  body_json?: Record<string, unknown> | null;
   content_json: {
     time?: number;
     version?: string;

@@ -1,4 +1,3 @@
-import { readBesatSession } from "@/lib/auth/auth-session";
 import {
   apiDownload,
   apiRequest,
@@ -15,10 +14,12 @@ import type { ApiId } from "@/types/api";
 import type {
   AdminDashboard,
   ContentItem,
+  ContentRevision,
   ContentSummary,
   EventItem,
   MediaDashboard,
   InternalMessageItem,
+  MediaAsset,
   MessageRecipient,
   NamedOption,
   PanelMetric,
@@ -58,6 +59,13 @@ type BackendDashboard = {
   metrics?: PanelMetric[];
 };
 
+type MediaUploadOptions = {
+  unitId?: ApiId | null;
+  title?: string;
+  altText?: string;
+  caption?: string;
+};
+
 function dashboardMetrics(payload: BackendDashboard): PanelMetric[] {
   const tones: PanelMetric["tone"][] = ["blue", "amber", "green", "purple"];
   if (payload.metrics) return payload.metrics;
@@ -93,12 +101,8 @@ function dashboardFeed(payload: BackendDashboard) {
   }));
 }
 
-function token() {
-  return readBesatSession()?.accessToken;
-}
-
 function authed<T>(endpoint: string, options: ApiRequestOptions = {}) {
-  return apiRequest<T>(endpoint, { ...options, token: token() });
+  return apiRequest<T>(endpoint, options);
 }
 
 function mutate<T>(
@@ -125,15 +129,13 @@ export const panelService = {
   },
 
   async dashboard(
-    panel: "admin" | "unitManager" | "media" | "parents",
+    panel: "admin" | "contentManager" | "parents",
     params: Record<string, QueryValue> = {},
   ) {
     const endpoint =
       panel === "admin"
         ? apiEndpoints.dashboard.generalManager
-        : panel === "unitManager"
-          ? apiEndpoints.dashboard.unitManager
-          : panel === "media"
+        : panel === "contentManager"
             ? apiEndpoints.dashboard.media
             : apiEndpoints.dashboard.parents;
     const raw = await authed<BackendDashboard>(
@@ -149,7 +151,7 @@ export const panelService = {
     }
     const metrics = dashboardMetrics(raw);
     const feed = dashboardFeed(raw);
-    if (panel === "media") {
+    if (panel === "contentManager") {
       return {
         current_date: new Date().toISOString(),
         metrics,
@@ -225,7 +227,7 @@ export const panelService = {
         ...params,
         format: "xlsx",
       }),
-      { token: token() },
+      {},
     );
   },
 
@@ -315,6 +317,17 @@ export const panelService = {
       payload,
     );
   },
+  contentRevisions(id: string | number) {
+    return authed<ContentRevision[]>(
+      `${detailEndpoint(apiEndpoints.cms.content, id)}revisions/`,
+    );
+  },
+  restoreContentRevision(id: string | number, revisionId: string | number) {
+    return mutate<ContentItem>(
+      `${detailEndpoint(apiEndpoints.cms.content, id)}revisions/${encodeURIComponent(String(revisionId))}/restore/`,
+      "POST",
+    );
+  },
   async contentCategories() {
     const endpoints = [
       `${apiEndpoints.cms.news}categories/`,
@@ -332,10 +345,21 @@ export const panelService = {
     }
     return [...unique.values()];
   },
-  uploadMedia(file: File) {
+  mediaAssets(params: Record<string, QueryValue> = {}) {
+    return authed<PanelListResponse<MediaAsset>>(
+      withQuery(apiEndpoints.cms.media, params),
+    );
+  },
+  uploadMedia(file: File, options: MediaUploadOptions = {}) {
     const form = new FormData();
     form.set("file", file);
-    return mutate<{ id: string | number; url: string; title: string }>(
+    if (options.unitId !== undefined && options.unitId !== null) {
+      form.set("unit", String(options.unitId));
+    }
+    if (options.title) form.set("title", options.title);
+    if (options.altText) form.set("alt_text", options.altText);
+    if (options.caption) form.set("caption", options.caption);
+    return mutate<MediaAsset>(
       apiEndpoints.cms.media,
       "POST",
       form,
@@ -385,7 +409,7 @@ export const panelService = {
         ...params,
         format: "xlsx",
       }),
-      { token: token() },
+      {},
     );
   },
   settings() {

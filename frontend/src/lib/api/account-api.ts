@@ -105,7 +105,7 @@ export function refreshAccountToken(values: RefreshTokenRequest) {
   });
 }
 
-export function logoutAccount(token: string, values: LogoutRequest) {
+export function logoutAccount(token: string | undefined, values: LogoutRequest) {
   return apiRequest<void>("auth/logout/", {
     method: "POST",
     token,
@@ -113,19 +113,19 @@ export function logoutAccount(token: string, values: LogoutRequest) {
   });
 }
 
-export function getAccountMe(token: string) {
+export function getAccountMe(token?: string) {
   return apiRequest<AccountUser>("me/", {
     token,
   });
 }
 
-export function getAccountProfile(token: string) {
+export function getAccountProfile(token?: string) {
   return apiRequest<AccountProfile>("me/profile/", {
     token,
   });
 }
 
-export function updateAccountProfile(token: string, values: UpdateProfileRequest) {
+export function updateAccountProfile(token: string | undefined, values: UpdateProfileRequest) {
   return apiRequest<AccountProfile>("me/profile/", {
     method: "PATCH",
     token,
@@ -133,7 +133,7 @@ export function updateAccountProfile(token: string, values: UpdateProfileRequest
   });
 }
 
-export function uploadAccountAvatar(token: string, avatar: File) {
+export function uploadAccountAvatar(token: string | undefined, avatar: File) {
   const formData = new FormData();
   formData.append("avatar", avatar);
 
@@ -144,13 +144,13 @@ export function uploadAccountAvatar(token: string, avatar: File) {
   });
 }
 
-export function getAccountPermissions(token: string) {
+export function getAccountPermissions(token?: string) {
   return apiRequest<AccountPermissions>("me/permissions/", {
     token,
   });
 }
 
-export function getAccountUnits(token: string) {
+export function getAccountUnits(token?: string) {
   return apiRequest<AccountUnit[]>("me/units/", {
     token,
   });

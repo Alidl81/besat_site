@@ -1,4 +1,3 @@
-import { readBesatSession } from "@/lib/auth/auth-session";
 import { apiRequest } from "@/lib/api/client";
 import type { WithoutSystemFields } from "@/lib/data/domain-types";
 
@@ -26,10 +25,6 @@ type RepositoryConfig<T extends BaseRecord> = {
   seed?: T[];
 };
 
-function authToken() {
-  return readBesatSession()?.accessToken;
-}
-
 export function createRepository<T extends BaseRecord>(
   config: RepositoryConfig<T>,
 ): Repository<T> {
@@ -37,33 +32,28 @@ export function createRepository<T extends BaseRecord>(
   return {
     async list() {
       const response = await apiRequest<T[] | { results: T[] }>(endpoint, {
-        token: authToken(),
       });
       return Array.isArray(response) ? response : response.results;
     },
     async get(id) {
       return apiRequest<T>(`${endpoint}${encodeURIComponent(id)}/`, {
-        token: authToken(),
       });
     },
     async create(data) {
       return apiRequest<T>(endpoint, {
         method: "POST",
-        token: authToken(),
         body: JSON.stringify(data),
       });
     },
     async update(id, data) {
       return apiRequest<T>(`${endpoint}${encodeURIComponent(id)}/`, {
         method: "PATCH",
-        token: authToken(),
         body: JSON.stringify(data),
       });
     },
     async remove(id) {
       await apiRequest<void>(`${endpoint}${encodeURIComponent(id)}/`, {
         method: "DELETE",
-        token: authToken(),
       });
     },
   };

@@ -33,6 +33,24 @@ import type {
   MockRecord,
 } from "@/lib/mock-api/types";
 
+type MockMediaAsset = {
+  id: string;
+  title: string;
+  file_name: string;
+  media_type: "image" | "video";
+  content_type: string;
+  size: number;
+  alt_text: string;
+  caption: string;
+  unit: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+  updated_at: string;
+  bytes: Uint8Array;
+};
+
+const mockMediaAssets = new Map<string, MockMediaAsset>();
+
 type CollectionName =
   | "units"
   | "departments"
@@ -724,7 +742,61 @@ async function contentAction(
   });
 }
 
-async function uploadMedia(request: Request) {
+function mockMediaPayload(asset: MockMediaAsset) {
+  return {
+    id: asset.id,
+    title: asset.title,
+    url: `/api/backend/mock-media/${encodeURIComponent(asset.id)}/${encodeURIComponent(asset.file_name)}`,
+    media_type: asset.media_type,
+    content_type: asset.content_type,
+    size: asset.size,
+    alt_text: asset.alt_text,
+    caption: asset.caption,
+    unit: asset.unit,
+    uploaded_by: asset.uploaded_by,
+    created_at: asset.created_at,
+    updated_at: asset.updated_at,
+  };
+}
+
+function listMockMedia(url: URL) {
+  const unit = url.searchParams.get("unit");
+  const mediaType = url.searchParams.get("media_type");
+  const search = url.searchParams.get("search")?.trim().toLocaleLowerCase();
+  const records = [...mockMediaAssets.values()].filter((asset) => {
+    if (unit && asset.unit !== unit) return false;
+    if (mediaType && asset.media_type !== mediaType) return false;
+    if (search && !`${asset.title} ${asset.alt_text} ${asset.caption}`.toLocaleLowerCase().includes(search)) {
+      return false;
+    }
+    return true;
+  });
+
+  return jsonResponse(
+    paginatedResponse(
+      records as unknown as MockRecord[],
+      url,
+      (record) => mockMediaPayload(record as unknown as MockMediaAsset),
+    ),
+  );
+}
+
+function readMockMedia(id: string) {
+  const asset = mockMediaAssets.get(id);
+  if (!asset) return apiError("رسانه پیدا نشد.", 404, "not_found");
+  const body = asset.bytes.buffer.slice(
+    asset.bytes.byteOffset,
+    asset.bytes.byteOffset + asset.bytes.byteLength,
+  ) as ArrayBuffer;
+  return new Response(body, {
+    headers: {
+      "content-type": asset.content_type,
+      "cache-control": "no-store",
+    },
+  });
+}
+
+async function uploadMedia(request: Request, account: MockAccount) {
   const form = await request.formData();
   const file = form.get("file");
   if (
@@ -735,22 +807,48 @@ async function uploadMedia(request: Request) {
   ) {
     return apiError("فایل ارسال نشده است.", 400, "missing_file");
   }
-  if (file.size > 2 * 1024 * 1024) {
+  const supportedMediaTypes = new Set([
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "video/mp4",
+    "video/webm",
+    "video/ogg",
+  ]);
+  if (!supportedMediaTypes.has(file.type)) {
+    return apiError("نوع فایل پشتیبانی نمی شود.", 415, "unsupported_media_type");
+  }
+  if (file.size > 25 * 1024 * 1024) {
     return apiError(
-      "در دیتابیس موقت، فایل باید کوچک‌تر از ۲ مگابایت باشد.",
+      "حجم فایل نباید بیشتر از 25 مگابایت باشد.",
       413,
       "file_too_large",
     );
   }
-  const bytes = Buffer.from(await file.arrayBuffer());
-  return jsonResponse(
-    {
-      id: `media-${crypto.randomUUID()}`,
-      title: file.name,
-      url: `data:${file.type || "application/octet-stream"};base64,${bytes.toString("base64")}`,
-    },
-    201,
-  );
+  const now = new Date().toISOString();
+  const id = `media-${crypto.randomUUID()}`;
+  const title = form.get("title");
+  const altText = form.get("alt_text");
+  const caption = form.get("caption");
+  const unit = form.get("unit");
+  const asset: MockMediaAsset = {
+    id,
+    title: typeof title === "string" && title.trim() ? title.trim() : file.name,
+    file_name: file.name,
+    media_type: file.type.startsWith("video/") ? "video" : "image",
+    content_type: file.type,
+    size: file.size,
+    alt_text: typeof altText === "string" ? altText : "",
+    caption: typeof caption === "string" ? caption : "",
+    unit: typeof unit === "string" && unit ? unit : null,
+    uploaded_by: account.full_name,
+    created_at: now,
+    updated_at: now,
+    bytes: new Uint8Array(await file.arrayBuffer()),
+  };
+  mockMediaAssets.set(id, asset);
+  return jsonResponse(mockMediaPayload(asset), 201);
 }
 
 async function importStudents(request: Request, account: MockAccount) {
@@ -846,6 +944,10 @@ export async function handleMockApiRequest(
   const route = path.join("/");
   const url = new URL(request.url);
   const database = await readMockDatabase();
+
+  if (path[0] === "mock-media" && path[1] && request.method === "GET") {
+    return readMockMedia(path[1]);
+  }
 
   if (route === "mock/status" && request.method === "GET") {
     return jsonResponse({
@@ -1063,8 +1165,11 @@ export async function handleMockApiRequest(
   ) {
     return contentAction(request, path[2], path[3], account);
   }
-  if (route === "cms/media" && request.method === "POST") {
-    return uploadMedia(request);
+  if (route === "cms/media" && request.method === "GET" && account) {
+    return listMockMedia(url);
+  }
+  if (route === "cms/media" && request.method === "POST" && account) {
+    return uploadMedia(request, account);
   }
 
   if (route === "cms/services" && request.method === "GET") {

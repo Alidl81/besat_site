@@ -1,6 +1,5 @@
-import { loginAccount } from "@/lib/api/account-api";
 import { getApiErrorMessage } from "@/lib/api/client";
-import type { BesatSession } from "@/lib/auth/auth-session";
+import { sessionFromUser, type BesatSession } from "@/lib/auth/auth-session";
 
 export type LoginResult =
   | { ok: true; session: BesatSession }
@@ -11,23 +10,37 @@ export async function performLogin(
   password: string,
 ): Promise<LoginResult> {
   try {
-    const response = await loginAccount({ username, password });
+    const response = await fetch("/api/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload || typeof payload !== "object") {
+      throw new Error(
+        payload && typeof payload === "object" && typeof payload.detail === "string"
+          ? payload.detail
+          : "ورود به حساب انجام نشد.",
+      );
+    }
+    const result = payload as {
+      user?: Parameters<typeof sessionFromUser>[0];
+      redirect_path?: string;
+    };
+    if (!result.user) throw new Error("پاسخ ورود کامل نیست.");
+    const session = sessionFromUser({
+      ...result.user,
+      redirect_path: result.redirect_path ?? result.user.redirect_path,
+    });
     return {
       ok: true,
-      session: {
-        accessToken: response.access,
-        refreshToken: response.refresh,
-        username: response.user.username,
-        fullName: response.user.full_name,
-        role: response.user.role,
-        redirectPath: response.redirect_path,
-        unitId:
-          response.user.unit_id === null || response.user.unit_id === undefined
-            ? null
-            : String(response.user.unit_id),
-      },
+      session,
     };
   } catch (reason) {
     return { ok: false, message: getApiErrorMessage(reason) };
   }
+}
+
+export async function destroySession() {
+  await fetch("/api/session", { method: "DELETE" });
 }

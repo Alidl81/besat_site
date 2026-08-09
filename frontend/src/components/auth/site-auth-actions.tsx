@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { logoutAccount } from "@/lib/api/account-api";
-import { isApiMode } from "@/lib/data/repository";
+import { destroySession } from "@/lib/auth/login-service";
 import {
   clearBesatSession,
-readBesatSession,
+  readBesatSession,
+  sessionFromUser,
+  writeBesatSession,
   type BesatSession,
 } from "@/lib/auth/auth-session";
+import { getCurrentUser } from "@/services/auth-service";
 
 export function SiteAuthActions() {
   const router = useRouter();
@@ -18,16 +20,29 @@ export function SiteAuthActions() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
+    let active = true;
     function syncSession() {
       setSession(readBesatSession());
     }
 
-    syncSession();
+    getCurrentUser()
+      .then((user) => {
+        if (!active) return;
+        const nextSession = sessionFromUser(user);
+        writeBesatSession(nextSession);
+        setSession(nextSession);
+      })
+      .catch(() => {
+        if (!active) return;
+        clearBesatSession();
+        setSession(null);
+      });
 
     window.addEventListener("storage", syncSession);
     window.addEventListener("besat-auth-changed", syncSession);
 
     return () => {
+      active = false;
       window.removeEventListener("storage", syncSession);
       window.removeEventListener("besat-auth-changed", syncSession);
     };
@@ -38,9 +53,7 @@ export function SiteAuthActions() {
     setIsLoggingOut(true);
 
     try {
-      if (isApiMode()) {
-        await logoutAccount(session.accessToken, { refresh: session.refreshToken });
-      }
+      await destroySession();
     } catch {
       // اگر API خطا داد، باز هم session را پاک می‌کنیم
     } finally {

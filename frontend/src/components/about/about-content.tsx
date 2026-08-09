@@ -107,7 +107,7 @@ export function AboutContent() {
 
   if (!content) {
     return (
-      <div aria-busy="true" aria-label="در حال دریافت محتوای درباره ما" className="space-y-5">
+      <div role="status" aria-busy="true" aria-live="polite" aria-label="در حال دریافت محتوای درباره ما" className="space-y-5">
         <div className="h-48 animate-pulse rounded-lg bg-slate-200 motion-reduce:animate-none" />
         <div className="h-72 animate-pulse rounded-lg bg-slate-200 motion-reduce:animate-none" />
       </div>

@@ -185,7 +185,7 @@ export function PreregistrationCard({
   }
 
   if (!units || !registration) {
-    return <div aria-busy="true" aria-label="در حال دریافت اطلاعات پیش‌ثبت‌نام" className="mx-auto h-[36rem] w-full max-w-4xl animate-pulse rounded-lg bg-slate-200 motion-reduce:animate-none" />;
+    return <div role="status" aria-busy="true" aria-live="polite" aria-label="در حال دریافت اطلاعات پیش‌ثبت‌نام" className="mx-auto h-[36rem] w-full max-w-4xl animate-pulse rounded-lg bg-slate-200 motion-reduce:animate-none" />;
   }
 
   return (

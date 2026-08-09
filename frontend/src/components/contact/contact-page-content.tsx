@@ -115,7 +115,7 @@ export function ContactPageContent() {
 
   if (!contact) {
     return (
-      <div aria-busy="true" aria-label="در حال دریافت اطلاعات تماس" className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">
+      <div role="status" aria-busy="true" aria-live="polite" aria-label="در حال دریافت اطلاعات تماس" className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">
         <div className="h-[32rem] animate-pulse rounded-lg bg-slate-200 motion-reduce:animate-none" />
         <div className="h-[32rem] animate-pulse rounded-lg bg-slate-200 motion-reduce:animate-none" />
       </div>

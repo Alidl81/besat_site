@@ -354,7 +354,7 @@ export function GalleryExplorer() {
           </button>
         </div>
       ) : items === null ? (
-        <div aria-busy="true" aria-label="در حال دریافت گالری" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div role="status" aria-busy="true" aria-live="polite" aria-label="در حال دریافت گالری" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }, (_, index) => (
             <div key={index} className="aspect-[4/3] animate-pulse rounded-lg bg-slate-200 motion-reduce:animate-none" />
           ))}

@@ -337,7 +337,13 @@ export function NewsHub() {
 
   if (items === null) {
     return (
-      <div aria-busy="true" aria-label="در حال دریافت اخبار" className="space-y-8">
+      <div
+        role="status"
+        aria-busy="true"
+        aria-live="polite"
+        aria-label="در حال دریافت اخبار"
+        className="space-y-8"
+      >
         {[1, 2, 3].map((item) => (
           <div key={item} className="h-72 animate-pulse rounded-lg bg-slate-200 motion-reduce:animate-none" />
         ))}

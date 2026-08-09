@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { EditorJsContentRenderer } from "@/components/content/editorjs-content-renderer";
+import { RichContentRenderer } from "@/components/content/rich-content-renderer";
 import { EmptyState } from "@/components/page/empty-state";
 import { safePublicMediaUrl } from "@/lib/media/safe-url";
 import { getPublicNewsDetail } from "@/services/public-content-service";
@@ -122,7 +123,11 @@ export function NewsDetailContent({ slug }: { slug: string }) {
             </p>
           ) : null}
 
-          <EditorJsContentRenderer content={item.content_json} />
+          {item.body_html ? (
+            <RichContentRenderer html={item.body_html} />
+          ) : (
+            <EditorJsContentRenderer content={item.content_json} />
+          )}
 
           <div className="mt-10 border-t border-slate-100 pt-5">
             <Link

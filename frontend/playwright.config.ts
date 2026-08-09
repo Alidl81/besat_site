@@ -42,9 +42,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `D:\\NodeJS\\node.exe tests/e2e/prepare-db.mjs && D:\\NodeJS\\npm.cmd run dev -- --port ${port}`,
+    command: `node tests/e2e/prepare-db.mjs && node node_modules/next/dist/bin/next dev --webpack --hostname 127.0.0.1 --port ${port}`,
     url: `http://127.0.0.1:${port}`,
-    reuseExistingServer: false,
+    reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === "1",
     timeout: 120_000,
     env: {
       BESAT_MOCK_DB_PATH: databasePath,

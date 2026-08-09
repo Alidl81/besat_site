@@ -30,7 +30,8 @@ const server = spawn(
   process.execPath,
   [
     "node_modules/next/dist/bin/next",
-    "start",
+    "dev",
+    "--webpack",
     "-H",
     "127.0.0.1",
     "-p",
@@ -57,7 +58,7 @@ async function waitForServer() {
       const response = await fetch(`${baseUrl}/api/backend/mock/status/`);
       if (response.ok) return;
     } catch {
-      // The production server is still starting.
+      // The isolated development server is still starting.
     }
     await new Promise((resolve) => setTimeout(resolve, 125));
   }
@@ -188,7 +189,21 @@ try {
     headers: { Authorization: `Bearer ${accessToken}` },
     body: upload,
   });
-  if (!media.url) throw new Error("Multipart media-upload contract failed.");
+  if (!media.url || media.url.startsWith("data:")) {
+    throw new Error("Multipart media-upload URL contract failed.");
+  }
+
+  const mediaLibrary = await apiRequest("cms/media/?page_size=100", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!mediaLibrary.results.some((asset) => asset.id === media.id)) {
+    throw new Error("Uploaded media was not listed by the media-library contract.");
+  }
+
+  const mediaResponse = await fetch(`${baseUrl}${media.url}`);
+  if (!mediaResponse.ok || mediaResponse.headers.get("content-type") !== "image/png") {
+    throw new Error("Uploaded media binary-response contract failed.");
+  }
 
   console.log("Temporary-backend API smoke passed.");
 } finally {

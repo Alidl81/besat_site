@@ -12,8 +12,10 @@ in this delivery.
   it (`skipTrailingSlashRedirect: true`).
 - Roles: `GM` general manager, `UM` unit manager, `MO` unit media officer,
   `PA` parent.
-- JWT requests use `Authorization: Bearer <access>`. Refresh is one-flight in
-  the frontend and rotated refresh tokens are retained.
+- Browser sessions use HttpOnly, SameSite=Lax `besat_access` and
+  `besat_refresh` cookies issued only by the Next server. Browser JavaScript
+  never receives either JWT. The BFF injects the access token upstream and
+  retries one failed request after a successful token refresh.
 - Standard lists use `{count,next,previous,results}` and accept `page`.
   Endpoints marked "array" or "object" are not paginated.
 - Standard DRF failures are `{detail}` for authentication/permission/not-found,
@@ -70,12 +72,25 @@ and `feedback`. No sensitive form value is persisted in browser storage.
 | `GET /api/dashboard/media/` | GM/UM/MO | `unit_id`; own-unit gallery/media status |
 | `GET /api/dashboard/parents/` | PA | Parent profile and related unit count only |
 
+### Browser session facade
+
+The browser calls these same-origin Next routes. They are not Django routes and
+keep JWT values out of browser storage.
+
+| Method and exact path | Upstream consumer | Contract |
+|---|---|---|
+| `POST /api/session/` | `POST /api/auth/login/` | Receives `{username,password}`, sets HttpOnly access/refresh cookies, returns only display-safe user data |
+| `GET /api/session/` | `GET /api/me/` | Current display-safe user/session context from the access cookie |
+| `DELETE /api/session/` | `POST /api/auth/logout/` | Sends refresh server-side, clears local HttpOnly cookies, returns 204 |
+| `ANY /api/backend/{path}` | Matching `/api/{path}/` | BFF normalizes the trailing slash, blocks cross-origin mutations, strips browser cookies, injects server-side authorization, and emits a stable upstream-unavailable error |
+
 ## Management API
 
 | Domain | Exact paths | Methods | Roles and scoping |
 |---|---|---|---|
 | Unified editor | `/api/cms/content/`, `/api/cms/content/{news-N|announcement-N}/` | GET list/detail; POST; PATCH; DELETE | Published reads are public; authenticated writes; GM global, UM/MO own units |
 | Unified workflow | `/api/cms/content/{id}/submit-review/`, `approve/`, `reject/`, `schedule/`, `publish/` | POST | UM/MO submit; GM/UM approve/reject within scope; GM schedule/publish |
+| Revisions | `/api/cms/content/{id}/revisions/`, `/api/cms/content/{id}/revisions/{revision_id}/restore/` | GET; POST restore | Scoped write access. Returns actor, timestamp, note and raw document snapshot; restore reuses backend workflow permissions |
 | Native news | `/api/cms/news/`, `/api/cms/news/{id}/` | GET/POST/PATCH/DELETE | GM global; UM own units; MO read and image upload |
 | News workflow | `/api/cms/news/{id}/{submit-review|approve|reject|archive|restore|publish}/` | POST | UM submit/review own unit; GM all; publish GM only |
 | News image | `/api/cms/news/{id}/upload-image/` | POST multipart `image` | GM/UM/MO in scope |
@@ -83,7 +98,7 @@ and `feedback`. No sensitive form value is persisted in browser storage.
 | Announcement workflow/image | `/api/cms/announcements/{id}/{action}/`, `/upload-image/` | POST | Same transition roles; upload multipart `image` |
 | Gallery items | `/api/cms/gallery/`, `/api/cms/gallery/{id}/` | GET/POST/PATCH/DELETE | GM global; UM/MO own units |
 | Gallery workflow | `/api/cms/gallery/{id}/{submit-review|approve|reject|archive|restore|publish}/` | POST | MO may submit; UM/GM review; publish GM only |
-| Media library | `/api/cms/media/`, `/api/cms/media/{id}/` | GET/POST/DELETE | GM global; UM/MO scoped; uploader/UM/GM delete rules |
+| Media library | `/api/cms/media/`, `/api/cms/media/{id}/` | GET/POST/DELETE | GM global; UM/MO scoped; uploader/UM/GM delete rules; list supports `page`, `page_size`, `unit`, `media_type`, `search`, and `ordering` |
 | Achievements | `/api/cms/achievements/`, `/api/cms/achievements/{id}/` | GET/POST/PATCH/DELETE | GM only; independent from news |
 | Static pages | `/api/cms/static-pages/`, `/api/cms/static-pages/{id}/` | GET/POST/PATCH/DELETE | GM-managed CMS pages including About fields |
 | Units/departments | `/api/cms/units/`, `/api/cms/departments/` and `{id}/` | CRUD | Units authenticated with non-GM active-only visibility; department mutation GM |
@@ -102,14 +117,16 @@ as `status`, `scope`, `unit_id`, and `category` where implemented.
 
 Unified content accepts `kind`, `title`, `summary`, `body_html`, `body_json`,
 `cover_image_url`, `scope`, `unit_id`, `category`, `status`, `published_at`,
-and `is_featured`. `body_json` is the editable source; the backend converts
-between Tiptap JSON and Editor.js storage and emits sanitized-rendering input
-as `body_html`.
+and `is_featured`. `body_json` is the lossless editable Tiptap source. The
+backend stores it in `editor_json`, keeps the legacy Editor.js representation
+for compatibility, and renders safe public HTML from the raw document.
 
-`POST /api/cms/media/` is multipart with required `file` and optional `title`,
-`alt_text`, `caption`, `unit`. Allowed MIME types are JPEG, PNG, WebP, GIF,
-MP4, WebM and Ogg; maximum size is 25 MiB. Response includes `id`, absolute
-`url`, derived `media_type`, `content_type`, `size`, unit and timestamps.
+`GET /api/cms/media/` is paginated and supports `unit`, `media_type`, `search`,
+`ordering`, `page`, and `page_size`. `POST /api/cms/media/` is multipart with
+required `file` and optional `title`, `alt_text`, `caption`, `unit`. Allowed MIME
+types are JPEG, PNG, WebP, GIF, MP4, WebM and Ogg; maximum size is 25 MiB.
+Response includes `id`, absolute `url`, derived `media_type`, `content_type`,
+`size`, unit and timestamps.
 
 Workflow order is:
 `draft -> waiting_review -> approved -> scheduled/published`, with
@@ -118,16 +135,28 @@ Scheduled content uses backend status `published` plus a future
 `published_at`; the compatibility response reports `scheduled`, and public
 queries exclude it until its date.
 
-## Confirmed backend gaps
+## Endpoint-to-frontend consumer map
 
-- No revision model, revision list, revision preview, or restore endpoint.
+| Frontend consumer | Backend domains |
+|---|---|
+| `src/services/public-content-service.ts` | public site, units, news, announcements, achievements, gallery, about, contact and registration |
+| `src/services/panel-service.ts` | dashboard context, CMS content/workflow/revisions, media, galleries, users, registrations and internal messages |
+| `src/lib/auth/login-service.ts` and `src/lib/auth/auth-session.ts` | `/api/session/` only; no client bearer token storage |
+| `src/components/dashboard/editorial-workspace.tsx` | unified content, workflow transitions, autosave, media upload, revisions and restore |
+| `src/components/contact/contact-form.tsx` | public contact messages with field-error handling |
+| `src/components/units/unit-registration-cta.tsx` | unit-scoped public pre-registration |
+
+## Confirmed backend gaps and deliberate limits
+
 - No optimistic-concurrency token, ETag, or dedicated autosave endpoint.
-  Autosave uses debounced serialized `PATCH /api/cms/content/{id}/`.
+  Autosave is debounced and serialized through `PATCH /api/cms/content/{id}/`;
+  the client ignores stale save responses and revisions coalesce within a short
+  autosave window.
 - No WordPress synchronization endpoint or fields.
 - No SEO keyword/canonical/comment-status fields in the current content models.
-- No parent-child ownership model or parent children/program/registration API;
-  related frontend routes are not exposed.
+- No parent-child academic ownership model or child/year-filtered academic API.
+  Parent routes render only supported account-scoped data and do not fabricate
+  grades, attendance, programmes, or children.
 - No unified cross-domain review-queue endpoint; queues are derived from
   scoped CMS lists and statuses.
-- Tiptap table, gallery and code blocks do not have lossless backend
-  Editor.js converters; the UI does not claim round-trip support for them.
+- There is no separate WordPress integration. PHP is not used.

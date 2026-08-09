@@ -5,7 +5,7 @@ test("public routes remain within the viewport and have no serious axe findings"
   page,
 }) => {
   for (const route of ["/", "/news", "/gallery", "/about", "/contact"]) {
-    await page.goto(route);
+    await page.goto(route, { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toBeVisible();
     const layout = await page.evaluate(() => {
       const overflow =

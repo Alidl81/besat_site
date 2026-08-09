@@ -10,7 +10,7 @@
 | frontend/ | Next.js public site, dashboard, services, proxy, and tests | frontend/package.json; frontend/src/app |
 | docs/ | Shared product notes, API contracts, and architecture documentation | README.md; docs/backend_contracts/README.md |
 | .github/workflows/ | Continuous-integration workflows | .github/workflows/about-headless-cms.yml |
-| docker-compose.yml | Integrated frontend/backend/database runtime | docker-compose.yml |
+| docker-compose.yml | Canonical production-like frontend/backend/database runtime | docker-compose.yml; backend/README-Docker.md |
 | README.md | Project intent, data rules, and workflow guidance | README.md |
 
 ### 2) Entry Points
@@ -40,6 +40,7 @@
 - Tests are co-located in Django apps and placed in frontend/tests for Playwright.
 - TypeScript imports may use the @/ alias, mapped to frontend/src by frontend/tsconfig.json.
 - Generated output such as frontend/.next, frontend/test-results, backend/staticfiles, and Python caches is not source.
+- Docker configuration is intentionally centralized at the repository root; backend-only Compose/env duplicates were removed.
 
 ### 5) Evidence
 

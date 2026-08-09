@@ -38,6 +38,16 @@ class UnitScopedSerializerMixin:
 
 
 class StudentSerializer(UnitScopedSerializerMixin, serializers.ModelSerializer):
+    student_code = serializers.SerializerMethodField()
+    avatar_url = serializers.SerializerMethodField()
+    unit = serializers.SerializerMethodField()
+    grade = serializers.SerializerMethodField()
+    class_room = serializers.SerializerMethodField()
+    major = serializers.SerializerMethodField()
+    profile_status = serializers.SerializerMethodField()
+    education_status = serializers.SerializerMethodField()
+    guardian = serializers.SerializerMethodField()
+    enrolled_at = serializers.DateTimeField(source="created_at", read_only=True)
     parent_id = serializers.PrimaryKeyRelatedField(
         source="parent",
         queryset=User.objects.all(),
@@ -48,10 +58,52 @@ class StudentSerializer(UnitScopedSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = Student
         fields = (
-            "id", "full_name", "national_code", "unit_id", "class_title",
-            "parent_id", "created_at", "updated_at",
+            "id", "full_name", "avatar_url", "student_code", "national_code",
+            "unit", "unit_id", "grade", "class_room", "class_title", "major", "profile_status",
+            "education_status", "guardian", "parent_id", "enrolled_at",
+            "created_at", "updated_at",
         )
         read_only_fields = ("id", "created_at", "updated_at")
+
+    def get_student_code(self, obj) -> None:
+        return None
+
+    def get_avatar_url(self, obj) -> None:
+        return None
+
+    def get_unit(self, obj) -> dict[str, int | str] | None:
+        if obj.unit_id is None:
+            return None
+        return {"id": obj.unit_id, "title": obj.unit.title}
+
+    def get_grade(self, obj) -> None:
+        return None
+
+    def get_class_room(self, obj) -> dict[str, str] | None:
+        if not obj.class_title:
+            return None
+        return {"id": obj.class_title, "title": obj.class_title}
+
+    def get_major(self, obj) -> None:
+        return None
+
+    def get_profile_status(self, obj) -> str:
+        required_values = (obj.full_name, obj.national_code, obj.unit_id, obj.class_title)
+        return "complete" if all(required_values) else "incomplete"
+
+    def get_education_status(self, obj) -> None:
+        return None
+
+    def get_guardian(self, obj) -> dict[str, object] | None:
+        if obj.parent_id is None:
+            return None
+        profile = get_or_create_user_profile(obj.parent)
+        return {
+            "id": obj.parent_id,
+            "full_name": profile.full_name or obj.parent.get_username(),
+            "phone": profile.phone,
+            "email": obj.parent.email or None,
+        }
 
 
 class SchoolClassSerializer(UnitScopedSerializerMixin, serializers.ModelSerializer):

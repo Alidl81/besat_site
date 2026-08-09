@@ -7,8 +7,9 @@
 | Severity | Concern | Evidence | Impact | Suggested action |
 |----------|---------|----------|--------|------------------|
 | high | Legacy About UI contains hard-coded statistics, honors, phone, and address moved from the pre-CMS page | frontend/src/components/about/about-legacy-page.tsx; parent commit history | Can conflict with the README verified-data rule | Replace with approved backend fields after product confirmation |
+| high | A previously tracked backend/docker.env contained non-placeholder credentials | Git history; .gitignore | Removed working-tree file does not revoke exposed credentials | Rotate the Django secret and PostgreSQL password; evaluate history rewriting |
 | medium | CMS plugin additions require coordinated edits across many backend/frontend registries and switches | backend/apps/about; frontend/src/services/about-service.ts | Easy contract drift | Add a schema/registry contract test for all layers |
-| medium | Root README status says frontend/backend are not created | README.md | Misleads onboarding and planning | Update status and branching guidance |
+| medium | The production database's CMS About page has no supported plugins | Docker logs; backend/apps/about/management/commands/ensure_about_cms_page.py | Server logs a fallback warning and serves the legacy About API | Publish approved About CMS plugins in Django admin |
 | medium | Frontend mock JSON is large and can diverge from Django behavior | frontend/data; frontend/src/lib/mock-api | Local success may not represent production | Add contract comparison checks |
 | low | No structured observability stack was found | backend/config; frontend/src | Slower production diagnosis | Define logging, metrics, and tracing requirements |
 
@@ -27,8 +28,8 @@
 |------|----------------|----------|--------------------|-----|
 | Rich HTML injection | A03 | backend/apps/about/serializers.py; about-cms-page.tsx | nh3 sanitization with HTTP(S)-only URL schemes | Sanitizer policy is not centralized |
 | Uploaded-media handling | A04 | backend/config/settings/base.py | File size limits and filesystem storage | No malware scanning/object-storage policy found |
-| Demo credentials in documentation | A07 | frontend/README.md | Described as test accounts | Must ensure they never match deployed accounts |
-| Dependency advisories in dev graph | A06 | npm audit output during 2026-08-02 verification | Production-only audit reports zero vulnerabilities | Two high advisories remain in development transitive dependencies |
+| Historical environment secret exposure | A07 | deleted backend/docker.env in Git history | File is now deleted and ignored | Rotate credentials; deletion alone does not revoke them |
+| Dependency advisories | A06 | npm audit output during 2026-08-02 verification | `npm audit fix` updated transitive locks | Full and production-only audits report zero vulnerabilities |
 
 ### 4) Performance and Scaling Concerns
 

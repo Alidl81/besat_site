@@ -43,20 +43,25 @@
     cd backend
     pip install -r requirements.txt
     python manage.py check
-    python manage.py test
+    python manage.py test --settings=config.settings.test
 
     cd frontend
     npm ci
     npm run lint
     npx tsc --noEmit
     npm run build
-    npm run test:about
+    npm run test:e2e
+
+    docker compose config --quiet
+    docker compose build
+    docker compose up -d
+    docker compose down
 
 ### 5) Environment and Config
 
-- Config sources: backend/config/settings/, backend/.env.example, frontend/.env.example, docker-compose.yml.
+- Config sources: backend/config/settings/, root .env.example, backend/.env.example, frontend/.env.example, and docker-compose.yml.
 - Required or deployment-sensitive variables include SECRET_KEY, DATABASE_URL, ALLOWED_HOSTS, CORS_ALLOWED_ORIGINS, CSRF_TRUSTED_ORIGINS, BESAT_BACKEND_API_URL, and the About CMS variables documented in docs/ABOUT_HEADLESS_CMS.md.
-- The committed examples contain variable names and non-secret defaults; backend/.env and frontend local env files are ignored by .gitignore.
+- The committed examples contain variable names and placeholders only; root .env, backend/.env, backend/docker.env, and frontend local env files are ignored by .gitignore.
 - PostgreSQL is the declared deployed database; backend settings default to SQLite for local development.
 
 ### 6) Evidence

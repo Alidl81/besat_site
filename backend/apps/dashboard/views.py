@@ -1,4 +1,7 @@
 from django.contrib.auth import get_user_model
+from django.db.models import Q
+from django.utils import timezone
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -8,10 +11,14 @@ from apps.accounts.models import UserProfile, UserUnitMembership
 from apps.accounts.permissions import IsAuthenticatedAndActiveProfile
 from apps.accounts.selectors import get_or_create_user_profile, get_user_units_payload
 from apps.announcements.models import Announcement
+from apps.events.models import Event
 from apps.gallery.models import GalleryItem
 from apps.news.models import News
+from apps.registration.models import RegistrationRequest
+from apps.staff.models import StaffMember
 from apps.units.models import SchoolUnit
 
+from .models import InternalMessage, Student
 from .serializers import DashboardResponseSerializer
 
 
@@ -126,6 +133,93 @@ def resolve_selected_unit(request, allowed_roles: tuple[str, ...] | None = None)
     return selected_unit, accessible_units
 
 
+class DashboardContextAPIView(APIView):
+    permission_classes = [IsAuthenticatedAndActiveProfile]
+
+    @extend_schema(
+        tags=["Dashboard"],
+        summary="Get the shared dashboard context",
+        responses=OpenApiTypes.OBJECT,
+    )
+    def get(self, request):
+        profile = get_or_create_user_profile(request.user)
+        units_queryset = get_accessible_units_for_dashboard(request.user)
+        units = [
+            {"id": unit.id, "title": unit.title}
+            for unit in units_queryset
+        ]
+
+        requested_unit_id = request.query_params.get("unit")
+        if requested_unit_id:
+            try:
+                requested_unit_id = int(requested_unit_id)
+            except (TypeError, ValueError):
+                raise PermissionDenied("شناسه واحد معتبر نیست.")
+
+            if not units_queryset.filter(id=requested_unit_id).exists():
+                raise PermissionDenied("شما به این واحد دسترسی ندارید.")
+            selected_unit_id = requested_unit_id
+        elif user_is_general_manager(request.user):
+            selected_unit_id = None
+        else:
+            selected_unit_id = units_queryset.values_list("id", flat=True).first()
+
+        children_queryset = Student.objects.filter(parent=request.user).order_by(
+            "full_name",
+            "id",
+        )
+        children = [
+            {
+                "id": child.id,
+                "title": child.full_name,
+                "subtitle": child.class_title,
+                "avatar_url": None,
+            }
+            for child in children_queryset
+        ]
+        requested_child_id = request.query_params.get("child")
+        if requested_child_id:
+            try:
+                requested_child_id = int(requested_child_id)
+            except (TypeError, ValueError):
+                raise PermissionDenied("شناسه فرزند معتبر نیست.")
+
+            if not children_queryset.filter(id=requested_child_id).exists():
+                raise PermissionDenied("شما به این پرونده فرزند دسترسی ندارید.")
+            selected_child_id = requested_child_id
+        else:
+            selected_child_id = children_queryset.values_list("id", flat=True).first()
+
+        avatar_url = (
+            request.build_absolute_uri(profile.avatar.url)
+            if profile.avatar
+            else None
+        )
+
+        return Response(
+            {
+                "user": {
+                    "id": request.user.id,
+                    "full_name": profile.full_name or request.user.get_username(),
+                    "role_display": profile.get_role_display(),
+                    "avatar_url": avatar_url,
+                },
+                "academic_years": [],
+                "selected_academic_year_id": None,
+                "units": units,
+                "selected_unit_id": selected_unit_id,
+                "children": children,
+                "selected_child_id": selected_child_id,
+                "unread_notifications": 0,
+                "unread_messages": InternalMessage.objects.filter(
+                    recipient=request.user,
+                    is_read=False,
+                ).count(),
+                "current_date": timezone.now().isoformat(),
+            }
+        )
+
+
 def status_counts(queryset, model_class) -> dict:
     data = {
         "total": queryset.count(),
@@ -211,6 +305,114 @@ def latest_activity(news_queryset, announcement_queryset, gallery_queryset, limi
     return items[:limit]
 
 
+def frontend_metrics(cards: list[dict], limit=4) -> list[dict]:
+    tones = ("blue", "purple", "green", "amber")
+    icons = {
+        "units": "units",
+        "active_users": "users",
+        "content_total": "document",
+        "pending_review": "review",
+        "published": "check",
+        "gallery": "image",
+        "gallery_total": "image",
+        "gallery_draft": "document",
+        "gallery_waiting_review": "review",
+        "gallery_published": "check",
+        "accessible_units": "units",
+    }
+
+    return [
+        {
+            "key": card["key"],
+            "title": card["label"],
+            "value": card["value"],
+            "detail": card.get("description"),
+            "trend": None,
+            "tone": tones[index % len(tones)],
+            "icon": icons.get(card["key"], "chart"),
+        }
+        for index, card in enumerate(cards[:limit])
+    ]
+
+
+def message_feed(user, limit=5) -> list[dict]:
+    messages = InternalMessage.objects.filter(
+        Q(sender=user) | Q(recipient=user)
+    ).order_by("-created_at", "-id")[:limit]
+
+    return [
+        {
+            "id": message.id,
+            "title": message.subject,
+            "description": message.body,
+            "timestamp": iso_datetime(message.created_at),
+            "status": "read" if message.is_read else "unread",
+            "href": "/dashboard/admin/messages",
+            "avatar_url": None,
+        }
+        for message in messages
+    ]
+
+
+def event_feed(queryset, limit=5) -> list[dict]:
+    return [
+        {
+            "id": event.id,
+            "title": event.title,
+            "description": event.summary or event.description,
+            "timestamp": iso_datetime(event.event_start_at),
+            "status": event.status,
+            "href": "/dashboard/admin/events",
+            "avatar_url": None,
+        }
+        for event in queryset.order_by("event_start_at", "id")[:limit]
+    ]
+
+
+def announcement_feed(queryset, limit=5) -> list[dict]:
+    return [
+        {
+            "id": announcement.id,
+            "title": announcement.title,
+            "description": announcement.summary,
+            "timestamp": iso_datetime(announcement.updated_at),
+            "status": announcement.status,
+            "href": "/dashboard/admin/announcements",
+            "avatar_url": None,
+        }
+        for announcement in queryset.order_by("-updated_at", "-id")[:limit]
+    ]
+
+
+def unit_performance_feed(queryset) -> list[dict]:
+    units = list(queryset.order_by("order", "id"))
+    return [
+        {
+            "id": unit.id,
+            "title": unit.title,
+            "students_count": Student.objects.filter(unit=unit).count(),
+            "staff_count": StaffMember.objects.filter(unit=unit, is_active=True).count(),
+            "new_registrations_count": RegistrationRequest.objects.filter(
+                requested_unit=unit,
+                status=RegistrationRequest.Status.NEW,
+            ).count(),
+            "published_content_count": (
+                News.objects.filter(unit=unit, status=News.Status.PUBLISHED).count()
+                + Announcement.objects.filter(
+                    unit=unit,
+                    status=Announcement.Status.PUBLISHED,
+                ).count()
+                + GalleryItem.objects.filter(
+                    unit=unit,
+                    status=GalleryItem.Status.PUBLISHED,
+                ).count()
+            ),
+            "is_active": unit.is_active,
+        }
+        for unit in units
+    ]
+
+
 class GeneralManagerDashboardAPIView(APIView):
     permission_classes = [IsAuthenticatedAndActiveProfile]
 
@@ -294,6 +496,7 @@ class GeneralManagerDashboardAPIView(APIView):
                 "description": None,
             },
         ]
+        active_units_queryset = SchoolUnit.objects.filter(is_active=True)
 
         return Response(
             {
@@ -302,7 +505,7 @@ class GeneralManagerDashboardAPIView(APIView):
                 "selected_unit": None,
                 "accessible_units": [
                     unit_payload(unit)
-                    for unit in SchoolUnit.objects.filter(is_active=True).order_by("order", "id")
+                    for unit in active_units_queryset.order_by("order", "id")
                 ],
                 "stats": stats,
                 "cards": cards,
@@ -312,6 +515,12 @@ class GeneralManagerDashboardAPIView(APIView):
                     announcement_queryset=announcement_queryset,
                     gallery_queryset=gallery_queryset,
                 ),
+                "current_date": timezone.now().isoformat(),
+                "metrics": frontend_metrics(cards),
+                "messages": message_feed(request.user),
+                "events": event_feed(Event.objects.filter(is_active=True)),
+                "announcements": announcement_feed(announcement_queryset),
+                "units": unit_performance_feed(active_units_queryset),
             }
         )
 

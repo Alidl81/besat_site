@@ -33,12 +33,12 @@
 - DRF views return serialized API errors; project-wide authentication, throttling, and JSON rendering are configured in backend/config/settings/base.py.
 - Frontend request helpers throw for non-success responses; the About CMS adapter catches CMS failures and falls back to the legacy API.
 - The backend proxy returns a stable 502 payload with a request ID.
-- Logging is mostly framework defaults and console warnings. [TODO] No structured application logging or sensitive-field redaction policy was found.
+- Logging is mostly framework defaults and console warnings. An empty/unavailable About CMS page logs a server warning before the legacy fallback. [TODO] No structured application logging or sensitive-field redaction policy was found.
 
 ### 5) Testing Conventions
 
 - Django uses tests.py and test_*.py files inside each app with django.test.TestCase and DRF APIClient.
-- Frontend uses *.spec.ts under frontend/tests and Playwright expect assertions.
+- Frontend uses *.spec.ts under frontend/tests and Playwright expect assertions; the general E2E configuration excludes the separately orchestrated About CMS suite.
 - Test data is created in each test or loaded from explicit fixtures.
 - Coverage expectation: [TODO] no enforced threshold was found.
 

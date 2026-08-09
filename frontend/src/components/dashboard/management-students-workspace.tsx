@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Modal } from "@/components/crud/crud-ui";
 import { PanelIcon, type PanelIconName } from "@/components/dashboard/panel-icons";
 import {
@@ -70,24 +70,12 @@ function StudentForm({
         <input name="full_name" defaultValue={student?.full_name} required className="panel-input" />
       </label>
       <label>
-        <span className="panel-field-label">کد دانش‌آموزی</span>
-        <input name="student_code" defaultValue={student?.student_code} required className="panel-input" />
-      </label>
-      <label>
         <span className="panel-field-label">کد ملی</span>
         <input name="national_code" defaultValue={student?.national_code ?? ""} inputMode="numeric" className="panel-input" />
       </label>
       <label>
-        <span className="panel-field-label">شناسه پایه</span>
-        <input name="grade_id" defaultValue={student?.grade?.id ?? ""} className="panel-input" />
-      </label>
-      <label>
-        <span className="panel-field-label">شناسه کلاس</span>
-        <input name="class_room_id" defaultValue={student?.class_room?.id ?? ""} className="panel-input" />
-      </label>
-      <label>
-        <span className="panel-field-label">رشته/گرایش</span>
-        <input name="major" defaultValue={student?.major ?? ""} className="panel-input" />
+        <span className="panel-field-label">کلاس</span>
+        <input name="class_title" defaultValue={student?.class_room?.title ?? ""} className="panel-input" />
       </label>
       <input type="hidden" name="unit_id" value={unitId ?? student?.unit?.id ?? ""} />
       <div className="flex justify-end gap-3 border-t border-slate-100 pt-5 md:col-span-2">
@@ -105,7 +93,6 @@ export function ManagementStudentsWorkspace({
 }: StudentWorkspaceProps) {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [grade, setGrade] = useState("");
   const [profileStatus, setProfileStatus] = useState("");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | number | null>(null);
@@ -113,7 +100,6 @@ export function ManagementStudentsWorkspace({
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const importRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -125,14 +111,13 @@ export function ManagementStudentsWorkspace({
 
   const requestParams = {
     search: debouncedSearch,
-    grade,
     profile_status: profileStatus,
     unit: unitId,
     page,
   };
   const { data, loading, error, reload } = usePanelRequest(
     () => panelService.students(requestParams),
-    [debouncedSearch, grade, profileStatus, unitId, page],
+    [debouncedSearch, profileStatus, unitId, page],
   );
   const students = useMemo(() => data?.page.results ?? [], [data]);
   const summary: StudentSummary | null = data?.summary ?? null;
@@ -147,21 +132,14 @@ export function ManagementStudentsWorkspace({
     () => students.find((student) => String(student.id) === String(effectiveSelectedId)) ?? null,
     [effectiveSelectedId, students],
   );
-  const gradeOptions = useMemo(
-    () => Array.from(new Map(students.filter((item) => item.grade).map((item) => [String(item.grade!.id), item.grade!])).values()),
-    [students],
-  );
 
   async function saveStudent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const payload = {
       full_name: String(form.get("full_name") ?? ""),
-      student_code: String(form.get("student_code") ?? ""),
       national_code: String(form.get("national_code") ?? "") || null,
-      grade_id: String(form.get("grade_id") ?? "") || null,
-      class_room_id: String(form.get("class_room_id") ?? "") || null,
-      major: String(form.get("major") ?? "") || null,
+      class_title: String(form.get("class_title") ?? "") || null,
       unit_id: String(form.get("unit_id") ?? "") || null,
     };
     setSaving(true);
@@ -180,21 +158,6 @@ export function ManagementStudentsWorkspace({
       setActionError(getApiErrorMessage(reason));
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function importExcel(file: File) {
-    setActionError(null);
-    try {
-      const result = await panelService.importStudents(file, unitId);
-      setActionMessage(
-        `${result.created} دانش‌آموز ایجاد و ${result.updated} رکورد به‌روزرسانی شد.${result.errors.length ? ` ${result.errors.length} ردیف خطا داشت.` : ""}`,
-      );
-      reload();
-    } catch (reason) {
-      setActionError(getApiErrorMessage(reason));
-    } finally {
-      if (importRef.current) importRef.current.value = "";
     }
   }
 
@@ -226,20 +189,7 @@ export function ManagementStudentsWorkspace({
 
       <div className="flex flex-wrap items-center justify-end gap-3">
         <button type="button" onClick={exportExcel} className="panel-secondary-button">
-          <PanelIcon name="download" className="size-4" />خروجی Excel
-        </button>
-        <input
-          ref={importRef}
-          type="file"
-          accept=".xlsx,.xls,.csv"
-          className="sr-only"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) void importExcel(file);
-          }}
-        />
-        <button type="button" onClick={() => importRef.current?.click()} className="panel-secondary-button">
-          <PanelIcon name="download" className="size-4 text-emerald-600" />ورود گروهی از Excel
+          <PanelIcon name="download" className="size-4" />خروجی CSV
         </button>
         <button type="button" onClick={() => setModal("create")} className="panel-primary-button">
           <PanelIcon name="plus" className="size-5" />دانش‌آموز جدید
@@ -266,17 +216,11 @@ export function ManagementStudentsWorkspace({
                   <span className="mx-auto flex size-20 items-center justify-center rounded-full bg-[#eaf0f5] text-2xl font-black text-[#0c3a66]">{selected.full_name.slice(0, 1)}</span>
                 )}
                 <h2 className="mt-3 text-base font-black text-[#172b43]">{selected.full_name}</h2>
-                <span className={`panel-status mt-2 ${selected.education_status === "active" ? "is-success" : ""}`}>
-                  {selected.education_status === "active" ? "فعال" : selected.education_status === "graduated" ? "فارغ‌التحصیل" : "غیرفعال"}
-                </span>
               </div>
               <dl className="mt-4 grid grid-cols-[6rem_1fr] gap-y-2 border-t border-slate-100 pt-4 text-xs font-bold leading-6 text-slate-600">
-                <dt>کد دانش‌آموزی:</dt><dd>{selected.student_code}</dd>
                 <dt>کد ملی:</dt><dd>{selected.national_code ?? "ثبت نشده"}</dd>
                 <dt>واحد:</dt><dd>{selected.unit?.title ?? "ثبت نشده"}</dd>
-                <dt>پایه:</dt><dd>{selected.grade?.title ?? "ثبت نشده"}</dd>
                 <dt>کلاس:</dt><dd>{selected.class_room?.title ?? "ثبت نشده"}</dd>
-                <dt>رشته:</dt><dd>{selected.major ?? "ثبت نشده"}</dd>
                 <dt>ولی:</dt><dd>{selected.guardian?.full_name ?? "ثبت نشده"}</dd>
                 <dt>همراه ولی:</dt><dd dir="ltr" className="text-right">{selected.guardian?.phone ?? "ثبت نشده"}</dd>
                 <dt>ثبت‌نام:</dt><dd>{formatDate(selected.enrolled_at)}</dd>
@@ -295,21 +239,17 @@ export function ManagementStudentsWorkspace({
         </aside>
 
         <section className="panel-card min-w-0">
-          <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(16rem,1.6fr)_repeat(2,minmax(9rem,.7fr))_auto]">
+          <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(16rem,1.6fr)_minmax(9rem,.7fr)_auto]">
             <label className="panel-search">
               <PanelIcon name="search" />
               <input value={search} onChange={(event) => setSearch(event.target.value)} className="panel-input" placeholder="نام، کد ملی یا شماره دانش‌آموزی..." />
             </label>
-            <select value={grade} onChange={(event) => { setGrade(event.target.value); setPage(1); }} className="panel-select" aria-label="فیلتر پایه">
-              <option value="">همه پایه‌ها</option>
-              {gradeOptions.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
-            </select>
             <select value={profileStatus} onChange={(event) => { setProfileStatus(event.target.value); setPage(1); }} className="panel-select" aria-label="وضعیت پرونده">
               <option value="">همه وضعیت‌ها</option>
               <option value="complete">پرونده کامل</option>
               <option value="incomplete">پرونده ناقص</option>
             </select>
-            <button type="button" onClick={() => { setSearch(""); setGrade(""); setProfileStatus(""); }} className="panel-secondary-button">
+            <button type="button" onClick={() => { setSearch(""); setProfileStatus(""); }} className="panel-secondary-button">
               <PanelIcon name="filter" className="size-4" />پاک‌کردن فیلترها
             </button>
           </div>
@@ -317,16 +257,14 @@ export function ManagementStudentsWorkspace({
           {students.length ? (
             <>
               <div className="overflow-x-auto rounded-lg border border-slate-200">
-                <table className="panel-table min-w-[70rem]">
-                  <thead><tr><th>نام و نام خانوادگی</th><th>کد دانش‌آموزی</th><th>کد ملی</th><th>پایه</th><th>کلاس</th><th>رشته/گرایش</th><th>وضعیت پرونده</th><th>وضعیت تحصیلی</th><th>تاریخ ثبت‌نام</th></tr></thead>
+                <table className="panel-table min-w-[48rem]">
+                  <thead><tr><th>نام و نام خانوادگی</th><th>کد ملی</th><th>کلاس</th><th>وضعیت پرونده</th><th>تاریخ ثبت‌نام</th></tr></thead>
                   <tbody>
                     {students.map((student) => (
                       <tr key={student.id} onClick={() => setSelectedId(student.id)} className={String(student.id) === String(effectiveSelectedId) ? "is-selected" : ""}>
                         <td className="font-black text-[#172b43]">{student.full_name}</td>
-                        <td>{student.student_code}</td><td>{student.national_code ?? "—"}</td>
-                        <td>{student.grade?.title ?? "—"}</td><td>{student.class_room?.title ?? "—"}</td><td>{student.major ?? "—"}</td>
+                        <td>{student.national_code ?? "—"}</td><td>{student.class_room?.title ?? "—"}</td>
                         <td><span className={`panel-status ${student.profile_status === "complete" ? "is-success" : "is-warning"}`}>{student.profile_status === "complete" ? "تکمیل‌شده" : "ناقص"}</span></td>
-                        <td>{student.education_status === "active" ? "مشغول به تحصیل" : student.education_status === "graduated" ? "فارغ‌التحصیل" : "غیرفعال"}</td>
                         <td>{formatDate(student.enrolled_at)}</td>
                       </tr>
                     ))}

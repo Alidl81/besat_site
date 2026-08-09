@@ -111,22 +111,9 @@ export const panelService = {
   removeStudent(id: string | number) {
     return mutate<void>(detailEndpoint(apiEndpoints.cms.students, id), "DELETE");
   },
-  importStudents(file: File, unitId?: string | null) {
-    const form = new FormData();
-    form.set("file", file);
-    if (unitId) form.set("unit_id", unitId);
-    return mutate<{
-      created: number;
-      updated: number;
-      errors: Array<{ row: number; message: string }>;
-    }>(`${apiEndpoints.cms.students}bulk-import/`, "POST", form);
-  },
   exportStudents(params: Record<string, QueryValue>) {
     return apiDownload(
-      withQuery(`${apiEndpoints.cms.students}export/`, {
-        ...params,
-        format: "xlsx",
-      }),
+      withQuery(`${apiEndpoints.cms.students}export/`, params),
       { token: token() },
     );
   },

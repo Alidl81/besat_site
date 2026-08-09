@@ -26,10 +26,10 @@ test.describe("student export download", () => {
 
     apiRequests = [];
     const downloadPromise = page.waitForEvent("download");
-    await page.getByRole("button", { name: "خروجی Excel" }).click();
+    await page.getByRole("button", { name: "خروجی CSV" }).click();
     const download = await downloadPromise;
 
-    expect(download.suggestedFilename()).toBe("besat-mock-students.csv");
+    expect(download.suggestedFilename()).toBe("besat-students.csv");
     const stream = await download.createReadStream();
     const chunks: Buffer[] = [];
     for await (const chunk of stream!) chunks.push(chunk as Buffer);

@@ -25,12 +25,13 @@
 
 - Credentials are read from environment variables; examples are committed while backend/.env and frontend local env files are ignored.
 - Production settings require SECRET_KEY and define secure cookie/HSTS behavior.
+- The former tracked backend/docker.env was removed and ignored because it contained non-placeholder credentials. Repository history still requires credential rotation and, if policy requires it, history rewriting.
 - No secrets manager or automatic rotation integration was found. [TODO]
-- Demo credentials are documented in frontend/README.md and must not be reused for real accounts.
 
 ### 4) Reliability and Failure Behavior
 
 - The Docker entrypoint retries database connectivity with configurable attempts and delay.
+- Compose health checks gate PostgreSQL -> Django -> Next.js startup, and all services use `unless-stopped` restart behavior.
 - The frontend proxy applies a 30-second upstream timeout and returns a structured 502 response.
 - About CMS and legacy direct fetches use five-second abort timeouts; CMS errors fall back immediately.
 - No general retry/backoff or circuit-breaker layer was found for HTTP calls.
@@ -38,7 +39,7 @@
 ### 5) Observability for Integrations
 
 - Proxy responses carry x-request-id, and proxy errors include the request ID.
-- About CMS fallback logs a console warning.
+- About CMS fallback logs a server-side warning; the Docker database currently has an empty CMS About page, so the approved legacy API is used until plugins are published.
 - [TODO] No metrics, distributed tracing, APM, or centralized structured logging configuration was found.
 
 ### 6) Evidence

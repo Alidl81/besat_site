@@ -1,8 +1,13 @@
+import csv
+
 from django.db.models import Q
-from rest_framework.exceptions import PermissionDenied
+from django.http import HttpResponse
+from django.utils import timezone
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.decorators import action
 from rest_framework.viewsets import ModelViewSet
 
 from apps.accounts.models import UserProfile
@@ -17,6 +22,16 @@ from .cms_serializers import (
     StudentSerializer,
 )
 from .models import InternalMessage, Program, SchoolClass, Student
+
+
+def complete_student_profile_filter():
+    return (
+        Q(national_code__isnull=False)
+        & ~Q(national_code="")
+        & Q(unit__isnull=False)
+        & Q(class_title__isnull=False)
+        & ~Q(class_title="")
+    )
 
 
 class UnitScopedCMSViewSet(ModelViewSet):
@@ -40,8 +55,76 @@ class UnitScopedCMSViewSet(ModelViewSet):
 
 
 class CMSStudentViewSet(UnitScopedCMSViewSet):
-    queryset = Student.objects.all()
+    queryset = Student.objects.select_related("unit", "parent", "parent__profile").all()
     serializer_class = StudentSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        search = self.request.query_params.get("search", "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(full_name__icontains=search)
+                | Q(national_code__icontains=search)
+                | Q(class_title__icontains=search)
+            )
+
+        unit_id = self.request.query_params.get("unit")
+        if unit_id:
+            try:
+                queryset = queryset.filter(unit_id=int(unit_id))
+            except (TypeError, ValueError):
+                raise ValidationError({"unit": "شناسه واحد معتبر نیست."})
+
+        profile_status = self.request.query_params.get("profile_status")
+        complete_filter = complete_student_profile_filter()
+        if profile_status == "complete":
+            queryset = queryset.filter(complete_filter)
+        elif profile_status == "incomplete":
+            queryset = queryset.exclude(complete_filter)
+
+        return queryset
+
+    @action(detail=False, methods=("get",), url_path="summary")
+    def summary(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+        completed = queryset.filter(complete_student_profile_filter()).count()
+        total = queryset.count()
+
+        return Response(
+            {
+                "total": total,
+                "completed_profiles": completed,
+                "new_this_year": queryset.filter(
+                    created_at__year=timezone.localdate().year,
+                ).count(),
+                "incomplete_profiles": total - completed,
+            }
+        )
+
+    @action(detail=False, methods=("get",), url_path="export")
+    def export(self, request):
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = (
+            'attachment; filename="besat-students.csv"'
+        )
+        response.write("\ufeff")
+        writer = csv.writer(response, lineterminator="\r\n")
+        writer.writerow(
+            ("full_name", "national_code", "unit_id", "class_title", "parent_id")
+        )
+
+        for student in self.filter_queryset(self.get_queryset()):
+            writer.writerow(
+                (
+                    student.full_name,
+                    student.national_code or "",
+                    student.unit_id or "",
+                    student.class_title or "",
+                    student.parent_id or "",
+                )
+            )
+
+        return response
 
 
 class CMSClassViewSet(UnitScopedCMSViewSet):

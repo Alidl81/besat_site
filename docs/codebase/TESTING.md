@@ -11,13 +11,14 @@
     cd backend
     python manage.py check
     python manage.py makemigrations --check --dry-run
-    python manage.py test
+    python manage.py test --settings=config.settings.test
 
     cd frontend
     npm run lint
     npx tsc --noEmit
     npm run test:about:unit
     npm run test:about:e2e
+    npm run test:e2e
     npm run build
 
 ### 2) Test Layout
@@ -35,7 +36,7 @@
 | Unit/contract | yes | About payload parser and fallback decision | Playwright test runner without browser page usage |
 | Backend integration | yes | ORM, CMS plugins, serializers, API routes, commands | Django test database |
 | Frontend E2E | yes | About CMS rendering and fallback | Chromium plus a local API stub |
-| Full cross-container E2E | [TODO] | Browser through Next to live Django/PostgreSQL | No explicit suite found |
+| Full cross-container E2E | yes | Login and CSV export through Next to live Django/PostgreSQL | frontend/tests/e2e/template-download.spec.ts; E2E_BASE_URL |
 
 ### 4) Mocking and Isolation Strategy
 
@@ -47,9 +48,10 @@
 ### 5) Coverage and Quality Signals
 
 - Coverage tool and threshold: [TODO] none configured.
-- Current coverage: [TODO] not reported.
+- Current coverage: [TODO] not reported. The 2026-08-02 verification ran 245 Django tests, 8 frontend unit/contract tests, and 4 browser E2E tests successfully.
 - CI checks backend system checks, migration drift, About tests, TypeScript, and About browser tests.
 - Repository-wide ESLint currently permits warnings; the warning inventory includes pre-existing image and effect findings.
+- The tested browser fallback is the installed Chrome channel because downloading Playwright Chromium was blocked by the regional CDN policy.
 
 ### 6) Evidence
 
@@ -57,5 +59,6 @@
 - backend/apps/about/test_headless_cms.py
 - frontend/tests/unit/about-service.spec.ts
 - frontend/tests/e2e/about-cms.spec.ts
+- frontend/tests/e2e/template-download.spec.ts
 - frontend/playwright.about.config.ts
 - .github/workflows/about-headless-cms.yml

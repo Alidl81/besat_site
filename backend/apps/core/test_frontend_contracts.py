@@ -8,6 +8,7 @@ from apps.gallery.models import GalleryItem
 from apps.home.models import HomeSlide
 from apps.registration.models import RegistrationRequest
 from apps.units.models import SchoolUnit
+from apps.dashboard.models import Student
 
 
 User = get_user_model()
@@ -244,3 +245,25 @@ class FrontendBackendContractTests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 204, response.data)
+
+    def test_student_export_returns_an_authorized_utf8_csv(self):
+        Student.objects.create(
+            full_name="Export Student",
+            national_code="1234567890",
+            unit=self.unit,
+            class_title="101",
+        )
+        self.authenticate_manager()
+
+        response = self.client.get("/api/cms/students/export/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertEqual(
+            response["Content-Disposition"],
+            'attachment; filename="besat-students.csv"',
+        )
+        self.assertTrue(response.content.startswith(b"\xef\xbb\xbf"))
+        csv_text = response.content.decode("utf-8-sig")
+        self.assertIn("full_name,national_code,unit_id,class_title,parent_id", csv_text)
+        self.assertIn("Export Student,1234567890", csv_text)

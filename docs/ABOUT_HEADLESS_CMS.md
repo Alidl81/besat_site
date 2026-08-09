@@ -76,7 +76,7 @@ Backend:
 
 ```bash
 cd backend
-python manage.py test apps.about
+python manage.py test apps.about --settings=config.settings.test
 ```
 
 Frontend unit/contract tests:

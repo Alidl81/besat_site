@@ -1,251 +1,103 @@
 # Besat Site
 
-وب‌سایت جدید مدرسه بعثت
+Besat Site is a full-stack school website and role-based management portal.
+The frontend is Next.js 16/React 19, the API is Django 6 with Django REST
+Framework and JWT authentication, and PostgreSQL is the production database.
 
-این پروژه با هدف بازطراحی و پیاده‌سازی نسخه جدید وب‌سایت مدرسه بعثت ساخته می‌شود.
+## Repository layout
 
----
-
-## اصل مهم پروژه
-
-در نسخه نهایی سایت، هیچ محتوای فیک، حدسی یا نمونه نباید وجود داشته باشد.
-
-تمام موارد زیر باید فقط از منابع معتبر و تأییدشده استفاده شوند:
-
-- متن‌ها
-- آمارها
-- تصاویر
-- اخبار
-- افتخارات
-- شماره تماس
-- آدرس
-- اطلاعات ثبت‌نام
-- اطلاعات کادر مدرسه
-- محتوای معرفی واحدها و دپارتمان‌ها
-
-اگر داده‌ای هنوز تأیید نشده باشد، در فرانت‌اند فقط با عنوان `TODO` مشخص می‌شود و نباید وارد نسخه نهایی شود.
-
----
-
-## Tech Stack
-
-```txt
-Frontend: Next.js + TypeScript + Tailwind CSS
-Backend: Django + Django REST Framework
-Database: PostgreSQL
-Admin Panel: Django Admin
-API Format: REST JSON
+```text
+frontend/   Next.js public site, dashboards, proxy route, and Playwright tests
+backend/    Django API, django CMS About page, migrations, and test suite
+docs/       Contracts and codebase knowledge documents
 ```
 
----
+## Local development
 
-## Project Structure
+Backend (PowerShell):
 
-```txt
-besat_site/
-  frontend/   # Next.js frontend
-  backend/    # Django backend
-  docs/       # Shared documents and API contracts
+```powershell
+cd backend
+py -m venv venv
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
+Copy-Item .env.example .env
+.\venv\Scripts\python.exe manage.py migrate
+.\venv\Scripts\python.exe manage.py runserver 127.0.0.1:8000
 ```
 
----
+Frontend, in another terminal:
 
-## Frontend Responsibility
-
-فرانت‌اند مسئول پیاده‌سازی ظاهر و تجربه کاربری سایت است.
-
-صفحات اصلی فرانت‌اند:
-
-```txt
-Home Page
-About Page
-Units Page
-Departments Page
-News List Page
-News Detail Page
-Gallery Page
-Achievements Page
-Contact Page
-Registration Page
+```powershell
+cd frontend
+Copy-Item .env.example .env.local
+npm.cmd ci
+npm.cmd run dev
 ```
 
-فرانت‌اند نباید داده واقعی را به‌صورت hard-code در نسخه نهایی نگه دارد.
+The default frontend URL is `http://127.0.0.1:3000` and the API health endpoint
+is `http://127.0.0.1:8000/api/health/`. If Windows reserves port 3000, run the
+frontend with `npm.cmd run dev -- --port 3200` and add that origin to the Django
+CORS and CSRF environment variables.
 
-داده‌ها باید از API بک‌اند دریافت شوند.
+## Docker Compose
 
----
+The root Compose file is the only Compose definition. It builds production
+images and connects the frontend to the backend by the internal service name
+`backend`; PostgreSQL is reached as `db`. Named volumes preserve database,
+static, and uploaded media data.
 
-## Backend Responsibility
-
-بک‌اند مسئول مدیریت داده‌ها، API، دیتابیس و پنل مدیریت است.
-
-بک‌اند باید با Django و Django REST Framework پیاده‌سازی شود.
-
-پنل مدیریت Django باید امکان مدیریت این موارد را داشته باشد:
-
-```txt
-Site Settings
-School Units
-Departments
-News
-Gallery
-Achievements
-Contact Messages
-Registration Requests
-Staff
+```powershell
+Copy-Item .env.example .env
+# Replace every change-me value in .env.
+docker compose config --quiet
+docker compose build
+docker compose up -d
+docker compose ps
+docker compose logs
+docker compose down
 ```
 
----
+## Quality checks
 
-## Initial Backend Apps
+```powershell
+cd backend
+.\venv\Scripts\python.exe manage.py check
+.\venv\Scripts\python.exe manage.py test --settings=config.settings.test
 
-```txt
-backend/
-  config/
-  apps/
-    core/
-    site_settings/
-    units/
-    departments/
-    news/
-    gallery/
-    achievements/
-    contact/
-    registration/
-    staff/
+cd ..\frontend
+npm.cmd run lint
+npx.cmd tsc --noEmit
+npm.cmd run test:about:unit
+npm.cmd run build
+npm.cmd run test:e2e
 ```
 
----
+Playwright downloads can be blocked in some regions. When Chrome is already
+installed, set `PLAYWRIGHT_CHANNEL=chrome` before running the E2E suite.
 
-## Initial API Contract
+Never commit `.env`, `backend/.env`, or `frontend/.env.local`. Public content
+must come from verified school sources; development-only mock data must remain
+clearly identified and must not be treated as production data.
 
-APIهای اولیه مورد نیاز فرانت‌اند:
+## Product and data policy
 
-```txt
-GET  /api/site-settings/
-GET  /api/home/
+The production site must not contain guessed, fabricated, or unapproved school
+information. Text, statistics, images, news, achievements, contact details,
+registration details, staff records, and unit/department descriptions must come
+from official or school-approved sources. Temporary UI data must be explicitly
+identified as a placeholder or test fixture and must not ship as authoritative
+content.
 
-GET  /api/units/
-GET  /api/units/{slug}/
+The frontend owns presentation and interaction; it must consume REST contracts
+instead of accessing persistence directly. Django owns validation, permissions,
+workflow rules, API representation, database access, and administrative editing.
+The initial public contract includes site settings, home, units, departments,
+news, gallery, achievements, contact, and registration endpoints under `/api/`.
 
-GET  /api/departments/
-GET  /api/departments/{slug}/
+## Development workflow
 
-GET  /api/news/
-GET  /api/news/{slug}/
-
-GET  /api/gallery/
-GET  /api/gallery/{slug}/
-
-GET  /api/achievements/
-GET  /api/achievements/{slug}/
-
-POST /api/contact/
-POST /api/registration/
-```
-
----
-
-## Data Rules
-
-### Allowed Data
-
-```txt
-Verified school data
-Official school website data
-Official photos and documents
-School-approved text and statistics
-```
-
-### Temporary Data
-
-در زمان طراحی UI می‌توان از placeholder استفاده کرد، اما باید واضح مشخص شود:
-
-```txt
-TODO: Replace with verified school data
-```
-
-### Forbidden Data
-
-```txt
-Fake statistics
-Fake phone numbers
-Fake addresses
-Fake achievements
-Fake news
-Unrelated images
-Unapproved school information
-```
-
----
-
-## Git Workflow
-
-برای هر مرحله باید یک commit جداگانه ایجاد شود.
-
-نمونه پیام commit:
-
-```txt
-chore: initialize project structure
-docs: add project readme
-feat: setup next frontend
-feat: create main layout
-feat: build home hero section
-fix: resolve navbar responsive issue
-```
-
----
-
-## Branching
-
-فعلاً شاخه اصلی پروژه:
-
-```txt
-main
-```
-
-در صورت نیاز برای توسعه بخش‌های بزرگ‌تر:
-
-```txt
-feature/frontend-setup
-feature/home-page
-feature/backend-api
-feature/news-module
-```
-
----
-
-## Development Rule
-
-توسعه پروژه مرحله‌به‌مرحله انجام می‌شود.
-
-در هر مرحله:
-
-```txt
-1. تغییر مشخص انجام می‌شود
-2. پروژه تست می‌شود
-3. تغییرات commit می‌شود
-4. سپس مرحله بعد شروع می‌شود
-```
-
----
-
-## Documentation
-
-تمام قراردادهای مشترک فرانت‌اند و بک‌اند باید داخل پوشه `docs` نگهداری شوند.
-
-```txt
-docs/
-  backend-structure-and-api-contract.md
-  content-verification.md
-```
-
----
-
-## Current Status
-
-```txt
-Project structure is being prepared.
-Frontend project has not been created yet.
-Backend project has not been created yet.
-```
+Keep feature changes scoped, run the relevant backend and frontend checks before
+handoff, and use focused commits such as `feat:`, `fix:`, `docs:`, or `chore:`
+when the work is ready to commit. Shared REST contracts and content-verification
+notes belong under `docs/`; detailed current architecture and testing evidence
+is maintained in `docs/codebase/`.

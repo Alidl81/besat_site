@@ -102,14 +102,14 @@ export type StudentItem = {
   id: ApiId;
   full_name: string;
   avatar_url: string | null;
-  student_code: string;
+  student_code: string | null;
   national_code: string | null;
   unit: NamedOption | null;
   grade: NamedOption | null;
   class_room: NamedOption | null;
   major: string | null;
   profile_status: "complete" | "incomplete";
-  education_status: "active" | "graduated" | "inactive";
+  education_status: "active" | "graduated" | "inactive" | null;
   guardian: {
     id: ApiId | null;
     full_name: string;

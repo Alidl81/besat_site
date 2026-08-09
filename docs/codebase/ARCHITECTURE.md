@@ -23,6 +23,11 @@ For the CMS path:
 5. frontend/src/components/about/about-cms-page.tsx renders supported plugins.
 6. Any CMS fetch or contract failure uses the legacy GET /api/about/ path.
 
+For the container path, the browser reaches Next.js on the published frontend
+port, Next proxies API calls to `backend:8000` on the `app` network, and Django
+reaches PostgreSQL as `db:5432` on the internal `data` network. Only Django is
+attached to both networks.
+
 ### 3) Layer/Module Responsibilities
 
 | Layer or module | Owns | Must not own | Evidence |
@@ -43,12 +48,14 @@ For the CMS path:
 | Adapter/fallback | frontend/src/services/about-service.ts | Switches CMS and legacy sources without changing the page |
 | Repository/service functions | frontend/src/lib/data and frontend/src/services | Separates data access from components |
 | Environment-driven configuration | backend/config/settings; frontend services | Supports local, container, CI, and production deployments |
+| Health-gated startup | docker-compose.yml; backend/entrypoint.sh | Starts Django after PostgreSQL and Next.js after Django |
 
 ### 5) Known Architectural Risks
 
 - Adding a CMS plugin requires coordinated backend model, migration, registry, serializer, settings, TypeScript contract, normalizer, and renderer changes.
 - The CMS and legacy About sources have different content breadth; legacy static sections remain outside the backend About API.
 - The frontend proxy and direct CMS fetch paths use different timeout and failure-handling policies.
+- The CMS bootstrap creates the About page shell but does not invent approved plugin content; an empty CMS page deliberately falls back to the legacy About API.
 
 ### 6) Evidence
 

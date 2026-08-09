@@ -22,6 +22,7 @@ env/
 backend/.env
 backend/.env.*
 !backend/.env.example
+backend/docker.env
 .env
 .env.*
 !.env.example

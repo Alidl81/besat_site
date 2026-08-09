@@ -1,88 +1,40 @@
-# فرانت مجتمع آموزشی بعثت
+# Besat frontend
 
-پروژه Next.js سایت عمومی و پنل‌های مدیر مجموعه، مدیر واحد، مسئول رسانه و
-والدین است. تمام صفحات فقط از REST API داده می‌خوانند. در توسعه، همان API
-به یک دیتابیس JSON موقت متصل است و در استقرار می‌تواند بدون تغییر
-کامپوننت‌ها به بک‌اند اصلی وصل شود.
+This directory contains the Next.js 16 App Router frontend for the public site
+and the role-based dashboards. Browser API calls use the same-origin
+`/api/backend` route, which proxies to Django through `BESAT_BACKEND_API_URL`.
 
-## اجرا
+## Local run
 
-```bash
-cp .env.example .env.local
-npm ci
-npm run dev
+Start Django on port 8000, then:
+
+```powershell
+Copy-Item .env.example .env.local
+npm.cmd ci
+npm.cmd run dev
 ```
 
-سرور توسعه روی تمام رابط‌های شبکه (`0.0.0.0`) اجرا می‌شود و از دستگاه‌های
-شبکه محلی با آدرس `http://IP-SERVER:3000` قابل دسترسی است. مبدأهای توسعه
-`192.168.10.65` و `192.168.10.71` برای HMR مجاز شده‌اند. پس از تغییر
-`next.config.ts` سرور توسعه را حتماً دوباره راه‌اندازی کنید.
+The checked-in `.env.example` targets the local Django API. The optional
+`mock://local` backend remains available for isolated UI development, but it is
+not the default full-stack configuration.
 
-متغیرهای لازم:
+## Checks
 
-```dotenv
-NEXT_PUBLIC_API_BASE_URL=/api/backend
-BESAT_BACKEND_API_URL=mock://local
-NEXT_SERVER_API_BASE_URL=http://127.0.0.1:3000/api/backend
+```powershell
+npm.cmd run lint
+npx.cmd tsc --noEmit
+npm.cmd run test:about:unit
+npm.cmd run build
+$env:PLAYWRIGHT_CHANNEL='chrome'; npm.cmd run test:e2e
 ```
 
-فرانت در `http://localhost:3000` اجرا می‌شود. حالت موقت به بک‌اند جداگانه
-نیاز ندارد. حساب‌های آزمایشی:
+The E2E command runs the main dashboard suite and then the dedicated About CMS
+stub suite. `PLAYWRIGHT_CHANNEL` is optional when Playwright's bundled Chromium
+is installed.
 
-| نقش | نام کاربری | رمز عبور |
-|---|---|---|
-| مدیر مجموعه | `admin` | `BesatDemo1405!` |
-| مدیر واحد | `unit_manager` | `BesatDemo1405!` |
-| مسئول رسانه | `media` | `BesatDemo1405!` |
-| والد | `parent` | `BesatDemo1405!` |
+## Container runtime
 
-اطلاعات عمومی واحدها، آمار، اخبار و بخش‌های آموزشی از سایت‌های رسمی بعثت
-ثبت شده‌اند. اطلاعات خصوصی مانند دانش‌آموز، والد، پیام و ثبت‌نام ساختگی و
-در خود داده با عنوان «آزمایشی» مشخص شده‌اند؛ هیچ داده شخصی واقعی در پروژه
-قرار نگرفته است.
-
-تمام درخواست‌های مرورگر به `/api/backend/*` ارسال می‌شوند و Route Handler
-آن‌ها را بدون تغییر method، query، بدنه، فایل و توکن به
-`BESAT_BACKEND_API_URL` می‌فرستد. بنابراین برای انتقال از endpoint موقت به
-بک‌اند اصلی فقط همین متغیر را در محیط استقرار تغییر دهید؛ سرویس‌ها و
-کامپوننت‌های فرانت نیاز به ویرایش ندارند. اگر SSR باید از آدرس داخلی جداگانه
-استفاده کند، `NEXT_SERVER_API_BASE_URL` را به‌صورت اختیاری تعریف کنید.
-
-برای اتصال به بک‌اند اصلی:
-
-```dotenv
-BESAT_BACKEND_API_URL=https://api.example.com/api
-```
-
-بک‌اند باید endpointهای
-[قرارداد API](docs/BACKEND_API_CONTRACT.md) را پیاده کند. جزئیات دیتابیس
-موقت، منابع داده و محدودیت‌ها در
-[راهنمای دیتابیس موقت](docs/MOCK_DATABASE.md) آمده است.
-
-برای برگرداندن تمام تغییرات آزمایشی دیتابیس به داده اولیه:
-
-```bash
-npm run mock:reset
-```
-
-## کنترل کیفیت
-
-```bash
-npx tsc --noEmit
-npm run build
-```
-
-## نکات اتصال
-
-- احراز هویت JWT و endpointهای پنل برای ساختار Django REST Framework طراحی
-  شده‌اند.
-- access token در تمام درخواست‌های پنل ارسال می‌شود.
-- در حالت `mock://local`، Route Handler همان قرارداد را روی دیتابیس JSON
-  اجرا می‌کند. در حالت URL واقعی، پراکسی پاسخ بک‌اند را بدون ساخت fallback
-  عبور می‌دهد و در قطع ارتباط پاسخ استاندارد `502` برمی‌گرداند.
-- permission، محدودسازی واحد/فرزند، workflow محتوا و تغییر وضعیت ثبت‌نام
-  باید در بک‌اند enforce شوند.
-- ادیتور محتوا `body_json` (سند Tiptap) و `body_html` (خروجی نمایش) را با هم
-  ذخیره می‌کند.
-- PHP برای اجرای این فرانت لازم نیست. اگر WordPress در معماری باقی بماند باید
-  از همین API به‌عنوان مصرف‌کننده یا مقصد انتشار استفاده کند.
+Use the repository-level `docker-compose.yml`. The production image uses the
+Next.js standalone output and runs as an unprivileged user. Inside Compose,
+server-side and proxy requests use `http://backend:8000/api`; browsers continue
+to call `/api/backend` on the frontend origin.

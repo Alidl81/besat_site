@@ -8,6 +8,8 @@ from apps.gallery.models import GalleryItem
 from apps.news.models import News
 from apps.units.models import SchoolUnit
 
+from .models import InternalMessage, Student
+
 
 User = get_user_model()
 
@@ -140,6 +142,47 @@ class DashboardAPITests(TestCase):
         self.assertIn("cards", response.data)
         self.assertGreaterEqual(response.data["stats"]["content_total"], 4)
 
+    def test_general_manager_dashboard_matches_frontend_contract(self):
+        InternalMessage.objects.create(
+            sender=self.unit_manager,
+            recipient=self.general_manager,
+            sender_name="Unit Manager",
+            sender_role=UserProfile.Role.UNIT_MANAGER,
+            recipient_name="General Manager",
+            recipient_role=UserProfile.Role.GENERAL_MANAGER,
+            subject="Dashboard message",
+            body="Visible in the admin dashboard feed.",
+            is_read=False,
+            unit=self.unit_1,
+        )
+        self.authenticate(self.general_manager)
+
+        response = self.client.get("/api/dashboard/general-manager/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["metrics"]), 4)
+        self.assertEqual(
+            set(response.data["metrics"][0]),
+            {"key", "title", "value", "detail", "trend", "tone", "icon"},
+        )
+        self.assertEqual(response.data["messages"][0]["title"], "Dashboard message")
+        self.assertEqual(len(response.data["units"]), 2)
+        self.assertEqual(
+            set(response.data["units"][0]),
+            {
+                "id",
+                "title",
+                "students_count",
+                "staff_count",
+                "new_registrations_count",
+                "published_content_count",
+                "is_active",
+            },
+        )
+        self.assertIn("events", response.data)
+        self.assertIn("announcements", response.data)
+        self.assertIn("current_date", response.data)
+
     def test_parent_cannot_access_general_dashboard(self):
         self.authenticate(self.parent)
 
@@ -159,6 +202,125 @@ class DashboardAPITests(TestCase):
         self.assertEqual(response.data["stats"]["news_total"], 1)
         self.assertEqual(response.data["stats"]["announcements_total"], 1)
         self.assertEqual(response.data["stats"]["gallery_total"], 1)
+
+    def test_unit_manager_context_matches_frontend_contract(self):
+        profile = self.unit_manager.profile
+        profile.full_name = "Unit Manager"
+        profile.save(update_fields=("full_name",))
+        InternalMessage.objects.create(
+            sender=self.general_manager,
+            recipient=self.unit_manager,
+            sender_name="General Manager",
+            sender_role=UserProfile.Role.GENERAL_MANAGER,
+            recipient_name="Unit Manager",
+            recipient_role=UserProfile.Role.UNIT_MANAGER,
+            subject="Unread message",
+            body="Dashboard context must include this message.",
+            is_read=False,
+            unit=self.unit_1,
+        )
+        self.authenticate(self.unit_manager)
+
+        response = self.client.get(
+            f"/api/dashboard/context/?unit={self.unit_1.id}"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.data,
+            {
+                "user": {
+                    "id": self.unit_manager.id,
+                    "full_name": "Unit Manager",
+                    "role_display": UserProfile.Role.UNIT_MANAGER.label,
+                    "avatar_url": None,
+                },
+                "academic_years": [],
+                "selected_academic_year_id": None,
+                "units": [
+                    {
+                        "id": self.unit_1.id,
+                        "title": self.unit_1.title,
+                    }
+                ],
+                "selected_unit_id": self.unit_1.id,
+                "children": [],
+                "selected_child_id": None,
+                "unread_notifications": 0,
+                "unread_messages": 1,
+                "current_date": response.data["current_date"],
+            },
+        )
+
+    def test_unit_manager_context_rejects_an_inaccessible_unit(self):
+        self.authenticate(self.unit_manager)
+
+        response = self.client.get(
+            f"/api/dashboard/context/?unit={self.unit_2.id}"
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_student_list_and_summary_match_frontend_contract(self):
+        student = Student.objects.create(
+            full_name="Frontend Student",
+            national_code="1234567890",
+            unit=self.unit_1,
+            class_title="Class 101",
+            parent=self.parent,
+        )
+        self.authenticate(self.general_manager)
+
+        list_response = self.client.get("/api/cms/students/")
+        summary_response = self.client.get("/api/cms/students/summary/")
+
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(summary_response.status_code, 200)
+        item = list_response.data["results"][0]
+        self.assertEqual(item["id"], student.id)
+        self.assertEqual(item["unit"], {"id": self.unit_1.id, "title": self.unit_1.title})
+        self.assertIsNone(item["student_code"])
+        self.assertIsNone(item["grade"])
+        self.assertEqual(item["class_room"], {"id": "Class 101", "title": "Class 101"})
+        self.assertEqual(item["guardian"]["full_name"], self.parent.username)
+        self.assertEqual(item["profile_status"], "complete")
+        self.assertIsNone(item["education_status"])
+        self.assertEqual(
+            summary_response.data,
+            {
+                "total": 1,
+                "completed_profiles": 1,
+                "new_this_year": 1,
+                "incomplete_profiles": 0,
+            },
+        )
+
+    def test_student_list_filters_match_frontend_controls(self):
+        complete = Student.objects.create(
+            full_name="Searchable Complete Student",
+            national_code="1111111111",
+            unit=self.unit_1,
+            class_title="Class A",
+        )
+        Student.objects.create(
+            full_name="Incomplete Student",
+            unit=self.unit_2,
+        )
+        self.authenticate(self.general_manager)
+
+        response = self.client.get(
+            f"/api/cms/students/?search=Searchable&unit={self.unit_1.id}&profile_status=complete"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], complete.id)
+
+        incomplete_response = self.client.get(
+            "/api/cms/students/?profile_status=incomplete"
+        )
+        self.assertEqual(incomplete_response.status_code, 200)
+        self.assertEqual(incomplete_response.data["count"], 1)
 
     def test_unit_manager_cannot_access_other_unit_dashboard(self):
         self.authenticate(self.unit_manager)

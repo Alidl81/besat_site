@@ -8,7 +8,7 @@
     "start": "next start --hostname 0.0.0.0",
     "lint": "eslint",
     "mock:reset": "node scripts/reset-mock-db.mjs",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test && playwright test -c playwright.about.config.ts",
     "test:about:unit": "playwright test -c playwright.about-unit.config.ts",
     "test:about:e2e": "playwright test -c playwright.about.config.ts",
     "test:about": "npm run test:about:unit && npm run test:about:e2e"

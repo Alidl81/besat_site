@@ -12,6 +12,7 @@ from .views import (
     MeProfileAvatarAPIView,
     MeUnitsAPIView,
     RefreshTokenAPIView,
+    SetPasswordAPIView,
     ChangePasswordAPIView,
 )
 
@@ -25,6 +26,7 @@ urlpatterns = [
     path("auth/login/", LoginAPIView.as_view(), name="login"),
     path("auth/refresh/", RefreshTokenAPIView.as_view(), name="refresh-token"),
     path("auth/logout/", LogoutAPIView.as_view(), name="logout"),
+    path("auth/set-password/", SetPasswordAPIView.as_view(), name="set-password"),
     path("me/", MeAPIView.as_view(), name="me"),
     path("me/profile/", MeProfileAPIView.as_view(), name="me-profile"),
     path("me/profile/avatar/", MeProfileAvatarAPIView.as_view(), name="me-profile-avatar"),

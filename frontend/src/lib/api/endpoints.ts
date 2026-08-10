@@ -29,6 +29,7 @@ export const apiEndpoints = {
     login: "auth/login/",
     refresh: "auth/refresh/",
     logout: "auth/logout/",
+    setPassword: "auth/set-password/",
     changePassword: "me/change-password/",
   },
   cms: {

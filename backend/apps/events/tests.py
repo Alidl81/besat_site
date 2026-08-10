@@ -178,6 +178,31 @@ class EventPublicAPITests(TestCase):
         self.assertEqual(response.data["count"], 1)
         self.assertEqual(response.data["results"][0]["unit_id"], self.unit.id)
 
+    def test_filter_events_by_date_range(self):
+        self.create_event(
+            title="رویداد این ماه",
+            slug="this-month-event",
+            event_start_at=timezone.make_aware(
+                timezone.datetime(2026, 5, 10, 9, 0)
+            ),
+        )
+
+        self.create_event(
+            title="رویداد ماه دیگر",
+            slug="other-month-event",
+            event_start_at=timezone.make_aware(
+                timezone.datetime(2026, 6, 15, 9, 0)
+            ),
+        )
+
+        response = self.client.get(
+            "/api/events/?date_from=2026-05-01&date_to=2026-05-31"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["slug"], "this-month-event")
+
 
 class EventModelValidationTests(TestCase):
     def setUp(self):
@@ -302,6 +327,22 @@ class EventCMSAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 1)
         self.assertEqual(response.data["results"][0]["id"], self.event.id)
+
+    def test_general_manager_can_filter_events_by_date_range(self):
+        self.authenticate(self.general_manager)
+
+        event_date = timezone.localdate(self.event.event_start_at)
+        in_range = self.client.get(
+            f"/api/cms/events/?date_from={event_date.isoformat()}&date_to={event_date.isoformat()}"
+        )
+        out_of_range = self.client.get(
+            "/api/cms/events/?date_from=1990-01-01&date_to=1990-01-02"
+        )
+
+        self.assertEqual(in_range.status_code, 200)
+        self.assertEqual(in_range.data["count"], 1)
+        self.assertEqual(out_of_range.status_code, 200)
+        self.assertEqual(out_of_range.data["count"], 0)
 
     def test_parent_cannot_list_events(self):
         self.authenticate(self.parent)

@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import { Modal } from "@/components/crud/crud-ui";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
 import {
@@ -9,7 +9,8 @@ import {
   PanelLoading,
 } from "@/components/dashboard/panel-request-state";
 import { usePanelRequest } from "@/hooks/use-panel-request";
-import { getApiErrorMessage } from "@/lib/api/client";
+import { ApiError, getApiErrorMessage } from "@/lib/api/client";
+import { readBesatSession } from "@/lib/auth/auth-session";
 import { panelService } from "@/services/panel-service";
 import type {
   InternalMessageItem,
@@ -39,6 +40,12 @@ export function MessagingPanel() {
     () => panelService.messageRecipients(),
     [],
   );
+  // Belt-and-suspenders: the backend already excludes the caller, but a user must
+  // never see themselves as a selectable recipient even if that response ever regresses.
+  const selectableRecipients = useMemo(() => {
+    const selfId = `user-${readBesatSession()?.username ?? ""}`;
+    return (recipients.data ?? []).filter((recipient) => recipient.id !== selfId);
+  }, [recipients.data]);
 
   async function openMessage(message: InternalMessageItem) {
     setError(null);
@@ -109,7 +116,7 @@ export function MessagingPanel() {
       <Modal open={composeOpen} onClose={() => setComposeOpen(false)} title={selected ? "پاسخ به پیام" : "ارسال پیام"} size="lg">
         {recipients.loading ? <PanelLoading label="در حال دریافت گیرندگان..." /> : recipients.error ? <PanelError message={recipients.error} onRetry={recipients.reload} /> : (
           <ComposeForm
-            recipients={recipients.data ?? []}
+            recipients={selectableRecipients}
             replyTo={selected}
             onCancel={() => setComposeOpen(false)}
             onSent={() => {
@@ -125,6 +132,9 @@ export function MessagingPanel() {
   );
 }
 
+type ComposeFieldName = "recipient_id" | "subject" | "body";
+type ComposeFieldErrors = Partial<Record<ComposeFieldName, string>>;
+
 function ComposeForm({
   recipients,
   replyTo,
@@ -137,34 +147,125 @@ function ComposeForm({
   onCancel: () => void;
 }) {
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState("");
+  const [errors, setErrors] = useState<ComposeFieldErrors>({});
 
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const recipientId = String(form.get("recipient_id") ?? "");
+    const subject = String(form.get("subject") ?? "").trim();
+    const body = String(form.get("body") ?? "").trim();
+
+    const nextErrors: ComposeFieldErrors = {};
+    if (!recipientId) nextErrors.recipient_id = "انتخاب گیرنده الزامی است.";
+    if (!subject) nextErrors.subject = "موضوع پیام الزامی است.";
+    if (!body) nextErrors.body = "متن پیام الزامی است.";
+
+    if (Object.keys(nextErrors).length) {
+      setErrors(nextErrors);
+      setFormError("لطفاً خطاهای مشخص‌شده را اصلاح کنید.");
+      return;
+    }
+
     setSaving(true);
-    setError(null);
+    setFormError("");
+    setErrors({});
     try {
-      await panelService.sendMessage({
-        recipient_id: String(form.get("recipient_id") ?? ""),
-        subject: String(form.get("subject") ?? ""),
-        body: String(form.get("body") ?? ""),
-      });
+      await panelService.sendMessage({ recipient_id: recipientId, subject, body });
       onSent();
     } catch (reason) {
-      setError(getApiErrorMessage(reason));
+      if (reason instanceof ApiError) {
+        const nextErrors: ComposeFieldErrors = {};
+        for (const [field, messages] of Object.entries(reason.fieldErrors)) {
+          if (messages?.[0] && (field === "recipient_id" || field === "subject" || field === "body")) {
+            nextErrors[field] = messages[0];
+          }
+        }
+        setErrors(nextErrors);
+      }
+      setFormError(getApiErrorMessage(reason));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <form onSubmit={send} className="space-y-4">
-      {error ? <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm font-black text-rose-700">{error}</p> : null}
-      <label><span className="panel-field-label">گیرنده</span><select name="recipient_id" required defaultValue={replyTo?.sender.id ?? ""} className="panel-select"><option value="">انتخاب گیرنده</option>{recipients.map((recipient) => <option key={recipient.id} value={recipient.id}>{recipient.full_name} ({recipient.role_display})</option>)}</select></label>
-      <label><span className="panel-field-label">موضوع</span><input name="subject" required defaultValue={replyTo ? `پاسخ: ${replyTo.subject}` : ""} className="panel-input" /></label>
-      <label><span className="panel-field-label">متن پیام</span><textarea name="body" required rows={7} className="panel-textarea" /></label>
-      <div className="flex justify-end gap-3"><button type="button" onClick={onCancel} className="panel-secondary-button">انصراف</button><button disabled={saving} type="submit" className="panel-primary-button">{saving ? "در حال ارسال..." : "ارسال پیام"}</button></div>
+    <form onSubmit={send} noValidate className="space-y-4">
+      {formError ? (
+        <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm font-black text-rose-700">
+          {formError}
+        </p>
+      ) : null}
+      {!recipients.length ? (
+        <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-black text-amber-800">
+          گیرنده مجازی برای ارسال پیام یافت نشد.
+        </p>
+      ) : null}
+      <label>
+        <span className="panel-field-label">گیرنده</span>
+        <select
+          name="recipient_id"
+          required
+          defaultValue={replyTo?.sender.id ?? ""}
+          disabled={!recipients.length}
+          aria-invalid={Boolean(errors.recipient_id)}
+          aria-describedby={errors.recipient_id ? "recipient_id-error" : undefined}
+          className="panel-select"
+        >
+          <option value="">انتخاب گیرنده</option>
+          {recipients.map((recipient) => (
+            <option key={recipient.id} value={recipient.id}>
+              {recipient.full_name} ({recipient.role_display})
+            </option>
+          ))}
+        </select>
+        {errors.recipient_id ? (
+          <p id="recipient_id-error" className="mt-2 text-sm font-bold text-rose-700">
+            {errors.recipient_id}
+          </p>
+        ) : null}
+      </label>
+      <label>
+        <span className="panel-field-label">موضوع</span>
+        <input
+          name="subject"
+          required
+          defaultValue={replyTo ? `پاسخ: ${replyTo.subject}` : ""}
+          aria-invalid={Boolean(errors.subject)}
+          aria-describedby={errors.subject ? "subject-error" : undefined}
+          className="panel-input"
+        />
+        {errors.subject ? (
+          <p id="subject-error" className="mt-2 text-sm font-bold text-rose-700">
+            {errors.subject}
+          </p>
+        ) : null}
+      </label>
+      <label>
+        <span className="panel-field-label">متن پیام</span>
+        <textarea
+          name="body"
+          required
+          rows={7}
+          aria-invalid={Boolean(errors.body)}
+          aria-describedby={errors.body ? "body-error" : undefined}
+          className="panel-textarea"
+        />
+        {errors.body ? (
+          <p id="body-error" className="mt-2 text-sm font-bold text-rose-700">
+            {errors.body}
+          </p>
+        ) : null}
+      </label>
+      <div className="flex justify-end gap-3">
+        <button type="button" onClick={onCancel} className="panel-secondary-button">
+          انصراف
+        </button>
+        <button disabled={saving || !recipients.length} type="submit" className="panel-primary-button">
+          {saving ? "در حال ارسال..." : "ارسال پیام"}
+        </button>
+      </div>
     </form>
   );
 }

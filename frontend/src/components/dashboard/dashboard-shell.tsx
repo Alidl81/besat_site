@@ -89,9 +89,15 @@ export function DashboardShell({ data, activeKey = "overview", panel }: Dashboar
       (item) => !item.roles || item.roles.includes(role ?? "parent"),
     ),
   };
-  const activeItem = visibleData.menu.find((item) => item.key === activeKey) ?? visibleData.menu[0];
+  const requestedItem = data.menu.find((item) => item.key === activeKey);
+  const activeItem = visibleData.menu.find((item) => item.key === activeKey);
+  const fallbackItem = visibleData.menu[0];
+  const isForbidden = Boolean(requestedItem) && !activeItem;
+  const isUnknown = !requestedItem;
+  const isUnavailable = isForbidden || isUnknown;
+  const displayedItem = activeItem ?? fallbackItem;
   const profileItem = visibleData.menu.find((item) => item.key === "profile");
-  const isOverview = activeItem.key === "overview";
+  const isOverview = displayedItem.key === "overview";
 
   return (
     <main className="besat-dashboard min-h-screen bg-[#fbfaf7] text-slate-900" dir="rtl">
@@ -99,36 +105,53 @@ export function DashboardShell({ data, activeKey = "overview", panel }: Dashboar
         رفتن به محتوای اصلی
       </a>
       <div className="grid min-h-screen xl:grid-cols-[17rem_minmax(0,1fr)]">
-        <Sidebar data={visibleData} activeKey={activeItem.key} />
+        <Sidebar data={visibleData} activeKey={isUnavailable ? "" : displayedItem.key} />
 
         <section className="min-w-0">
           <DashboardTopbar
             panel={panel}
             profileHref={profileItem?.href ?? visibleData.currentPath}
-            mobileMenu={<DashboardMobileMenu data={visibleData} activeKey={activeItem.key} />}
+            mobileMenu={<DashboardMobileMenu data={visibleData} activeKey={isUnavailable ? "" : displayedItem.key} />}
           />
 
           <div id="dashboard-content" tabIndex={-1} className="mx-auto w-full max-w-[112rem] px-4 py-6 sm:px-6 lg:px-7 lg:py-7">
             <header className="mb-5 flex flex-wrap items-end justify-between gap-4 text-right">
               <div>
                 <div className="flex items-center gap-2">
-                  {!isOverview ? <PanelIcon name={activeItem.icon} className="size-6 text-[#0c4479]" /> : null}
+                  {!isOverview && !isUnavailable ? <PanelIcon name={displayedItem.icon} className="size-6 text-[#0c4479]" /> : null}
                   <h1 className="text-2xl font-black tracking-tight text-[#102b4a] sm:text-[1.65rem]">
-                    {isOverview ? visibleData.title : activeItem.label}
+                    {isUnknown ? "مسیر نامعتبر" : isForbidden ? "دسترسی محدود" : isOverview ? visibleData.title : displayedItem.label}
                   </h1>
                 </div>
                 <p className="mt-2 max-w-3xl text-sm font-bold leading-7 text-slate-500">
-                  {isOverview ? visibleData.description : activeItem.description}
+                  {isUnknown
+                    ? "این بخش در پنل وجود ندارد یا نشانی آن تغییر کرده است."
+                    : isForbidden
+                    ? "حساب کاربری شما اجازه دسترسی به این بخش را ندارد."
+                    : isOverview
+                      ? visibleData.description
+                      : displayedItem.description}
                 </p>
               </div>
             </header>
 
-            {isOverview ? (
+            {isUnavailable ? (
+              <section role="alert" className="panel-card max-w-2xl border-rose-100 bg-rose-50/50 text-right">
+                <PanelIcon name="warning" className="size-8 text-rose-600" />
+                <h2 className="mt-4 text-lg font-black text-[#102b4a]">{isUnknown ? "این مسیر در دسترس نیست" : "این مسیر برای نقش شما در دسترس نیست"}</h2>
+                <p className="mt-2 text-sm font-bold leading-7 text-slate-600">
+                  {isUnknown ? "از یکی از بخش‌های منوی پنل استفاده کنید یا نشانی را بررسی کنید." : "برای ادامه، یکی از بخش‌های قابل‌دسترسی را از منوی پنل انتخاب کنید."}
+                </p>
+                <Link href={fallbackItem.href} className="mt-4 inline-flex rounded-lg bg-[#12395b] px-4 py-2 text-sm font-black text-white">
+                  بازگشت به پنل
+                </Link>
+              </section>
+            ) : isOverview ? (
               <DashboardOverview panel={panel} data={visibleData} />
             ) : (
               <DashboardSectionContent
                 panel={panel}
-                sectionKey={activeItem.key}
+                sectionKey={displayedItem.key}
                 roleTitle={visibleData.roleTitle}
               />
             )}

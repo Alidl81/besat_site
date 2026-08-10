@@ -26,26 +26,39 @@ function item(
 }
 
 describe("partitionNews", () => {
-  it("deduplicates across featured, important and unit sections", () => {
+  it("is disjoint: featured takes precedence when both flags are true", () => {
     const sections = partitionNews([
       item(1, { is_featured: true, is_important: true, priority: 4 }),
       item(2, { is_important: true }),
-      item(3, {
-        scope: "unit",
-        unit: { id: 1, title: "واحد", slug: "unit" },
-      }),
+      item(3, {}),
     ]);
-    expect(sections.featured.map((news) => news.id)).toEqual([1, 2]);
-    expect(sections.important.map((news) => news.id)).toEqual([]);
-    expect(sections.units.map((news) => news.id)).toEqual([3]);
+    expect(sections.featured.map((news) => news.id)).toEqual([1]);
+    expect(sections.important.map((news) => news.id)).toEqual([2]);
+    expect(sections.ordinary.map((news) => news.id)).toEqual([3]);
   });
 
-  it("treats positive backend priority as hot and orders slider candidates", () => {
+  it("never lets priority move an item across a section boundary", () => {
+    const sections = partitionNews([
+      item(1, { is_important: true, priority: 0 }),
+      item(2, { priority: 99 }),
+    ]);
+    expect(sections.important.map((news) => news.id)).toEqual([1]);
+    expect(sections.ordinary.map((news) => news.id)).toEqual([2]);
+  });
+
+  it("orders each section by priority, then recency, without a cap", () => {
     const sections = partitionNews([
       item(1, { is_featured: true, priority: 1 }),
       item(2, { is_featured: true, priority: 8 }),
-      item(3, { priority: 8 }),
+      item(3, { is_featured: true, priority: 8, published_at: "2026-08-01" }),
     ]);
     expect(sections.featured.map((news) => news.id)).toEqual([3, 2, 1]);
+  });
+
+  it("returns empty ordinary/important/featured sections when there is no matching item", () => {
+    const sections = partitionNews([item(1, {})]);
+    expect(sections.featured).toEqual([]);
+    expect(sections.important).toEqual([]);
+    expect(sections.ordinary.map((news) => news.id)).toEqual([1]);
   });
 });

@@ -3,8 +3,11 @@ from rest_framework import status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+from apps.core.utils import throttle_rate_configured
 
 from .permissions import IsAuthenticatedAndActiveProfile
 from .selectors import (
@@ -18,6 +21,7 @@ from .serializers import (
     LogoutSerializer,
     MeSerializer,
     ProfileSerializer,
+    SetPasswordSerializer,
     UserPermissionsSerializer,
     UserUnitSerializer,
     ChangePasswordSerializer,
@@ -203,6 +207,30 @@ class MeUnitsAPIView(APIView):
 
         return Response(payload)
     
+
+class SetPasswordAPIView(APIView):
+    permission_classes = [AllowAny]
+    serializer_class = SetPasswordSerializer
+    throttle_scope = "set_password"
+
+    def get_throttles(self):
+        if throttle_rate_configured(self.throttle_scope):
+            return [ScopedRateThrottle()]
+        return super().get_throttles()
+
+    @extend_schema(
+        tags=["Auth"],
+        summary="Set password using an invitation token",
+        request=SetPasswordSerializer,
+        responses={204: None},
+    )
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class ChangePasswordAPIView(APIView):
     permission_classes = [IsAuthenticatedAndActiveProfile]

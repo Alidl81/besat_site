@@ -189,6 +189,9 @@ export function SiteHeader() {
   const [settings, setSettings] = useState<PublicSiteSettings | null>(null);
   const mobileTriggerRef = useRef<HTMLButtonElement>(null);
   const mobileDrawerRef = useRef<HTMLElement>(null);
+  const primaryPhone = settings?.phone_primary ?? (
+    settings as (PublicSiteSettings & { phone?: string | null }) | null
+  )?.phone;
 
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
@@ -246,15 +249,22 @@ export function SiteHeader() {
   }, []);
 
   return <>
-    <header dir="rtl" className={`besat-site-header z-50 w-full text-white ${isHome ? "absolute inset-x-0 top-0 bg-gradient-to-b from-[#06172c]/95 via-[#06172c]/55 to-transparent" : "sticky top-0 border-b border-white/10 bg-[#081d35]/95 shadow-lg backdrop-blur-xl"}`}>
+    <header
+      dir="rtl"
+      className={`besat-site-header z-50 w-full text-white ${
+        isHome
+          ? "sticky top-0 border-b border-white/10 bg-[#081d35]/95 shadow-lg backdrop-blur-xl xl:absolute xl:inset-x-0 xl:top-0 xl:border-b-0 xl:bg-gradient-to-b xl:from-[#06172c]/95 xl:via-[#06172c]/55 xl:to-transparent xl:shadow-none xl:backdrop-blur-none"
+          : "sticky top-0 border-b border-white/10 bg-[#081d35]/95 shadow-lg backdrop-blur-xl"
+      }`}
+    >
       <div className="mx-auto hidden w-full max-w-[1840px] px-6 xl:block 2xl:px-10">
         <div className="flex h-8 items-center justify-between border-b border-white/12 px-1 text-[11px] font-bold text-white/78 2xl:text-[12px]">
           <span className="whitespace-nowrap text-white/82">مجتمع آموزشی، تربیتی و فرهنگی بعثت</span>
           <div className="flex items-center gap-2.5" dir="ltr">
-            {settings?.phone_primary ? (
-              <a href={`tel:${settings.phone_primary}`} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition hover:bg-white/10 hover:text-[#f2c77c]">
+            {primaryPhone ? (
+              <a href={`tel:${primaryPhone}`} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition hover:bg-white/10 hover:text-[#f2c77c]">
                 <PhoneIcon />
-                <span>{settings.phone_primary}</span>
+                <span>{primaryPhone}</span>
               </a>
             ) : null}
             {settings?.email ? (
@@ -284,7 +294,7 @@ export function SiteHeader() {
         </div>
       </div>
 
-      <div className="mx-auto flex h-[62px] max-w-7xl items-center justify-between px-4 sm:px-6 xl:hidden">
+      <div className="mx-auto flex h-[calc(62px+env(safe-area-inset-top))] max-w-7xl items-center justify-between px-4 pt-[env(safe-area-inset-top)] sm:px-6 xl:hidden">
         <button ref={mobileTriggerRef} type="button" onClick={() => setMobileOpen((value) => !value)} className="flex size-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 transition hover:bg-white/20" aria-expanded={mobileOpen} aria-controls="site-mobile-menu" aria-label={mobileOpen ? "بستن منو" : "باز کردن منو"}><MenuIcon open={mobileOpen} /></button>
         <Logo compact />
       </div>

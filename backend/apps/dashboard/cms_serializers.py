@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from rest_framework import serializers
 
 from apps.accounts.models import UserProfile
@@ -10,6 +11,32 @@ from .models import InternalMessage, Program, SchoolClass, Student
 
 
 User = get_user_model()
+
+
+def get_message_recipient_queryset(user):
+    """Users `user` is allowed to send an internal message to. Shared by the recipients list and create validation so they can never drift apart."""
+    queryset = User.objects.filter(is_active=True).exclude(pk=user.pk)
+
+    if not is_general_manager(user):
+        accessible_unit_ids = get_accessible_unit_ids(user)
+        queryset = queryset.filter(
+            Q(profile__role=UserProfile.Role.GENERAL_MANAGER)
+            | Q(unit_memberships__unit_id__in=accessible_unit_ids)
+        )
+
+    return queryset.distinct()
+
+
+def resolve_recipient_reference(value):
+    text_value = str(value)
+
+    try:
+        if text_value.startswith("user-"):
+            return User.objects.get(username=text_value[5:])
+
+        return User.objects.get(pk=int(text_value))
+    except (User.DoesNotExist, TypeError, ValueError):
+        return None
 
 
 class UnitScopedSerializerMixin:
@@ -132,19 +159,29 @@ class InternalMessageCreateSerializer(serializers.ModelSerializer):
         model = InternalMessage
         fields = ("recipient_id", "recipient_role", "subject", "body", "unit_id")
 
+    def validate_recipient_id(self, value):
+        if not value:
+            return value
+
+        request = self.context["request"]
+        recipient = resolve_recipient_reference(value)
+
+        if recipient is None:
+            raise serializers.ValidationError("گیرنده انتخاب‌شده معتبر نیست.")
+
+        if recipient.pk == request.user.pk:
+            raise serializers.ValidationError("نمی‌توانید برای خودتان پیام ارسال کنید.")
+
+        if not get_message_recipient_queryset(request.user).filter(pk=recipient.pk).exists():
+            raise serializers.ValidationError("گیرنده انتخاب‌شده معتبر نیست.")
+
+        self._recipient = recipient
+        return value
+
     def create(self, validated_data):
         request = self.context["request"]
-        recipient_reference = validated_data.pop("recipient_id", None)
-        recipient = None
-        if recipient_reference:
-            value = str(recipient_reference)
-            try:
-                if value.startswith("user-"):
-                    recipient = User.objects.get(username=value[5:])
-                else:
-                    recipient = User.objects.get(pk=int(value))
-            except (User.DoesNotExist, TypeError, ValueError):
-                raise serializers.ValidationError({"recipient_id": "گیرنده معتبر نیست."})
+        validated_data.pop("recipient_id", None)
+        recipient = getattr(self, "_recipient", None)
 
         sender_profile = get_or_create_user_profile(request.user)
         recipient_profile = get_or_create_user_profile(recipient) if recipient else None

@@ -76,6 +76,7 @@ export type AdminDashboard = {
   events: PanelFeedItem[];
   announcements: PanelFeedItem[];
   units: UnitPerformance[];
+  accessible_units?: NamedOption[];
 };
 
 export type MediaDashboard = {
@@ -188,8 +189,44 @@ export type RegistrationItem = {
 
 export type ContentKind = "news" | "announcement";
 
+export type ContentWorkflowStatus =
+  | "draft"
+  | "in_review"
+  | "changes_requested"
+  | "approved"
+  | "scheduled"
+  | "published"
+  | "unpublished"
+  | "archived"
+  | "trash";
+
+export type ContentWorkflowAction =
+  | "submit-review"
+  | "approve"
+  | "request-changes"
+  | "schedule"
+  | "publish"
+  | "unpublish"
+  | "archive"
+  | "trash"
+  | "restore";
+
+export type ContentSeoMetadata = {
+  focus_keyphrase: string | null;
+  seo_title: string | null;
+  meta_description: string | null;
+  canonical_url: string | null;
+  og_title: string | null;
+  og_description: string | null;
+  og_image_url: string | null;
+  is_indexable: boolean;
+  is_followable: boolean;
+  is_cornerstone: boolean;
+};
+
 export type ContentItem = {
   id: ApiId;
+  version: number;
   kind: ContentKind;
   title: string;
   slug: string;
@@ -197,35 +234,36 @@ export type ContentItem = {
   body_html: string;
   body_json: Record<string, unknown> | null;
   cover_image_url: string | null;
-  seo_title?: string | null;
-  seo_description?: string | null;
-  seo_keywords?: string[] | null;
-  canonical_url?: string | null;
+  seo?: ContentSeoMetadata;
   audience?: "all" | "students" | "parents" | "staff";
   is_featured?: boolean;
   allow_comments?: boolean;
-  wordpress_sync?: boolean;
-  wordpress_sync_status?: "idle" | "pending" | "synced" | "failed" | null;
   scope: "school" | "unit";
   unit: NamedOption | null;
   category: NamedOption | null;
-  status: PublishStatus;
+  status: ContentWorkflowStatus;
   author: {
     id: ApiId;
     full_name: string;
     avatar_url: string | null;
   } | null;
   scheduled_at: string | null;
+  scheduled_unpublish_at?: string | null;
   published_at: string | null;
   created_at: string;
   updated_at: string;
 };
 
 export type ContentSummary = {
-  drafts: number;
-  waiting_review: number;
+  draft: number;
+  in_review: number;
+  changes_requested: number;
+  approved: number;
   scheduled: number;
   published: number;
+  unpublished: number;
+  archived: number;
+  trash: number;
 };
 
 export type ContentRevision = {
@@ -239,9 +277,34 @@ export type ContentRevision = {
     summary: string | null;
     body_html: string;
     body_json: Record<string, unknown> | null;
+    editor_json?: Record<string, unknown> | null;
     cover_image_url: string | null;
-    status: PublishStatus;
+    seo_title?: string | null;
+    seo_description?: string | null;
+    canonical_url?: string | null;
+    og_image_url?: string | null;
+    audience?: "all" | "students" | "parents" | "staff";
+    scheduled_at?: string | null;
+    scheduled_unpublish_at?: string | null;
+    status: ContentWorkflowStatus;
+    version: number;
   };
+};
+
+export type ContentRevisionComparison = {
+  base: {
+    id: ApiId | null;
+    created_at: string;
+    current?: true;
+  };
+  target: {
+    id: ApiId;
+    created_at: string;
+  };
+  changes: Record<string, {
+    from: unknown;
+    to: unknown;
+  }>;
 };
 
 export type ParentChildSummary = {
@@ -334,6 +397,47 @@ export type EventItem = {
   unit: NamedOption | null;
 };
 
+export type EventStatus =
+  | "draft"
+  | "waiting_review"
+  | "approved"
+  | "published"
+  | "rejected"
+  | "archived";
+
+export type EventScope = "school" | "unit";
+
+// Shape of the real backend Event model (apps/events), used by the CMS calendar.
+// Distinct from EventItem above, which backs the unrelated parent "programs" view.
+export type CalendarEventItem = {
+  id: ApiId;
+  title: string;
+  slug: string;
+  summary: string | null;
+  description: string | null;
+  cover_image: string | null;
+  image: string | null;
+  alt_text: string | null;
+  location: string | null;
+  event_start_at: string;
+  event_end_at: string | null;
+  registration_url: string | null;
+  published_at: string | null;
+  scope: EventScope;
+  unit: NamedOption | null;
+  unit_id: ApiId | null;
+  is_featured: boolean;
+  status: EventStatus;
+  review_note: string | null;
+  is_active: boolean;
+  order: number;
+  created_by: string | null;
+  updated_by: string | null;
+  published_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ReportOverview = {
   metrics: PanelMetric[];
   units: UnitPerformance[];
@@ -354,7 +458,7 @@ export type PanelSettings = {
 export type ParentRegistration = {
   id: ApiId;
   child: ParentChildSummary;
-  academic_year: NamedOption;
+  academic_year: NamedOption | null;
   status: string;
   progress_percent: number;
   next_action_url: string | null;

@@ -1,3 +1,4 @@
+from datetime import timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -149,3 +150,35 @@ class UserUnitMembership(TimeStampedModel, ActiveModel):
 
         if errors:
             raise ValidationError(errors)
+
+
+class UserInvitation(TimeStampedModel):
+    # New CMS-created accounts get an unusable password (see CMSUserViewSet.create);
+    # this is the only path that lets the invited person set a real one.
+    TOKEN_VALIDITY = timedelta(hours=72)
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="invitations",
+        verbose_name="کاربر دعوت‌شده",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="created_invitations",
+        verbose_name="ایجادکننده",
+    )
+    # sha256 hex digest of the raw token; the raw token itself is never stored.
+    token_hash = models.CharField(max_length=64, unique=True, verbose_name="هش توکن")
+    expires_at = models.DateTimeField(verbose_name="تاریخ انقضا")
+    used_at = models.DateTimeField(null=True, blank=True, verbose_name="تاریخ استفاده")
+
+    class Meta:
+        verbose_name = "دعوت‌نامه تعیین رمز عبور"
+        verbose_name_plural = "دعوت‌نامه‌های تعیین رمز عبور"
+        ordering = ("-created_at", "-id")
+
+    def __str__(self):
+        return f"دعوت {self.user_id}"

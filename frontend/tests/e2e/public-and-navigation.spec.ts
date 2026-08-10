@@ -61,58 +61,65 @@ test("site drawer traps focus, closes with Escape and restores the trigger", asy
   await expect(trigger).toBeFocused();
 });
 
-test("news cards are not duplicated across sections", async ({ page }) => {
+test("featured, important, and ordinary news never duplicate across sections", async ({
+  page,
+}) => {
+  // Disjoint 3-way classification: featured -> home slider only, important
+  // -> home "اخبار و رویدادها" only, ordinary (neither) -> /news only.
+  await page.goto("/");
+  const slider = page.locator('section[aria-roledescription="اسلایدر"]');
+  await expect(slider).toContainText("خبر ویژه آزمون مرورگر");
+  await expect(slider).not.toContainText("خبر مهم آزمون مرورگر");
+  await expect(slider).not.toContainText("خبر منتخب واحد آزمون مرورگر");
+
+  // The important-news section is lazily revealed on scroll (Reveal
+  // mode="lazy"), so it isn't mounted until it's scrolled into view.
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const importantSection = page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "اخبار و رویدادها" }) });
+  await expect(importantSection).toContainText("خبر مهم آزمون مرورگر");
+  await expect(importantSection).not.toContainText("خبر ویژه آزمون مرورگر");
+  await expect(importantSection).not.toContainText("خبر منتخب واحد آزمون مرورگر");
+
   await page.goto("/news");
-  await expect(
-    page.getByRole("heading", { name: "منتخب واحدهای آموزشی" }),
-  ).toBeVisible();
+  await expect(page.getByText("خبر منتخب واحد آزمون مرورگر")).toBeVisible();
+  await expect(page.getByText("خبر ویژه آزمون مرورگر")).toHaveCount(0);
+  await expect(page.getByText("خبر مهم آزمون مرورگر")).toHaveCount(0);
+
   const hrefs = await page.locator('a[href^="/news/"]').evaluateAll((links) =>
     links.map((link) => link.getAttribute("href")).filter(Boolean),
   );
   expect(new Set(hrefs).size).toBe(hrefs.length);
 });
 
-test("featured news slider supports keyboard and touch navigation", async ({
+test("home slider supports keyboard navigation with a live announcement", async ({
   page,
-  isMobile,
 }) => {
-  await page.goto("/news");
+  // Dot indicators (tested below) are the slider's touch/tap interaction;
+  // swipe gestures are not implemented.
+  await page.goto("/");
   const slider = page.locator('section[aria-roledescription="اسلایدر"]');
   const announcement = slider.locator('[aria-live="polite"]');
   await expect(slider).toBeVisible();
+  await expect(announcement).toContainText("خبر ویژه آزمون مرورگر");
   await slider.focus();
   await page.keyboard.press("ArrowLeft");
-  await expect(announcement).toContainText("خبر مهم آزمون مرورگر");
+  await expect(announcement).not.toContainText("خبر ویژه آزمون مرورگر");
+  await page.keyboard.press("Home");
+  await expect(announcement).toContainText("خبر ویژه آزمون مرورگر");
+});
 
-  if (isMobile) {
-    await slider.evaluate((element) => {
-      const start = new Touch({
-        identifier: 1,
-        target: element,
-        clientX: 300,
-        clientY: 100,
-      });
-      const end = new Touch({
-        identifier: 1,
-        target: element,
-        clientX: 180,
-        clientY: 100,
-      });
-      element.dispatchEvent(
-        new TouchEvent("touchstart", {
-          bubbles: true,
-          touches: [start],
-        }),
-      );
-      element.dispatchEvent(
-        new TouchEvent("touchend", {
-          bubbles: true,
-          changedTouches: [end],
-        }),
-      );
-    });
-    await expect(announcement).toContainText("خبر ویژه آزمون مرورگر");
-  }
+test("home slider dot indicators are tappable on mobile", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "dot-indicator navigation is exercised on mobile viewports only here");
+  await page.goto("/");
+  const slider = page.locator('section[aria-roledescription="اسلایدر"]');
+  const announcement = slider.locator('[aria-live="polite"]');
+  const dots = slider.getByRole("button", { name: /نمایش اسلاید/ });
+  const dotCount = await dots.count();
+  test.skip(dotCount < 2, "only one slide is seeded, so there is nothing to switch between");
+  await dots.nth(1).tap();
+  await expect(announcement).not.toContainText("خبر ویژه آزمون مرورگر");
 });
 
 test("gallery search is debounced and synchronized to the URL", async ({ page }) => {
@@ -124,10 +131,25 @@ test("gallery search is debounced and synchronized to the URL", async ({ page })
 });
 
 test("contact form reports field errors without a network request", async ({ page }) => {
+  let messageRequests = 0;
+  page.on("request", (request) => {
+    if (
+      new URL(request.url()).pathname === "/api/backend/messages/" &&
+      request.method() === "POST"
+    ) {
+      messageRequests += 1;
+    }
+  });
+
   await page.goto("/contact");
   await page.getByRole("button", { name: "ارسال پیام" }).click();
-  await expect(page.getByText("نام و نام خانوادگی را کامل وارد کنید.")).toBeVisible();
-  await expect(page.getByText("متن پیام باید حداقل ۱۰ کاراکتر باشد.")).toBeVisible();
+  await expect(
+    page.getByText("نام و نام خانوادگی را کامل وارد کنید.", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("متن پیام باید حداقل ۱۰ کاراکتر باشد.", { exact: true }),
+  ).toBeVisible();
+  expect(messageRequests).toBe(0);
 });
 
 test("reduced motion disables drawer transitions", async ({ page, isMobile }) => {

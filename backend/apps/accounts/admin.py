@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import UserProfile, UserUnitMembership
+from .models import UserInvitation, UserProfile, UserUnitMembership
 
 
 
@@ -68,6 +68,41 @@ class UserProfileAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+
+@admin.register(UserInvitation)
+class UserInvitationAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "created_by",
+        "created_at",
+        "expires_at",
+        "used_at",
+    )
+    list_filter = (
+        "used_at",
+    )
+    search_fields = (
+        "user__username",
+        "user__email",
+        "created_by__username",
+    )
+    readonly_fields = (
+        "user",
+        "created_by",
+        "token_hash",
+        "created_at",
+        "updated_at",
+        "expires_at",
+        "used_at",
+    )
+    autocomplete_fields = (
+        "user",
+        "created_by",
+    )
+
+    def has_add_permission(self, request):
+        return False
 
 
 @admin.register(UserUnitMembership)

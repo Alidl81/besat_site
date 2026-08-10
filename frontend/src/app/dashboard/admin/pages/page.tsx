@@ -1,11 +1,5 @@
-﻿import { dashboardPages } from "@/components/dashboard/dashboard-data";
-import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "مدیریت صفحات | مدرسه بعثت",
-};
-
-export default function Page() {
-  return <DashboardShell panel="admin" data={dashboardPages.admin} activeKey="pages" />;
+export default function RemovedStaticPagesPage() {
+  notFound();
 }

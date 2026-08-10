@@ -28,6 +28,10 @@ import {
   type ReactNode,
 } from "react";
 import { EditorIcon, type EditorIconName } from "@/components/editor/editor-icons";
+import {
+  normalizeSafeEmbedUrl,
+  safeStructuredMediaUrl,
+} from "@/lib/editor/structured-content";
 
 export type RichEditorMode = "simple" | "advanced";
 
@@ -71,7 +75,12 @@ export type RichEditorProps = {
   mode?: RichEditorMode;
   onOutlineChange?: (outline: EditorOutlineItem[]) => void;
   onStatsChange?: (stats: EditorDocumentStats) => void;
-  onUploadMedia?: (file: File) => Promise<{ url: string }>;
+  onUploadMedia?: (file: File) => Promise<{
+    url: string;
+    media_type?: "image" | "video";
+    alt_text?: string;
+    caption?: string;
+  }>;
   onUploadState?: (uploading: boolean) => void;
   placeholder?: string;
 };
@@ -79,6 +88,11 @@ export type RichEditorProps = {
 type GalleryMediaItem = {
   src: string;
   type: "image" | "video";
+  id?: string;
+  title?: string;
+  alt?: string;
+  caption?: string;
+  credit?: string;
 };
 
 type ToolbarButtonProps = {
@@ -97,12 +111,21 @@ function safeJsonParse(value: unknown): GalleryMediaItem[] {
 
     if (!Array.isArray(parsed)) return [];
 
-    return parsed
-      .filter((item) => typeof item?.src === "string" && item.src.length > 0)
-      .map((item) => ({
-        src: item.src,
+    const items: GalleryMediaItem[] = [];
+    for (const item of parsed) {
+      const src = safeStructuredMediaUrl(item?.src);
+      if (!src) continue;
+      items.push({
+        src,
         type: item.type === "video" ? "video" : "image",
-      }));
+        id: typeof item.id === "string" ? item.id : undefined,
+        title: typeof item.title === "string" ? item.title : undefined,
+        alt: typeof item.alt === "string" ? item.alt : undefined,
+        caption: typeof item.caption === "string" ? item.caption : undefined,
+        credit: typeof item.credit === "string" ? item.credit : undefined,
+      });
+    }
+    return items;
   } catch {
     return [];
   }
@@ -117,7 +140,8 @@ function decodeHtml(value: string) {
     .replace(/&gt;/g, ">");
 }
 
-function isVideoSource(src: string) {
+function isVideoSource(src: string | null | undefined) {
+  if (!src) return false;
   const normalized = src.toLowerCase();
 
   return (
@@ -137,10 +161,20 @@ function parseGalleryItemsFromElement(element: HTMLElement) {
   const dataItems = Array.from(element.querySelectorAll<HTMLElement>("[data-besat-gallery-item]"));
 
   for (const item of dataItems) {
-    const src = item.getAttribute("data-src") ?? "";
+    const src = safeStructuredMediaUrl(item.getAttribute("data-src"));
     const type = item.getAttribute("data-type") === "video" || isVideoSource(src) ? "video" : "image";
 
-    if (src) items.push({ src: decodeHtml(src), type });
+    if (src) {
+      items.push({
+        src: decodeHtml(src),
+        type,
+        id: item.getAttribute("data-id") ?? undefined,
+        title: item.getAttribute("data-title") ?? undefined,
+        alt: item.getAttribute("data-alt") ?? undefined,
+        caption: item.getAttribute("data-caption") ?? undefined,
+        credit: item.getAttribute("data-credit") ?? undefined,
+      });
+    }
   }
 
   if (items.length > 0) return items;
@@ -148,10 +182,16 @@ function parseGalleryItemsFromElement(element: HTMLElement) {
   const mediaItems = Array.from(element.querySelectorAll<HTMLImageElement | HTMLVideoElement>("img, video"));
 
   for (const item of mediaItems) {
-    const src = item.getAttribute("src") ?? "";
+    const src = safeStructuredMediaUrl(item.getAttribute("src"));
     const type = item.tagName.toLowerCase() === "video" || isVideoSource(src) ? "video" : "image";
 
-    if (src) items.push({ src: decodeHtml(src), type });
+    if (src) {
+      items.push({
+        src: decodeHtml(src),
+        type,
+        alt: item instanceof HTMLImageElement ? item.alt : undefined,
+      });
+    }
   }
 
   return items;
@@ -174,6 +214,40 @@ function setElementClass(element: HTMLElement, selected: boolean) {
     .join(" ");
 }
 
+function createSvgIcon(paths: string[]) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2.2");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  for (const d of paths) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", d);
+    svg.appendChild(path);
+  }
+  return svg;
+}
+
+function createIconButton(className: string, label: string, iconPaths: string[]) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = className;
+  button.setAttribute("aria-label", label);
+  button.setAttribute("title", label);
+  button.appendChild(createSvgIcon(iconPaths));
+  return button;
+}
+
+const ICON_CLOSE = ["M18 6 6 18", "M6 6l12 12"];
+const ICON_PREV = ["m15 18-6-6 6-6"];
+const ICON_NEXT = ["m9 18 6-6-6-6"];
+const ICON_PLUS = ["M12 5v14", "M5 12h14"];
+
+const GALLERY_RESOLVE_UPLOAD_EVENT = "besat-gallery-resolve-upload";
+
 function createGalleryNodeView({
   node,
   editor,
@@ -192,6 +266,18 @@ function createGalleryNodeView({
   grid.className = "grid h-full gap-3 overflow-hidden sm:grid-cols-2 lg:grid-cols-3";
   dom.appendChild(grid);
 
+  const fileInput = document.createElement("input");
+  fileInput.type = "file";
+  fileInput.multiple = true;
+  fileInput.accept = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/ogg";
+  fileInput.className = "sr-only";
+  fileInput.addEventListener("change", () => {
+    const files = fileInput.files ? Array.from(fileInput.files) : [];
+    fileInput.value = "";
+    if (files.length > 0) void addFiles(files);
+  });
+  dom.appendChild(fileInput);
+
   function updateAttributes(attrs: Record<string, string>) {
     if (typeof getPos !== "function") return;
 
@@ -207,6 +293,83 @@ function createGalleryNodeView({
     );
   }
 
+  function writeItems(items: GalleryMediaItem[]) {
+    updateAttributes({ items: JSON.stringify(items) });
+  }
+
+  function getUploadHandler() {
+    const ref: { current?: (file: File) => Promise<GalleryUploadResult> } = {};
+    dom.dispatchEvent(
+      new CustomEvent(GALLERY_RESOLVE_UPLOAD_EVENT, { detail: { ref }, bubbles: true }),
+    );
+    return ref.current;
+  }
+
+  async function addFiles(files: File[]) {
+    const upload = getUploadHandler();
+    if (!upload) return;
+
+    const items = safeJsonParse(currentNode.attrs.items);
+    const next = [...items];
+
+    for (const file of files) {
+      try {
+        const uploaded = await upload(file);
+        next.push({
+          src: uploaded.url,
+          type: uploaded.media_type === "video" || file.type.startsWith("video/") ? "video" : "image",
+          id: `upload-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          title: file.name,
+          alt: uploaded.alt_text ?? file.name,
+          caption: uploaded.caption ?? "",
+        });
+      } catch {
+        // A single failed upload shouldn't drop the others already added.
+      }
+    }
+
+    writeItems(next);
+  }
+
+  function removeItem(index: number) {
+    const items = safeJsonParse(currentNode.attrs.items);
+    writeItems(items.filter((_, itemIndex) => itemIndex !== index));
+  }
+
+  function moveItem(index: number, direction: -1 | 1) {
+    const items = safeJsonParse(currentNode.attrs.items);
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= items.length) return;
+
+    const next = [...items];
+    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+    writeItems(next);
+  }
+
+  function updateItemField(index: number, field: "alt" | "caption", value: string) {
+    const items = safeJsonParse(currentNode.attrs.items);
+    if (!items[index]) return;
+
+    const next = [...items];
+    next[index] = { ...next[index], [field]: value };
+    writeItems(next);
+  }
+
+  function createAddTile(compact: boolean) {
+    const tile = document.createElement("button");
+    tile.type = "button";
+    tile.className = compact
+      ? "besat-gallery-add-tile besat-gallery-add-tile--compact"
+      : "besat-gallery-add-tile";
+    tile.setAttribute("aria-label", "افزودن تصویر یا ویدیو به گالری");
+    tile.appendChild(createSvgIcon(ICON_PLUS));
+    const label = document.createElement("span");
+    label.textContent = "افزودن رسانه";
+    tile.appendChild(label);
+    tile.addEventListener("click", () => fileInput.click());
+    return tile;
+  }
+
   function render() {
     const items = safeJsonParse(currentNode.attrs.items);
     const width = typeof currentNode.attrs.width === "string" ? currentNode.attrs.width : "100%";
@@ -220,22 +383,28 @@ function createGalleryNodeView({
       : "grid h-full gap-3 overflow-hidden sm:grid-cols-2 lg:grid-cols-3";
     grid.innerHTML = "";
 
+    // The add-media tile's click handler re-checks the upload handler at
+    // click time rather than gating its render here, since the handler is
+    // synced into editor.storage by a React effect that can run after this
+    // node view's first render — gating on render would make the button
+    // (dis)appear inconsistently for content that already had a gallery
+    // block when the editor mounted.
     if (items.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "flex min-h-44 items-center justify-center rounded-[1.3rem] border border-dashed border-slate-200 bg-white text-sm font-bold text-slate-400";
-      empty.textContent = "بلوک گالری خالی است.";
-      grid.appendChild(empty);
+      grid.appendChild(createAddTile(false));
       return;
     }
 
-    for (const item of items) {
+    items.forEach((item, index) => {
       const frame = document.createElement("div");
-      frame.className = "overflow-hidden rounded-[1.3rem] border border-slate-200 bg-white";
+      frame.className = "besat-gallery-item overflow-hidden rounded-[1.3rem] border border-slate-200 bg-white";
 
       if (isScrollable) {
         frame.style.width = "clamp(9rem, 31%, 18rem)";
         frame.style.flex = "0 0 clamp(9rem, 31%, 18rem)";
       }
+
+      const media = document.createElement("div");
+      media.className = "besat-gallery-item-media";
 
       if (item.type === "video") {
         const video = document.createElement("video");
@@ -243,18 +412,60 @@ function createGalleryNodeView({
         video.muted = true;
         video.className = "w-full bg-slate-950 object-cover";
         video.style.height = height;
-        frame.appendChild(video);
+        media.appendChild(video);
       } else {
         const image = document.createElement("img");
         image.src = item.src;
-        image.alt = "";
+        image.alt = item.alt ?? "";
         image.className = "w-full bg-slate-100 object-cover";
         image.style.height = height;
-        frame.appendChild(image);
+        media.appendChild(image);
       }
 
+      const toolbar = document.createElement("div");
+      toolbar.className = "besat-gallery-item-toolbar";
+
+      const prevButton = createIconButton("besat-gallery-item-button", "جابجایی به عقب", ICON_PREV);
+      prevButton.disabled = index === 0;
+      prevButton.addEventListener("click", () => moveItem(index, -1));
+
+      const nextButton = createIconButton("besat-gallery-item-button", "جابجایی به جلو", ICON_NEXT);
+      nextButton.disabled = index === items.length - 1;
+      nextButton.addEventListener("click", () => moveItem(index, 1));
+
+      const removeButton = createIconButton("besat-gallery-item-button is-danger", "حذف از گالری", ICON_CLOSE);
+      removeButton.addEventListener("click", () => removeItem(index));
+
+      toolbar.append(prevButton, nextButton, removeButton);
+      media.appendChild(toolbar);
+      frame.appendChild(media);
+
+      const fields = document.createElement("div");
+      fields.className = "besat-gallery-item-fields";
+
+      const altInput = document.createElement("input");
+      altInput.type = "text";
+      altInput.placeholder = "متن جایگزین (alt)";
+      altInput.value = item.alt ?? "";
+      altInput.className = "besat-gallery-item-input";
+      altInput.setAttribute("aria-label", `متن جایگزین تصویر ${index + 1}`);
+      altInput.addEventListener("change", () => updateItemField(index, "alt", altInput.value));
+
+      const captionInput = document.createElement("input");
+      captionInput.type = "text";
+      captionInput.placeholder = "کپشن";
+      captionInput.value = item.caption ?? "";
+      captionInput.className = "besat-gallery-item-input";
+      captionInput.setAttribute("aria-label", `کپشن تصویر ${index + 1}`);
+      captionInput.addEventListener("change", () => updateItemField(index, "caption", captionInput.value));
+
+      fields.append(altInput, captionInput);
+      frame.appendChild(fields);
+
       grid.appendChild(frame);
-    }
+    });
+
+    grid.appendChild(createAddTile(isScrollable));
   }
 
   function startResize(corner: "top-right" | "top-left" | "bottom-right" | "bottom-left", event: MouseEvent) {
@@ -343,8 +554,17 @@ function createGalleryNodeView({
   };
 }
 
+type GalleryUploadResult = {
+  url: string;
+  media_type?: "image" | "video";
+  alt_text?: string;
+  caption?: string;
+};
+
 const BesatGalleryBlock = TiptapNode.create({
   name: "besatGalleryBlock",
+
+  priority: 1000,
 
   group: "block",
 
@@ -402,6 +622,11 @@ const BesatGalleryBlock = TiptapNode.create({
         "data-besat-gallery-item": "",
         "data-type": item.type,
         "data-src": item.src,
+        ...(item.id ? { "data-id": item.id } : {}),
+        ...(item.title ? { "data-title": item.title } : {}),
+        ...(item.alt ? { "data-alt": item.alt } : {}),
+        ...(item.caption ? { "data-caption": item.caption } : {}),
+        ...(item.credit ? { "data-credit": item.credit } : {}),
       },
     ]);
 
@@ -419,6 +644,314 @@ const BesatGalleryBlock = TiptapNode.create({
     return (props) => createGalleryNodeView(props);
   },
 });
+
+function readStructuredText(element: HTMLElement, attribute: string, selector: string) {
+  return (
+    element.getAttribute(attribute)
+    ?? element.querySelector(selector)?.textContent?.trim()
+    ?? ""
+  );
+}
+
+function readStructuredMediaSource(element: HTMLElement) {
+  return safeStructuredMediaUrl(
+    element.getAttribute("data-src")
+    ?? element.querySelector("img, video")?.getAttribute("src"),
+  ) ?? "";
+}
+
+const BesatMediaBlock = TiptapNode.create({
+  name: "besatMediaBlock",
+  priority: 1000,
+  group: "block",
+  atom: true,
+  selectable: true,
+  draggable: true,
+
+  addAttributes() {
+    return {
+      src: {
+        default: "",
+        parseHTML: (element) => readStructuredMediaSource(element as HTMLElement),
+        renderHTML: () => ({}),
+      },
+      mediaType: {
+        default: "image",
+        parseHTML: (element) => {
+          const htmlElement = element as HTMLElement;
+          return htmlElement.getAttribute("data-media-type") === "video"
+            || htmlElement.querySelector("video")
+            ? "video"
+            : "image";
+        },
+        renderHTML: () => ({}),
+      },
+      id: {
+        default: "",
+        parseHTML: (element) => (element as HTMLElement).getAttribute("data-id") ?? "",
+        renderHTML: () => ({}),
+      },
+      title: {
+        default: "",
+        parseHTML: (element) => (element as HTMLElement).getAttribute("data-title") ?? "",
+        renderHTML: () => ({}),
+      },
+      alt: {
+        default: "",
+        parseHTML: (element) => {
+          const htmlElement = element as HTMLElement;
+          return htmlElement.getAttribute("data-alt")
+            ?? htmlElement.querySelector("img")?.getAttribute("alt")
+            ?? "";
+        },
+        renderHTML: () => ({}),
+      },
+      caption: {
+        default: "",
+        parseHTML: (element) => readStructuredText(element as HTMLElement, "data-caption", "figcaption"),
+        renderHTML: () => ({}),
+      },
+      credit: {
+        default: "",
+        parseHTML: (element) => readStructuredText(element as HTMLElement, "data-credit", "cite"),
+        renderHTML: () => ({}),
+      },
+      width: {
+        default: "",
+        parseHTML: (element) => (element as HTMLElement).getAttribute("data-width") ?? "",
+        renderHTML: () => ({}),
+      },
+      height: {
+        default: "",
+        parseHTML: (element) => (element as HTMLElement).getAttribute("data-height") ?? "",
+        renderHTML: () => ({}),
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'figure[data-besat-block="media"]' }];
+  },
+
+  renderHTML({ node, HTMLAttributes }) {
+    const attrs = node.attrs;
+    const src = safeStructuredMediaUrl(attrs.src) ?? "";
+    const media =
+      attrs.mediaType === "video"
+        ? ["video", { src, controls: "controls", preload: "metadata" }]
+        : ["img", { src, alt: attrs.alt || attrs.title || "" }];
+    const children = [
+      media,
+      ...(attrs.caption ? [["figcaption", {}, attrs.caption]] : []),
+      ...(attrs.credit ? [["cite", {}, attrs.credit]] : []),
+    ];
+    return [
+      "figure",
+      mergeAttributes(HTMLAttributes, {
+        "data-besat-block": "media",
+        "data-src": src,
+        "data-media-type": attrs.mediaType === "video" ? "video" : "image",
+        ...(attrs.id ? { "data-id": attrs.id } : {}),
+        ...(attrs.title ? { "data-title": attrs.title } : {}),
+        ...(attrs.alt ? { "data-alt": attrs.alt } : {}),
+        ...(attrs.caption ? { "data-caption": attrs.caption } : {}),
+        ...(attrs.credit ? { "data-credit": attrs.credit } : {}),
+        ...(attrs.width ? { "data-width": attrs.width } : {}),
+        ...(attrs.height ? { "data-height": attrs.height } : {}),
+      }),
+      ...children,
+    ];
+  },
+});
+
+const BesatQuoteBlock = TiptapNode.create({
+  name: "besatQuoteBlock",
+  priority: 1000,
+  group: "block",
+  atom: true,
+  selectable: true,
+  draggable: true,
+
+  addAttributes() {
+    return {
+      text: {
+        default: "",
+        parseHTML: (element) => readStructuredText(element as HTMLElement, "data-text", "p"),
+        renderHTML: () => ({}),
+      },
+      cite: {
+        default: "",
+        parseHTML: (element) => readStructuredText(element as HTMLElement, "data-cite", "cite"),
+        renderHTML: () => ({}),
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'blockquote[data-besat-block="quote"]' }];
+  },
+
+  renderHTML({ node, HTMLAttributes }) {
+    const text = String(node.attrs.text ?? "");
+    const cite = String(node.attrs.cite ?? "");
+    return [
+      "blockquote",
+      mergeAttributes(HTMLAttributes, {
+        "data-besat-block": "quote",
+        "data-text": text,
+        ...(cite ? { "data-cite": cite } : {}),
+      }),
+      ["p", {}, text],
+      ...(cite ? [["cite", {}, cite]] : []),
+    ];
+  },
+});
+
+const BesatCalloutBlock = TiptapNode.create({
+  name: "besatCalloutBlock",
+  priority: 1000,
+  group: "block",
+  atom: true,
+  selectable: true,
+  draggable: true,
+
+  addAttributes() {
+    return {
+      title: {
+        default: "",
+        parseHTML: (element) => readStructuredText(element as HTMLElement, "data-title", "h1, h2, h3, h4, h5, h6"),
+        renderHTML: () => ({}),
+      },
+      body: {
+        default: "",
+        parseHTML: (element) => readStructuredText(element as HTMLElement, "data-body", "p"),
+        renderHTML: () => ({}),
+      },
+      cite: {
+        default: "",
+        parseHTML: (element) => readStructuredText(element as HTMLElement, "data-cite", "cite"),
+        renderHTML: () => ({}),
+      },
+      tone: {
+        default: "info",
+        parseHTML: (element) => {
+          const tone = (element as HTMLElement).getAttribute("data-tone");
+          return tone === "warning" || tone === "success" ? tone : "info";
+        },
+        renderHTML: () => ({}),
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'section[data-besat-block="callout"]' }];
+  },
+
+  renderHTML({ node, HTMLAttributes }) {
+    const attrs = node.attrs;
+    return [
+      "section",
+      mergeAttributes(HTMLAttributes, {
+        "data-besat-block": "callout",
+        "data-tone": attrs.tone === "warning" || attrs.tone === "success" ? attrs.tone : "info",
+        ...(attrs.title ? { "data-title": attrs.title } : {}),
+        "data-body": attrs.body ?? "",
+        ...(attrs.cite ? { "data-cite": attrs.cite } : {}),
+      }),
+      ...(attrs.title ? [["h3", {}, attrs.title]] : []),
+      ["p", {}, attrs.body ?? ""],
+      ...(attrs.cite ? [["cite", {}, attrs.cite]] : []),
+    ];
+  },
+});
+
+const BesatEmbedBlock = TiptapNode.create({
+  name: "besatEmbedBlock",
+  priority: 1000,
+  group: "block",
+  atom: true,
+  selectable: true,
+  draggable: true,
+
+  addAttributes() {
+    return {
+      src: {
+        default: "",
+        parseHTML: (element) => {
+          const htmlElement = element as HTMLElement;
+          return normalizeSafeEmbedUrl(
+            htmlElement.getAttribute("data-src")
+            ?? htmlElement.querySelector("iframe")?.getAttribute("src"),
+          ) ?? "";
+        },
+        renderHTML: () => ({}),
+      },
+      title: {
+        default: "",
+        parseHTML: (element) => (element as HTMLElement).getAttribute("data-title")
+          ?? (element as HTMLElement).querySelector("iframe")?.getAttribute("title")
+          ?? "",
+        renderHTML: () => ({}),
+      },
+      caption: {
+        default: "",
+        parseHTML: (element) => readStructuredText(element as HTMLElement, "data-caption", "figcaption"),
+        renderHTML: () => ({}),
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'figure[data-besat-block="embed"]' }];
+  },
+
+  renderHTML({ node, HTMLAttributes }) {
+    const src = normalizeSafeEmbedUrl(node.attrs.src) ?? "";
+    const title = String(node.attrs.title || "ویدئوی درج‌شده");
+    const caption = String(node.attrs.caption ?? "");
+    return [
+      "figure",
+      mergeAttributes(HTMLAttributes, {
+        "data-besat-block": "embed",
+        "data-src": src,
+        "data-title": title,
+        ...(caption ? { "data-caption": caption } : {}),
+      }),
+      [
+        "iframe",
+        {
+          src,
+          title,
+          loading: "lazy",
+          referrerpolicy: "strict-origin-when-cross-origin",
+          allowfullscreen: "true",
+        },
+      ],
+      ...(caption ? [["figcaption", {}, caption]] : []),
+    ];
+  },
+});
+
+export function createRichEditorDocumentExtensions(mode: RichEditorMode) {
+  return [
+    StarterKit.configure({
+      link: false,
+      underline: false,
+    }),
+    BesatGalleryBlock,
+    BesatMediaBlock,
+    BesatQuoteBlock,
+    BesatCalloutBlock,
+    BesatEmbedBlock,
+    Underline,
+    Link.configure({ openOnClick: false, autolink: true, defaultProtocol: "https" }),
+    Image.configure({ inline: false, allowBase64: false }),
+    TableKit.configure({ table: { resizable: mode === "advanced" } }),
+    TextAlign.configure({
+      types: ["heading", "paragraph", "tableCell", "tableHeader"],
+    }),
+  ];
+}
 
 function ToolbarButton({ onClick, active, disabled, title, children }: ToolbarButtonProps) {
   return (
@@ -565,6 +1098,10 @@ function outlineLabel(node: JSONContent, index: number) {
 
   const labels: Record<string, string> = {
     besatGalleryBlock: "گالری رسانه",
+    besatMediaBlock: "رسانه",
+    besatQuoteBlock: "نقل‌قول",
+    besatCalloutBlock: "متن برجسته",
+    besatEmbedBlock: "ویدئوی تعبیه‌شده",
     blockquote: "نقل‌قول",
     bulletList: "فهرست نقطه‌ای",
     codeBlock: "بلوک کد",
@@ -644,11 +1181,38 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
         throw new Error("برای بارگذاری رسانه، اتصال سرویس رسانه الزامی است.");
       }
       const uploaded = await onUploadMedia(file);
-      const imageNode = { type: "image", attrs: { src: uploaded.url, alt: file.name, title: file.name } };
+      const mediaType =
+        uploaded.media_type === "video" || file.type.startsWith("video/")
+          ? "video"
+          : "image";
+      const mediaNode =
+        mediaType === "video"
+          ? {
+              type: "besatMediaBlock",
+              attrs: {
+                src: uploaded.url,
+                mediaType,
+                title: file.name,
+                alt: uploaded.alt_text ?? file.name,
+                caption: uploaded.caption ?? "",
+              },
+            }
+          : {
+              type: "image",
+              attrs: {
+                src: uploaded.url,
+                alt: uploaded.alt_text ?? file.name,
+                title: file.name,
+              },
+            };
       if (typeof position === "number") {
-        current.chain().focus().insertContentAt(position, imageNode).run();
+        current.chain().focus().insertContentAt(position, mediaNode).run();
       } else {
-        current.chain().focus().setImage(imageNode.attrs).run();
+        if (mediaType === "video") {
+          current.chain().focus().insertContent(mediaNode).run();
+        } else {
+          current.chain().focus().setImage(mediaNode.attrs).run();
+        }
       }
     } finally {
       onUploadState?.(false);
@@ -659,9 +1223,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
     extensions: [
-      StarterKit,
-      BesatGalleryBlock,
-      Underline,
+      ...createRichEditorDocumentExtensions(mode),
       CharacterCount,
       DragHandle.configure({
         render: createDragHandleElement,
@@ -669,7 +1231,16 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
         nested: { edgeDetection: "right" },
       }),
       FileHandler.configure({
-        allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"],
+        allowedMimeTypes: [
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+          "image/gif",
+          "image/avif",
+          "video/mp4",
+          "video/webm",
+          "video/ogg",
+        ],
         onDrop: (current, files, position) => {
           files.forEach((file, index) => void uploadAndInsert(current, file, position + index));
         },
@@ -677,10 +1248,6 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
           files.forEach((file) => void uploadAndInsert(current, file));
         },
       }),
-      Link.configure({ openOnClick: false, autolink: true, defaultProtocol: "https" }),
-      Image.configure({ inline: false, allowBase64: false }),
-      TableKit.configure({ table: { resizable: mode === "advanced" } }),
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
       Placeholder.configure({
         placeholder: placeholder ?? "متن محتوای خود را اینجا بنویسید...",
       }),
@@ -703,6 +1270,26 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
       emitDerivedState(current);
     },
   });
+
+  // The gallery block's node view is plain DOM (TipTap node views aren't
+  // React), so it can't read the current onUploadMedia prop directly. It
+  // asks for it via a synchronous custom event instead of a ref, since a
+  // ref read outside an effect/handler — even indirectly, e.g. passed into
+  // an extension's .configure() during render — trips the
+  // react-hooks/refs rule. The listener re-attaches whenever onUploadMedia
+  // changes, so it never reads a stale closure.
+  useEffect(() => {
+    const container = editor?.view.dom;
+    if (!container) return;
+
+    function handleResolveUploadMedia(event: Event) {
+      const detail = (event as CustomEvent<{ ref: { current?: typeof onUploadMedia } }>).detail;
+      detail.ref.current = onUploadMedia;
+    }
+
+    container.addEventListener(GALLERY_RESOLVE_UPLOAD_EVENT, handleResolveUploadMedia);
+    return () => container.removeEventListener(GALLERY_RESOLVE_UPLOAD_EVENT, handleResolveUploadMedia);
+  }, [editor, onUploadMedia]);
 
   useImperativeHandle(ref, () => ({
     insertBlock(type) {
@@ -806,7 +1393,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
       <input
         ref={imageInput}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+        accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,video/ogg"
         className="sr-only"
         onChange={(event) => {
           const file = event.target.files?.[0];

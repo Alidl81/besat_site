@@ -13,9 +13,12 @@ import {
 import type { ApiId } from "@/types/api";
 import type {
   AdminDashboard,
+  CalendarEventItem,
   ContentItem,
   ContentRevision,
+  ContentRevisionComparison,
   ContentSummary,
+  ContentWorkflowAction,
   EventItem,
   MediaDashboard,
   InternalMessageItem,
@@ -109,9 +112,11 @@ function mutate<T>(
   endpoint: string,
   method: "POST" | "PATCH" | "DELETE",
   body?: unknown,
+  options: Pick<ApiRequestOptions, "headers"> = {},
 ) {
   return authed<T>(endpoint, {
     method,
+    ...options,
     body:
       body instanceof FormData
         ? body
@@ -119,6 +124,14 @@ function mutate<T>(
           ? undefined
           : JSON.stringify(body),
   });
+}
+
+function contentWriteHeaders(id: string | number, version?: number) {
+  if (version === undefined || version === null) return undefined;
+
+  return {
+    "If-Match": `W/\"content-${encodeURIComponent(String(id))}-v${version}\"`,
+  };
 }
 
 export const panelService = {
@@ -134,7 +147,9 @@ export const panelService = {
   ) {
     const endpoint =
       panel === "admin"
-        ? apiEndpoints.dashboard.generalManager
+        ? params.role === "unit_manager"
+          ? apiEndpoints.dashboard.unitManager
+          : apiEndpoints.dashboard.generalManager
         : panel === "contentManager"
             ? apiEndpoints.dashboard.media
             : apiEndpoints.dashboard.parents;
@@ -182,6 +197,7 @@ export const panelService = {
       events: [],
       announcements: [],
       units: [],
+      accessible_units: raw.accessible_units ?? [],
     } satisfies AdminDashboard;
   },
 
@@ -259,62 +275,52 @@ export const panelService = {
   },
 
   async content(params: Record<string, QueryValue>) {
-    const records = await authed<ContentItem[]>(apiEndpoints.cms.content);
-    const search = String(params.search ?? "").trim().toLocaleLowerCase("fa");
-    const kind = String(params.kind ?? "");
-    const statusValue = String(params.status ?? "");
-    const unit = String(params.unit ?? "");
-    const filtered = records.filter((item) => {
-      if (search && !`${item.title} ${item.summary ?? ""}`.toLocaleLowerCase("fa").includes(search)) return false;
-      if (kind && item.kind !== kind) return false;
-      if (statusValue && item.status !== statusValue) return false;
-      if (unit && String(item.unit?.id ?? "") !== unit) return false;
-      return true;
-    });
-    const pageNumber = Math.max(1, Number(params.page ?? 1));
-    const pageSize = 20;
-    const start = (pageNumber - 1) * pageSize;
-    const page: PanelListResponse<ContentItem> = {
-      count: filtered.length,
-      next: start + pageSize < filtered.length ? String(pageNumber + 1) : null,
-      previous: pageNumber > 1 ? String(pageNumber - 1) : null,
-      results: filtered.slice(start, start + pageSize),
-    };
-    const summary: ContentSummary = {
-      drafts: records.filter((item) => item.status === "draft").length,
-      waiting_review: records.filter((item) => item.status === "waiting_review").length,
-      scheduled: records.filter((item) => item.status === "scheduled").length,
-      published: records.filter((item) => item.status === "published").length,
-    };
-    return { page, summary };
+    return authed<PanelListResponse<ContentItem, ContentSummary>>(
+      withQuery(apiEndpoints.cms.content, params),
+    );
+  },
+  contentItem(id: string | number) {
+    return authed<ContentItem>(detailEndpoint(apiEndpoints.cms.content, id));
+  },
+  contentPreview(id: string | number) {
+    return authed<ContentItem>(
+      actionEndpoint(apiEndpoints.cms.content, id, "preview"),
+    );
   },
   createContent(payload: Record<string, unknown>) {
     return mutate<ContentItem>(apiEndpoints.cms.content, "POST", payload);
   },
-  updateContent(id: string | number, payload: Record<string, unknown>) {
+  updateContent(
+    id: string | number,
+    payload: Record<string, unknown>,
+    version?: number,
+  ) {
     return mutate<ContentItem>(
       detailEndpoint(apiEndpoints.cms.content, id),
       "PATCH",
-      payload,
+      version === undefined ? payload : { ...payload, version },
+      { headers: contentWriteHeaders(id, version) },
     );
   },
-  removeContent(id: string | number) {
-    return mutate<void>(detailEndpoint(apiEndpoints.cms.content, id), "DELETE");
+  removeContent(id: string | number, version?: number) {
+    return mutate<void>(
+      detailEndpoint(apiEndpoints.cms.content, id),
+      "DELETE",
+      undefined,
+      { headers: contentWriteHeaders(id, version) },
+    );
   },
   contentAction(
     id: string | number,
-    action:
-      | "submit-review"
-      | "approve"
-      | "reject"
-      | "publish"
-      | "schedule",
+    action: ContentWorkflowAction,
     payload: Record<string, unknown> = {},
+    version?: number,
   ) {
     return mutate<ContentItem>(
       actionEndpoint(apiEndpoints.cms.content, id, action),
       "POST",
-      payload,
+      version === undefined ? payload : { ...payload, version },
+      { headers: contentWriteHeaders(id, version) },
     );
   },
   contentRevisions(id: string | number) {
@@ -322,10 +328,31 @@ export const panelService = {
       `${detailEndpoint(apiEndpoints.cms.content, id)}revisions/`,
     );
   },
-  restoreContentRevision(id: string | number, revisionId: string | number) {
+  contentRevisionComparison(
+    id: string | number,
+    targetRevisionId: string | number,
+    againstRevisionId?: string | number,
+  ) {
+    return authed<ContentRevisionComparison>(
+      withQuery(
+        detailEndpoint(apiEndpoints.cms.content, id)
+          + "revisions/"
+          + encodeURIComponent(String(targetRevisionId))
+          + "/compare/",
+        { against: againstRevisionId },
+      ),
+    );
+  },
+  restoreContentRevision(
+    id: string | number,
+    revisionId: string | number,
+    version?: number,
+  ) {
     return mutate<ContentItem>(
       `${detailEndpoint(apiEndpoints.cms.content, id)}revisions/${encodeURIComponent(String(revisionId))}/restore/`,
       "POST",
+      version === undefined ? undefined : { version },
+      { headers: contentWriteHeaders(id, version) },
     );
   },
   async contentCategories() {
@@ -390,13 +417,34 @@ export const panelService = {
       }),
     );
   },
-  events(params: Record<string, QueryValue> = {}) {
-    return authed<PanelListResponse<EventItem>>(
+  calendarEvents(params: Record<string, QueryValue> = {}) {
+    return authed<PanelListResponse<CalendarEventItem>>(
       withQuery(apiEndpoints.cms.events, params),
     );
   },
-  createEvent(payload: Record<string, unknown>) {
-    return mutate<EventItem>(apiEndpoints.cms.events, "POST", payload);
+  createCalendarEvent(payload: Record<string, unknown>) {
+    return mutate<CalendarEventItem>(apiEndpoints.cms.events, "POST", payload);
+  },
+  updateCalendarEvent(id: string | number, payload: Record<string, unknown>) {
+    return mutate<CalendarEventItem>(
+      detailEndpoint(apiEndpoints.cms.events, id),
+      "PATCH",
+      payload,
+    );
+  },
+  removeCalendarEvent(id: string | number) {
+    return mutate<void>(detailEndpoint(apiEndpoints.cms.events, id), "DELETE");
+  },
+  calendarEventAction(
+    id: string | number,
+    action: "submit-review" | "approve" | "reject" | "publish" | "archive" | "restore",
+    payload: Record<string, unknown> = {},
+  ) {
+    return mutate<CalendarEventItem>(
+      actionEndpoint(apiEndpoints.cms.events, id, action),
+      "POST",
+      payload,
+    );
   },
   reports(params: Record<string, QueryValue> = {}) {
     return authed<ReportOverview>(

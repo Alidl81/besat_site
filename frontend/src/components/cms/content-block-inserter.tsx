@@ -1,8 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+/* eslint-disable @next/next/no-img-element */
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { EditorIcon, type EditorIconName } from "@/components/editor/editor-icons";
 import { getApiErrorMessage } from "@/lib/api/client";
+import {
+  buildCalloutBlockHtml,
+  buildEmbedBlockHtml,
+  buildGalleryBlockHtml,
+  buildMediaBlockHtml,
+  buildQuoteBlockHtml,
+  normalizeSafeEmbedUrl,
+  safeStructuredMediaUrl,
+  type StructuredMediaItem,
+} from "@/lib/editor/structured-content";
 import { panelService } from "@/services/panel-service";
 import type { MediaAsset } from "@/types/panel-api";
 
@@ -14,12 +27,10 @@ type ContentBlockInserterProps = {
   onUploadState?: (uploading: boolean) => void;
 };
 
-type BlockType = "gallery" | "media" | "quote" | "highlight";
+type BlockType = "gallery" | "media" | "quote" | "highlight" | "embed";
 
-type MediaDraft = {
+type MediaDraft = StructuredMediaItem & {
   id: string;
-  title: string;
-  src: string;
   mediaType: "image" | "video";
   origin: "library" | "upload" | "url";
 };
@@ -34,14 +45,6 @@ const SUPPORTED_MEDIA_TYPES = new Set([
   "video/webm",
   "video/ogg",
 ]);
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 function isVideoSource(src: string, mediaType?: MediaDraft["mediaType"]) {
   if (mediaType === "video") return true;
@@ -66,71 +69,15 @@ function getMediaLabel(src: string) {
   return `${src.slice(0, 42)}...${src.slice(-18)}`;
 }
 
-function buildMediaElement(media: MediaDraft, className = "h-56 w-full rounded-3xl") {
-  const src = escapeHtml(media.src);
-  const title = escapeHtml(media.title);
-
-  if (isVideoSource(media.src, media.mediaType)) {
-    return `<video src="${src}" controls class="${className} bg-slate-950 object-cover"></video>`;
-  }
-
-  return `<img src="${src}" alt="${title}" class="${className} bg-slate-100 object-cover" />`;
-}
-
-function buildGalleryBlock(items: MediaDraft[]) {
-  const cards = items
-    .map((item) => {
-      const src = escapeHtml(item.src);
-      const type = isVideoSource(item.src, item.mediaType) ? "video" : "image";
-
-      return `<div data-besat-gallery-item data-type="${type}" data-src="${src}"></div>`;
-    })
-    .join("");
-
-  return `
-<section data-besat-block="gallery" class="my-8">
-  ${cards}
-</section>`;
-}
-
-function buildSingleMediaBlock(item: MediaDraft) {
-  const title = escapeHtml(item.title);
-
-  return `
-<figure data-besat-block="media" class="my-8 overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm">
-  ${buildMediaElement(item, "max-h-[30rem] w-full rounded-[1.6rem]")}
-  <figcaption class="mt-4 text-right text-sm font-black text-[#062452]">${title}</figcaption>
-</figure>`;
-}
-
-function buildQuoteBlock(text: string, source: string) {
-  const safeText = escapeHtml(text);
-  const safeSource = escapeHtml(source);
-
-  return `
-<blockquote data-besat-block="quote" class="my-8 rounded-[2rem] border-r-4 border-blue-500 bg-blue-50 p-6 text-right">
-  <p class="text-lg font-black leading-9 text-[#062452]">${safeText}</p>
-  ${safeSource ? `<cite class="mt-4 block text-sm font-bold not-italic text-blue-700">${safeSource}</cite>` : ""}
-</blockquote>`;
-}
-
-function buildHighlightBlock(title: string, body: string) {
-  const safeTitle = escapeHtml(title);
-  const safeBody = escapeHtml(body);
-
-  return `
-<section data-besat-block="highlight" class="my-8 rounded-[2rem] border border-slate-200 bg-[#062452] p-6 text-right text-white shadow-sm">
-  ${safeTitle ? `<h3 class="text-xl font-black">${safeTitle}</h3>` : ""}
-  <p class="mt-3 text-sm font-bold leading-8 text-white/80">${safeBody}</p>
-</section>`;
-}
-
 function mediaDraftFromAsset(asset: MediaAsset): MediaDraft {
   return {
     id: `media-${asset.id}`,
     title: asset.title,
     src: asset.url,
     mediaType: asset.media_type,
+    type: asset.media_type,
+    alt: asset.alt_text,
+    caption: asset.caption,
     origin: "library",
   };
 }
@@ -140,12 +87,7 @@ function getUrlMediaType(url: string): MediaDraft["mediaType"] {
 }
 
 function isSafeMediaUrl(url: string) {
-  try {
-    const parsed = new URL(url, window.location.origin);
-    return parsed.protocol === "https:" || parsed.protocol === "http:";
-  } catch {
-    return false;
-  }
+  return Boolean(safeStructuredMediaUrl(url));
 }
 
 function fileValidationMessage(file: File): string | null {
@@ -171,16 +113,48 @@ export function ContentBlockInserter({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [directUrl, setDirectUrl] = useState("");
   const [directTitle, setDirectTitle] = useState("");
+  const [directAlt, setDirectAlt] = useState("");
+  const [mediaCaption, setMediaCaption] = useState("");
+  const [mediaCredit, setMediaCredit] = useState("");
   const [quoteText, setQuoteText] = useState("");
   const [quoteSource, setQuoteSource] = useState("");
   const [highlightTitle, setHighlightTitle] = useState("");
   const [highlightBody, setHighlightBody] = useState("");
+  const [embedUrl, setEmbedUrl] = useState("");
+  const [embedTitle, setEmbedTitle] = useState("");
+  const [embedCaption, setEmbedCaption] = useState("");
   const [errorText, setErrorText] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+
+  const resetDialogState = useCallback(() => {
+    setSelectedIds([]);
+    setDirectUrl("");
+    setDirectTitle("");
+    setDirectAlt("");
+    setMediaCaption("");
+    setMediaCredit("");
+    setQuoteText("");
+    setQuoteSource("");
+    setHighlightTitle("");
+    setHighlightBody("");
+    setEmbedUrl("");
+    setEmbedTitle("");
+    setEmbedCaption("");
+    setErrorText("");
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    setOpen(false);
+    resetDialogState();
+    window.setTimeout(() => openerRef.current?.focus(), 0);
+  }, [resetDialogState]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || (activeType !== "gallery" && activeType !== "media")) return;
 
     let cancelled = false;
     queueMicrotask(() => {
@@ -201,32 +175,69 @@ export function ContentBlockInserter({
     return () => {
       cancelled = true;
     };
-  }, [open, unitId]);
+  }, [activeType, open, unitId]);
 
   const allMediaItems = [...customItems, ...(libraryItems ?? [])];
 
-  function resetDialogState() {
-    setSelectedIds([]);
-    setDirectUrl("");
-    setDirectTitle("");
-    setQuoteText("");
-    setQuoteSource("");
-    setHighlightTitle("");
-    setHighlightBody("");
-    setErrorText("");
-  }
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeDialog();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
+      )).filter((element) => element.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closeDialog, open]);
 
   function openDialog(type: BlockType) {
+    openerRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
     setActiveType(type);
     resetDialogState();
     setOpen(true);
   }
 
   function appendBlock(blockHtml: string) {
+    if (!blockHtml) return;
     const separator = value.trim() ? "\n\n" : "";
     onChange(`${value}${separator}${blockHtml}`);
     setOpen(false);
     resetDialogState();
+    window.setTimeout(() => openerRef.current?.focus(), 0);
   }
 
   function toggleMedia(id: string) {
@@ -260,6 +271,10 @@ export function ContentBlockInserter({
       title: directTitle.trim() || "مدیای لینک‌شده",
       src,
       mediaType: getUrlMediaType(src),
+      type: getUrlMediaType(src),
+      alt: directAlt.trim() || directTitle.trim(),
+      caption: mediaCaption.trim(),
+      credit: mediaCredit.trim(),
       origin: "url",
     };
 
@@ -267,6 +282,7 @@ export function ContentBlockInserter({
     setSelectedIds((current) => activeType === "media" ? [id] : [id, ...current]);
     setDirectUrl("");
     setDirectTitle("");
+    setDirectAlt("");
     setErrorText("");
   }
 
@@ -297,8 +313,8 @@ export function ContentBlockInserter({
         const result = await panelService.uploadMedia(file, {
           unitId,
           title: directTitle.trim() || file.name,
-          altText: directTitle.trim() || file.name,
-          caption: directTitle.trim(),
+          altText: directAlt.trim() || directTitle.trim() || file.name,
+          caption: mediaCaption.trim(),
         });
 
         const item: MediaDraft = {
@@ -306,12 +322,21 @@ export function ContentBlockInserter({
           title: file.name,
           src: result.url,
           mediaType: result.media_type,
+          type: result.media_type,
+          alt: result.alt_text || directAlt.trim() || file.name,
+          caption: result.caption || mediaCaption.trim(),
+          credit: mediaCredit.trim(),
           origin: "upload",
         };
 
         setCustomItems((current) => [item, ...current]);
         setSelectedIds((current) => (activeType === "media" ? [id] : [id, ...current]));
-      } catch {
+      } catch (reason) {
+        const apiMessage = getApiErrorMessage(reason);
+        if (apiMessage) {
+          setErrorText(apiMessage);
+          continue;
+        }
         setErrorText("خواندن فایل انجام نشد.");
       }
     }
@@ -325,14 +350,20 @@ export function ContentBlockInserter({
     if (activeType === "gallery") {
       const selectedItems = allMediaItems.filter((item) => selectedIds.includes(item.id));
       if (selectedItems.length === 0) return;
-      appendBlock(buildGalleryBlock(selectedItems));
+      appendBlock(buildGalleryBlockHtml(selectedItems));
       return;
     }
 
     if (activeType === "media") {
       const selectedItem = allMediaItems.find((item) => selectedIds.includes(item.id));
       if (!selectedItem) return;
-      appendBlock(buildSingleMediaBlock(selectedItem));
+      appendBlock(buildMediaBlockHtml({
+        ...selectedItem,
+        type: selectedItem.mediaType,
+        alt: directAlt.trim() || selectedItem.alt || selectedItem.title,
+        caption: mediaCaption.trim() || selectedItem.caption || selectedItem.title,
+        credit: mediaCredit.trim() || selectedItem.credit,
+      }));
       return;
     }
 
@@ -342,7 +373,7 @@ export function ContentBlockInserter({
         return;
       }
 
-      appendBlock(buildQuoteBlock(quoteText.trim(), quoteSource.trim()));
+      appendBlock(buildQuoteBlockHtml(quoteText.trim(), quoteSource.trim()));
       return;
     }
 
@@ -352,7 +383,16 @@ export function ContentBlockInserter({
         return;
       }
 
-      appendBlock(buildHighlightBlock(highlightTitle.trim(), highlightBody.trim()));
+      appendBlock(buildCalloutBlockHtml(highlightTitle.trim(), highlightBody.trim()));
+      return;
+    }
+
+    if (activeType === "embed") {
+      if (!normalizeSafeEmbedUrl(embedUrl)) {
+        setErrorText("نشانی ویدئو باید از YouTube یا Vimeo باشد.");
+        return;
+      }
+      appendBlock(buildEmbedBlockHtml(embedUrl, embedTitle, embedCaption));
     }
   }
 
@@ -361,6 +401,7 @@ export function ContentBlockInserter({
     { key: "media", title: "مدیای تکی", description: "یک عکس یا ویدیو با توضیح", icon: "image" },
     { key: "quote", title: "نقل‌قول", description: "متن شاخص یا نقل‌قول", icon: "quote" },
     { key: "highlight", title: "متن برجسته", description: "باکس تأکیدی داخل متن", icon: "heading" },
+    { key: "embed", title: "ویدئوی امن", description: "ویدئوی YouTube یا Vimeo با نمایش امن", icon: "gallery" },
   ];
 
   const insertDisabled =
@@ -396,19 +437,27 @@ export function ContentBlockInserter({
         </div>
       </div>
 
-      {open ? (
-        <div
-          dir="rtl"
-          className="fixed inset-0 z-[95] flex items-start justify-center overflow-y-auto bg-slate-950/45 p-4 backdrop-blur-sm sm:p-8"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setOpen(false);
-          }}
-        >
-          <div className="w-full max-w-6xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5 sm:p-6">
+      {open
+        ? createPortal(
+            <div
+              dir="rtl"
+              className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm sm:p-8"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) closeDialog();
+              }}
+            >
+              <div
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="content-block-dialog-title"
+                tabIndex={-1}
+                className="flex max-h-[90dvh] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl"
+              >
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 p-5 sm:p-6">
               <div className="text-right">
                 <p className="text-xs font-black text-blue-600">بلوک محتوا</p>
-                <h2 className="mt-1 text-xl font-black text-[#062452]">
+                <h2 id="content-block-dialog-title" className="mt-1 text-xl font-black text-[#062452]">
                   افزودن بلوک {blockTypes.find((item) => item.key === activeType)?.title}
                 </h2>
                 <p className="mt-2 text-sm font-bold leading-7 text-slate-500">
@@ -417,8 +466,9 @@ export function ContentBlockInserter({
               </div>
 
               <button
+                ref={closeButtonRef}
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={closeDialog}
                 aria-label="بستن"
                 className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
               >
@@ -426,7 +476,7 @@ export function ContentBlockInserter({
               </button>
             </div>
 
-            <div className="p-5 sm:p-6">
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
               {activeType === "gallery" || activeType === "media" ? (
                 <div className="grid gap-5 lg:grid-cols-[20rem_1fr]">
                   <aside className="rounded-[1.8rem] border border-slate-200 bg-slate-50 p-4">
@@ -476,6 +526,34 @@ export function ContentBlockInserter({
                           onChange={(event) => setDirectUrl(event.target.value)}
                           dir="ltr"
                           className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-left text-sm font-bold text-[#062452] outline-none focus:border-blue-400"
+                        />
+                      </label>
+
+                      <label className="block text-right">
+                        <span className="mb-2 block text-xs font-black text-[#062452]">
+                          متن جایگزین تصویر
+                        </span>
+                        <input
+                          value={directAlt}
+                          onChange={(event) => setDirectAlt(event.target.value)}
+                          className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-right text-sm font-bold text-[#062452] outline-none focus:border-blue-400"
+                        />
+                      </label>
+
+                      <label className="block text-right">
+                        <span className="mb-2 block text-xs font-black text-[#062452]">
+                          زیرنویس و اعتبار
+                        </span>
+                        <input
+                          value={mediaCaption}
+                          onChange={(event) => setMediaCaption(event.target.value)}
+                          className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-right text-sm font-bold text-[#062452] outline-none focus:border-blue-400"
+                        />
+                        <input
+                          value={mediaCredit}
+                          onChange={(event) => setMediaCredit(event.target.value)}
+                          placeholder="نام صاحب اثر یا منبع"
+                          className="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-right text-sm font-bold text-[#062452] outline-none focus:border-blue-400"
                         />
                       </label>
 
@@ -611,8 +689,42 @@ export function ContentBlockInserter({
                 </div>
               ) : null}
 
+              {activeType === "embed" ? (
+                <div className="space-y-4">
+                  <label className="block text-right">
+                    <span className="mb-2 block text-sm font-black text-[#062452]">
+                      نشانی ویدئو (YouTube یا Vimeo)
+                    </span>
+                    <input
+                      value={embedUrl}
+                      onChange={(event) => setEmbedUrl(event.target.value)}
+                      dir="ltr"
+                      inputMode="url"
+                      placeholder="https://youtu.be/..."
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-left text-sm font-bold text-[#062452] outline-none focus:border-blue-400 focus:bg-white"
+                    />
+                  </label>
+                  <label className="block text-right">
+                    <span className="mb-2 block text-sm font-black text-[#062452]">عنوان و زیرنویس</span>
+                    <input
+                      value={embedTitle}
+                      onChange={(event) => setEmbedTitle(event.target.value)}
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none focus:border-blue-400 focus:bg-white"
+                    />
+                    <input
+                      value={embedCaption}
+                      onChange={(event) => setEmbedCaption(event.target.value)}
+                      className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none focus:border-blue-400 focus:bg-white"
+                    />
+                  </label>
+                  <p className="text-xs font-bold leading-6 text-slate-500">
+                    فقط نشانی‌های قابل‌اعتماد YouTube و Vimeo به نمایش تعبیه‌شده تبدیل می‌شوند.
+                  </p>
+                </div>
+              ) : null}
+
               {errorText ? (
-                <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600">
+                <p role="alert" className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600">
                   {errorText}
                 </p>
               ) : null}
@@ -620,7 +732,7 @@ export function ContentBlockInserter({
               <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <button
                   type="button"
-                  onClick={() => setOpen(false)}
+                  onClick={closeDialog}
                   className="h-12 rounded-2xl border border-slate-200 bg-white px-6 text-sm font-black text-[#062452] transition hover:bg-slate-50"
                 >
                   انصراف
@@ -635,9 +747,11 @@ export function ContentBlockInserter({
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      ) : null}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }

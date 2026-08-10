@@ -136,11 +136,30 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# Empty by default so apps.accounts.invitations.email_backend_is_configured()
+# can tell "SMTP actually configured" apart from Django's own EMAIL_HOST
+# default of "localhost" (which would read as truthy even when unset).
+EMAIL_HOST = env("EMAIL_HOST", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="besat@localhost")
+
+# Used only to build the absolute set-password link embedded in invitation
+# emails (the CMS UI itself builds the link from its own browser origin).
+FRONTEND_BASE_URL = env("FRONTEND_BASE_URL", default="http://localhost:3000")
+
 STATIC_URL = env("STATIC_URL", default="/static/")
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = env("MEDIA_URL", default="/media/")
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Applies to every response, including the DEBUG-only media file serving in
+# config/urls.py — the one place a MIME-sniffing browser could be tricked
+# into executing an uploaded file as HTML/SVG despite the upload validators.
+SECURE_CONTENT_TYPE_NOSNIFF = True
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = env.int(
     "DATA_UPLOAD_MAX_MEMORY_SIZE",
@@ -172,6 +191,18 @@ CSRF_TRUSTED_ORIGINS = csv_env(
     "http://localhost:3000,http://127.0.0.1:3000",
 )
 
+# The Next.js BFF proxy (frontend/src/app/api/backend/[...path]/route.ts)
+# is the only intended reverse proxy in front of this backend. Trusting
+# X-Forwarded-Host/-Proto is safe only when a proxy that overwrites (not
+# appends) those headers sits directly in front of Django, so it stays
+# opt-in rather than a default. Without it, request.build_absolute_uri()
+# emits the proxy's internal upstream hostname (e.g. "backend:8000" inside
+# Docker) instead of the public host, breaking every generated media URL.
+TRUST_PROXY_HEADERS = env.bool("TRUST_PROXY_HEADERS", default=False)
+if TRUST_PROXY_HEADERS:
+    USE_X_FORWARDED_HOST = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -198,6 +229,7 @@ REST_FRAMEWORK = {
         "contact": "5/hour",
         "registration": "3/hour",
         "password_change": "5/hour",
+        "set_password": "10/hour",
     },
 
     "DEFAULT_FILTER_BACKENDS": [

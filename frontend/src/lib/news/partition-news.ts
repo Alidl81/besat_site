@@ -1,30 +1,25 @@
 import type { PublicNewsItem } from "@/types/public-content";
 
-export function partitionNews(items: PublicNewsItem[]) {
-  const used = new Set<number>();
-  const take = (
-    predicate: (item: PublicNewsItem) => boolean,
-    limit: number,
-  ) =>
-    items
-      .filter((item) => !used.has(item.id) && predicate(item))
-      .sort(
-        (a, b) =>
-          b.priority - a.priority ||
-          Date.parse(b.published_at) - Date.parse(a.published_at),
-      )
-      .slice(0, limit)
-      .map((item) => {
-        used.add(item.id);
-        return item;
-      });
+function byPriority(a: PublicNewsItem, b: PublicNewsItem) {
+  return (
+    b.priority - a.priority ||
+    Date.parse(b.published_at) - Date.parse(a.published_at)
+  );
+}
 
-  return {
-    featured: take(
-      (item) => item.is_featured || item.is_important || item.priority > 0,
-      6,
-    ),
-    important: take((item) => item.is_important, 6),
-    units: take((item) => item.unit !== null, 9),
-  };
+/**
+ * Disjoint classification: featured takes precedence when both flags are
+ * true, so every item belongs to exactly one section. Priority only orders
+ * within a section — it never moves an item across the boundary.
+ */
+export function partitionNews(items: PublicNewsItem[]) {
+  const featured = items.filter((item) => item.is_featured).sort(byPriority);
+  const important = items
+    .filter((item) => item.is_important && !item.is_featured)
+    .sort(byPriority);
+  const ordinary = items
+    .filter((item) => !item.is_featured && !item.is_important)
+    .sort(byPriority);
+
+  return { featured, important, ordinary };
 }

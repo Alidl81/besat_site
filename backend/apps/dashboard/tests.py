@@ -9,7 +9,7 @@ from apps.news.models import News
 from apps.registration.models import RegistrationRequest
 from apps.units.models import SchoolUnit
 
-from .models import Program, Student
+from .models import InternalMessage, Program, Student
 
 User = get_user_model()
 
@@ -302,3 +302,157 @@ class DashboardAPITests(TestCase):
         self.assertEqual(allowed.status_code, 200)
         self.assertIn("metrics", allowed.data)
         self.assertEqual(denied.status_code, 403)
+
+
+class InternalMessageAPITests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+        self.unit_1 = SchoolUnit.objects.create(
+            title="دبستان",
+            slug="primary-school-msg",
+            is_active=True,
+            order=1,
+        )
+        self.unit_2 = SchoolUnit.objects.create(
+            title="متوسطه",
+            slug="middle-school-msg",
+            is_active=True,
+            order=2,
+        )
+
+        self.general_manager = self.create_user(
+            username="msg-general",
+            role=UserProfile.Role.GENERAL_MANAGER,
+        )
+        self.unit_manager_1 = self.create_user(
+            username="msg-unitmanager1",
+            role=UserProfile.Role.UNIT_MANAGER,
+        )
+        self.unit_media_1 = self.create_user(
+            username="msg-unitmedia1",
+            role=UserProfile.Role.UNIT_MEDIA,
+        )
+        self.unit_manager_2 = self.create_user(
+            username="msg-unitmanager2",
+            role=UserProfile.Role.UNIT_MANAGER,
+        )
+
+        UserUnitMembership.objects.create(
+            user=self.unit_manager_1,
+            unit=self.unit_1,
+            role=UserUnitMembership.UnitRole.UNIT_MANAGER,
+            is_active=True,
+        )
+        UserUnitMembership.objects.create(
+            user=self.unit_media_1,
+            unit=self.unit_1,
+            role=UserUnitMembership.UnitRole.UNIT_MEDIA,
+            is_active=True,
+        )
+        UserUnitMembership.objects.create(
+            user=self.unit_manager_2,
+            unit=self.unit_2,
+            role=UserUnitMembership.UnitRole.UNIT_MANAGER,
+            is_active=True,
+        )
+
+    def create_user(self, username, role):
+        user = User.objects.create_user(
+            username=username,
+            password="password123",
+            email=f"{username}@example.com",
+        )
+
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.role = role
+        profile.is_active = True
+        profile.full_name = username
+        profile.save()
+
+        return user
+
+    def authenticate(self, user):
+        self.client.force_authenticate(user=user)
+
+    def send_message(self, recipient):
+        return self.client.post(
+            "/api/cms/internal-messages/",
+            {
+                "recipient_id": f"user-{recipient.get_username()}",
+                "subject": "موضوع پیام",
+                "body": "متن پیام آزمایشی",
+            },
+            format="json",
+        )
+
+    def test_recipients_list_excludes_self_and_out_of_scope_users(self):
+        self.authenticate(self.unit_manager_1)
+
+        response = self.client.get("/api/cms/internal-messages/recipients/")
+
+        self.assertEqual(response.status_code, 200)
+        recipient_ids = {item["id"] for item in response.data}
+        self.assertNotIn(f"user-{self.unit_manager_1.get_username()}", recipient_ids)
+        self.assertIn(f"user-{self.unit_media_1.get_username()}", recipient_ids)
+        self.assertIn(f"user-{self.general_manager.get_username()}", recipient_ids)
+        self.assertNotIn(f"user-{self.unit_manager_2.get_username()}", recipient_ids)
+
+    def test_create_rejects_self_recipient_even_when_frontend_filter_is_bypassed(self):
+        self.authenticate(self.unit_manager_1)
+
+        response = self.send_message(self.unit_manager_1)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("recipient_id", response.data)
+        self.assertEqual(InternalMessage.objects.count(), 0)
+
+    def test_create_rejects_recipient_outside_sender_scope(self):
+        self.authenticate(self.unit_manager_1)
+
+        response = self.send_message(self.unit_manager_2)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("recipient_id", response.data)
+        self.assertEqual(InternalMessage.objects.count(), 0)
+
+    def test_create_rejects_unknown_recipient_reference(self):
+        self.authenticate(self.unit_manager_1)
+
+        response = self.client.post(
+            "/api/cms/internal-messages/",
+            {
+                "recipient_id": "user-does-not-exist",
+                "subject": "موضوع",
+                "body": "متن پیام آزمایشی",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("recipient_id", response.data)
+
+    def test_create_allows_valid_in_scope_recipient(self):
+        self.authenticate(self.unit_manager_1)
+
+        response = self.send_message(self.unit_media_1)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(InternalMessage.objects.count(), 1)
+        message = InternalMessage.objects.get()
+        self.assertEqual(message.sender_id, self.unit_manager_1.id)
+        self.assertEqual(message.recipient_id, self.unit_media_1.id)
+
+    def test_create_allows_messaging_general_manager_from_any_unit(self):
+        self.authenticate(self.unit_manager_2)
+
+        response = self.send_message(self.general_manager)
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_general_manager_can_message_any_active_user(self):
+        self.authenticate(self.general_manager)
+
+        response = self.send_message(self.unit_manager_2)
+
+        self.assertEqual(response.status_code, 201)

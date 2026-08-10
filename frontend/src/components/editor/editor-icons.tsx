@@ -1,5 +1,7 @@
 import { Icon, type IconProps } from "@iconify/react";
 import type { IconifyIcon } from "@iconify/types";
+import alertCircle from "@iconify-icons/tabler/alert-circle";
+import alertTriangle from "@iconify-icons/tabler/alert-triangle";
 import alignCenter from "@iconify-icons/tabler/align-center";
 import alignLeft from "@iconify-icons/tabler/align-left";
 import alignRight from "@iconify-icons/tabler/align-right";
@@ -9,6 +11,7 @@ import check from "@iconify-icons/tabler/check";
 import chevronDown from "@iconify-icons/tabler/chevron-down";
 import chevronLeft from "@iconify-icons/tabler/chevron-left";
 import chevronUp from "@iconify-icons/tabler/chevron-up";
+import circleCheck from "@iconify-icons/tabler/circle-check";
 import close from "@iconify-icons/tabler/x";
 import code from "@iconify-icons/tabler/code";
 import divider from "@iconify-icons/tabler/separator-horizontal";
@@ -24,6 +27,7 @@ import orderedList from "@iconify-icons/tabler/list-numbers";
 import paragraph from "@iconify-icons/tabler/pilcrow";
 import quote from "@iconify-icons/tabler/quote";
 import redo from "@iconify-icons/tabler/arrow-forward-up";
+import search from "@iconify-icons/tabler/search";
 import strike from "@iconify-icons/tabler/strikethrough";
 import table from "@iconify-icons/tabler/table";
 import trash from "@iconify-icons/tabler/trash";
@@ -32,6 +36,8 @@ import undo from "@iconify-icons/tabler/arrow-back-up";
 import upload from "@iconify-icons/tabler/upload";
 
 export type EditorIconName =
+  | "alert-circle"
+  | "alert-triangle"
   | "align-center"
   | "align-left"
   | "align-right"
@@ -41,6 +47,7 @@ export type EditorIconName =
   | "chevron-down"
   | "chevron-left"
   | "chevron-up"
+  | "circle-check"
   | "close"
   | "code"
   | "divider"
@@ -56,6 +63,7 @@ export type EditorIconName =
   | "paragraph"
   | "quote"
   | "redo"
+  | "search"
   | "strike"
   | "table"
   | "trash"
@@ -64,6 +72,8 @@ export type EditorIconName =
   | "upload";
 
 const icons: Record<EditorIconName, IconifyIcon> = {
+  "alert-circle": alertCircle,
+  "alert-triangle": alertTriangle,
   "align-center": alignCenter,
   "align-left": alignLeft,
   "align-right": alignRight,
@@ -73,6 +83,7 @@ const icons: Record<EditorIconName, IconifyIcon> = {
   "chevron-down": chevronDown,
   "chevron-left": chevronLeft,
   "chevron-up": chevronUp,
+  "circle-check": circleCheck,
   close,
   code,
   divider,
@@ -88,6 +99,7 @@ const icons: Record<EditorIconName, IconifyIcon> = {
   paragraph,
   quote,
   redo,
+  search,
   strike,
   table,
   trash,

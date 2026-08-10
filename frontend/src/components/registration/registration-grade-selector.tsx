@@ -1,11 +1,14 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { SchoolUnitRecord } from "@/lib/data/domain-types";
+import type { PublicSchoolUnit } from "@/types/public-content";
 
 type RegistrationGradeSelectorProps = {
-  units: SchoolUnitRecord[] | null;
+  units: PublicSchoolUnit[] | null;
   selectedUnitId: string;
+  name?: string;
+  error?: string;
+  onChange?: (grade: string) => void;
 };
 
 type GradeOption = {
@@ -36,7 +39,7 @@ function ChevronIcon({ isOpen }: { isOpen: boolean }) {
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className={`size-5 transition-transform duration-300 ease-out ${
+      className={`size-5 transition-transform duration-300 ease-out motion-reduce:transition-none ${
         isOpen ? "rotate-180" : "rotate-0"
       }`}
       fill="none"
@@ -67,14 +70,8 @@ function normalizeText(value: string) {
     .toLowerCase();
 }
 
-function unitIdentityText(unit: SchoolUnitRecord) {
-  return normalizeText(
-    [
-      unit.id ?? "",
-      unit.slug ?? "",
-      unit.title ?? "",
-    ].join(" "),
-  );
+function unitIdentityText(unit: PublicSchoolUnit) {
+  return normalizeText([unit.id, unit.slug, unit.title].join(" "));
 }
 
 function hasExactUnitNumber(text: string, unitNumber: number) {
@@ -111,7 +108,7 @@ function mergeOptions(...groups: GradeOption[][]) {
   return groups.flat();
 }
 
-function getGradeOptionsForUnit(unit: SchoolUnitRecord | null): GradeOption[] {
+function getGradeOptionsForUnit(unit: PublicSchoolUnit | null): GradeOption[] {
   if (!unit) {
     return [];
   }
@@ -208,28 +205,53 @@ function getGradeOptionsForUnit(unit: SchoolUnitRecord | null): GradeOption[] {
   }
 
   if (hasExactUnitNumber(text, 12)) {
-    return mergeOptions(
-      GRADE_OPTIONS.grade5,
-      GRADE_OPTIONS.grade6,
-    );
+    return mergeOptions(GRADE_OPTIONS.grade5, GRADE_OPTIONS.grade6);
   }
 
   if (hasExactUnitNumber(text, 13)) {
     return GRADE_OPTIONS.kindergarten;
   }
 
-  return [];
+  switch (unit.kind) {
+    case "preschool":
+      return mergeOptions(GRADE_OPTIONS.preschool1, GRADE_OPTIONS.preschool2);
+    case "elementary":
+      return mergeOptions(
+        GRADE_OPTIONS.grade1,
+        GRADE_OPTIONS.grade2,
+        GRADE_OPTIONS.grade3,
+        GRADE_OPTIONS.grade4,
+        GRADE_OPTIONS.grade5,
+        GRADE_OPTIONS.grade6,
+      );
+    case "middle_school":
+      return mergeOptions(
+        GRADE_OPTIONS.grade7,
+        GRADE_OPTIONS.grade8,
+        GRADE_OPTIONS.grade9,
+      );
+    case "high_school":
+      return mergeOptions(
+        GRADE_OPTIONS.grade10,
+        GRADE_OPTIONS.grade11,
+        GRADE_OPTIONS.grade12,
+      );
+  }
 }
 
 export function RegistrationGradeSelector({
   units,
   selectedUnitId,
+  name = "requested_grade",
+  error,
+  onChange,
 }: RegistrationGradeSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedGrade, setSelectedGrade] = useState("");
 
   const selectedUnit = useMemo(
-    () => units?.find((unit) => unit.id === selectedUnitId) ?? null,
+    () =>
+      units?.find((unit) => String(unit.id) === selectedUnitId) ?? null,
     [units, selectedUnitId],
   );
 
@@ -259,10 +281,11 @@ export function RegistrationGradeSelector({
         پایه مورد نظر <span className="text-rose-500">*</span>
       </span>
 
-      <input type="hidden" name="requestedGrade" value={selectedGrade} />
+      <input type="hidden" name={name} value={selectedGrade} />
 
       <div className="relative">
         <button
+          id="requested-grade-control"
           type="button"
           onClick={() => {
             if (!isDisabled) {
@@ -270,8 +293,11 @@ export function RegistrationGradeSelector({
             }
           }}
           aria-expanded={isOpen}
+          aria-controls="registration-grade-options"
+          data-invalid={Boolean(error) || undefined}
+          aria-describedby={error ? "requested-grade-error" : undefined}
           disabled={isDisabled}
-          className={`relative flex h-[3.7rem] w-full items-center justify-between rounded-2xl border bg-white px-4 pl-14 pr-4 text-right text-sm font-black outline-none transition-all duration-300 ease-out ${
+          className={`relative flex min-h-[3.7rem] w-full items-center justify-between rounded-2xl border bg-white px-4 pl-14 pr-4 text-right text-sm font-black outline-none transition-all duration-300 ease-out motion-reduce:transition-none ${
             isOpen
               ? "border-blue-400 text-[#062452] shadow-[0_14px_35px_rgba(43,111,159,0.16)]"
               : "border-slate-200 text-[#062452] shadow-sm"
@@ -291,7 +317,8 @@ export function RegistrationGradeSelector({
         </button>
 
         <div
-          className={`mt-2 overflow-hidden rounded-2xl border bg-white transition-all duration-300 ease-out ${
+          id="registration-grade-options"
+          className={`mt-2 overflow-hidden rounded-2xl border bg-white transition-all duration-300 ease-out motion-reduce:transition-none ${
             isOpen
               ? "max-h-[18rem] translate-y-0 border-slate-200 opacity-100 shadow-[0_18px_45px_rgba(15,23,42,0.12)]"
               : "max-h-0 translate-y-1 border-transparent opacity-0 shadow-none"
@@ -308,9 +335,11 @@ export function RegistrationGradeSelector({
                     type="button"
                     onClick={() => {
                       setSelectedGrade(option.value);
+                      onChange?.(option.value);
                       setIsOpen(false);
                     }}
-                    className={`flex w-full items-center justify-between px-4 py-3 text-right text-sm font-black transition duration-200 ${
+                    aria-pressed={isActive}
+                    className={`flex min-h-11 w-full items-center justify-between px-4 py-3 text-right text-sm font-black transition duration-200 motion-reduce:transition-none ${
                       isActive
                         ? "bg-blue-50 text-blue-700"
                         : "text-[#062452] hover:bg-slate-50"
@@ -334,6 +363,12 @@ export function RegistrationGradeSelector({
           </div>
         </div>
       </div>
+
+      {error ? (
+        <p id="requested-grade-error" className="mt-2 text-sm font-bold text-rose-700">
+          {error}
+        </p>
+      ) : null}
     </label>
   );
 }

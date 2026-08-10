@@ -11,6 +11,7 @@ from django.utils import timezone
 from PIL import Image
 from rest_framework.test import APIClient
 
+from apps.accounts.models import UserProfile, UserUnitMembership
 from apps.units.models import SchoolUnit
 
 from apps.news.models import News, NewsCategory, NewsMedia
@@ -515,3 +516,152 @@ class NewsCMSAPITests(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+
+class NewsUnitMediaPermissionTests(TestCase):
+    """The media role authors its own unit's news (create/edit/submit for
+    review) but cannot approve, publish or delete it — see
+    apps.news.permissions.user_can_write_news_object /
+    user_can_delete_news_object."""
+
+    def setUp(self):
+        self.client = APIClient()
+
+        self.unit_1 = SchoolUnit.objects.create(
+            title="دبستان", slug="primary-school", is_active=True, order=1,
+        )
+        self.unit_2 = SchoolUnit.objects.create(
+            title="متوسطه", slug="middle-school", is_active=True, order=2,
+        )
+
+        self.unit_media = User.objects.create_user(username="unitmedia", password="password123")
+        media_profile, _ = UserProfile.objects.get_or_create(user=self.unit_media)
+        media_profile.role = UserProfile.Role.UNIT_MEDIA
+        media_profile.is_active = True
+        media_profile.save()
+        UserUnitMembership.objects.create(
+            user=self.unit_media,
+            unit=self.unit_1,
+            role=UserUnitMembership.UnitRole.UNIT_MEDIA,
+            is_active=True,
+        )
+
+        self.unit_manager = User.objects.create_user(username="unitmanager", password="password123")
+        manager_profile, _ = UserProfile.objects.get_or_create(user=self.unit_manager)
+        manager_profile.role = UserProfile.Role.UNIT_MANAGER
+        manager_profile.is_active = True
+        manager_profile.save()
+        UserUnitMembership.objects.create(
+            user=self.unit_manager,
+            unit=self.unit_1,
+            role=UserUnitMembership.UnitRole.UNIT_MANAGER,
+            is_active=True,
+        )
+
+        self.category = NewsCategory.objects.create(title="اخبار", slug="news", is_active=True)
+        self.unit_1_news = News.objects.create(
+            title="خبر واحد دبستان",
+            slug="unit-1-news",
+            summary="خلاصه",
+            category=self.category,
+            scope=News.Scope.UNIT,
+            unit=self.unit_1,
+            status=News.Status.DRAFT,
+            content_json=valid_content_json(),
+            created_by=self.unit_manager,
+            updated_by=self.unit_manager,
+        )
+
+    def test_unit_media_can_create_news_for_own_unit(self):
+        self.client.force_authenticate(user=self.unit_media)
+
+        response = self.client.post(
+            "/api/cms/news/",
+            {
+                "title": "خبر جدید توسط رسانه",
+                "summary": "خلاصه",
+                "category": self.category.id,
+                "scope": News.Scope.UNIT,
+                "unit": self.unit_1.id,
+                "status": News.Status.DRAFT,
+                "content_json": valid_content_json("متن خبر"),
+                "is_active": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_unit_media_cannot_create_news_for_other_unit(self):
+        self.client.force_authenticate(user=self.unit_media)
+
+        response = self.client.post(
+            "/api/cms/news/",
+            {
+                "title": "خبر واحد دیگر",
+                "summary": "خلاصه",
+                "category": self.category.id,
+                "scope": News.Scope.UNIT,
+                "unit": self.unit_2.id,
+                "status": News.Status.DRAFT,
+                "content_json": valid_content_json("متن خبر"),
+                "is_active": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_unit_media_can_edit_own_unit_news(self):
+        self.client.force_authenticate(user=self.unit_media)
+
+        response = self.client.patch(
+            f"/api/cms/news/{self.unit_1_news.id}/",
+            {"summary": "خلاصه ویرایش‌شده"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_unit_media_can_submit_own_unit_news_for_review(self):
+        self.client.force_authenticate(user=self.unit_media)
+
+        response = self.client.post(f"/api/cms/news/{self.unit_1_news.id}/submit-review/")
+
+        self.assertEqual(response.status_code, 200)
+        self.unit_1_news.refresh_from_db()
+        self.assertEqual(self.unit_1_news.status, News.Status.WAITING_REVIEW)
+
+    def test_unit_media_cannot_approve_news(self):
+        self.unit_1_news.status = News.Status.WAITING_REVIEW
+        self.unit_1_news.save()
+        self.client.force_authenticate(user=self.unit_media)
+
+        response = self.client.post(f"/api/cms/news/{self.unit_1_news.id}/approve/")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_unit_media_cannot_publish_news(self):
+        self.unit_1_news.status = News.Status.APPROVED
+        self.unit_1_news.save()
+        self.client.force_authenticate(user=self.unit_media)
+
+        response = self.client.post(f"/api/cms/news/{self.unit_1_news.id}/publish/")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_unit_media_cannot_delete_news(self):
+        self.client.force_authenticate(user=self.unit_media)
+
+        response = self.client.delete(f"/api/cms/news/{self.unit_1_news.id}/")
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(News.objects.filter(id=self.unit_1_news.id).exists())
+
+    def test_unit_manager_can_delete_own_unit_news(self):
+        self.client.force_authenticate(user=self.unit_manager)
+
+        response = self.client.delete(f"/api/cms/news/{self.unit_1_news.id}/")
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(News.objects.filter(id=self.unit_1_news.id).exists())

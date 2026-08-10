@@ -6,6 +6,7 @@ import type {
   ContactInfo,
   ContactMessagePayload,
   PublicAchievement,
+  PublicCategory,
   PublicDepartment,
   PublicGalleryItem,
   PublicHomeSlide,
@@ -39,6 +40,13 @@ export function getPublicNewsDetail(slug: string) {
   return apiRequest<PublicNewsDetail>(
     `${apiEndpoints.news}${encodeURIComponent(slug)}/`,
   );
+}
+
+export async function getPublicNewsCategories() {
+  const response = await apiRequest<PublicCategory[] | ApiListResponse<PublicCategory>>(
+    `${apiEndpoints.news}categories/`,
+  );
+  return Array.isArray(response) ? response : response.results;
 }
 
 export function getPublicGallery(query: Record<string, Scalar> = {}) {

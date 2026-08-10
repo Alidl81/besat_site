@@ -95,6 +95,28 @@ def user_can_access_news_object(user, news: News) -> bool:
 
 
 def user_can_write_news_object(user, news: News) -> bool:
+    """Create/edit/submit-for-review access. Unit media may author their
+    own unit's news but may not delete it — see user_can_delete_news_object."""
+    if is_general_manager(user):
+        return True
+
+    if news.scope != News.Scope.UNIT or news.unit_id is None:
+        return False
+
+    if is_unit_manager(user):
+        allowed_roles = (UserUnitMembership.UnitRole.UNIT_MANAGER,)
+    elif is_unit_media(user):
+        allowed_roles = (UserUnitMembership.UnitRole.UNIT_MEDIA,)
+    else:
+        return False
+
+    accessible_unit_ids = get_accessible_unit_ids(user, allowed_roles=allowed_roles)
+
+    return news.unit_id in accessible_unit_ids
+
+
+def user_can_delete_news_object(user, news: News) -> bool:
+    """Deletion stays out of the media role's reach even for its own unit."""
     if is_general_manager(user):
         return True
 
@@ -175,13 +197,10 @@ class HasNewsCMSPermission(BasePermission):
         if action == "upload_image":
             return is_unit_manager(request.user) or is_unit_media(request.user)
 
-        if action in (
-            "submit_review",
-            "approve",
-            "reject",
-            "archive",
-            "restore",
-        ):
+        if action == "submit_review":
+            return is_unit_manager(request.user) or is_unit_media(request.user)
+
+        if action in ("approve", "reject", "archive", "restore"):
             return is_unit_manager(request.user)
 
         if action == "publish":
@@ -190,10 +209,10 @@ class HasNewsCMSPermission(BasePermission):
         if request.method in SAFE_METHODS:
             return is_unit_manager(request.user) or is_unit_media(request.user)
 
-        if request.method == "POST":
-            return is_unit_manager(request.user)
+        if request.method in ("POST", "PUT", "PATCH"):
+            return is_unit_manager(request.user) or is_unit_media(request.user)
 
-        if request.method in ("PUT", "PATCH", "DELETE"):
+        if request.method == "DELETE":
             return is_unit_manager(request.user)
 
         return False
@@ -215,5 +234,8 @@ class HasNewsCMSPermission(BasePermission):
 
         if request.method in SAFE_METHODS:
             return user_can_access_news_object(request.user, obj)
+
+        if request.method == "DELETE":
+            return user_can_delete_news_object(request.user, obj)
 
         return user_can_write_news_object(request.user, obj)

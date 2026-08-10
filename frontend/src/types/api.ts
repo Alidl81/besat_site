@@ -9,10 +9,15 @@ export type ApiListResponse<TItem> = {
 
 export type PublishStatus =
   | "draft"
+  | "in_review"
+  | "changes_requested"
   | "waiting_review"
   | "approved"
   | "scheduled"
   | "published"
+  | "unpublished"
+  | "archived"
+  | "trash"
   | "rejected";
 
 export type ContentScope = "school" | "unit";

@@ -74,6 +74,86 @@ class ScopedContentModel(models.Model):
             raise ValidationError(errors)
 
 
+class SEOFieldsModel(models.Model):
+    """Yoast-style on-page SEO metadata. og_image_url is a plain URL
+    (populated via the existing media picker/library) rather than a new
+    ImageField, since every content type using this mixin already has its
+    own cover image upload path and this only needs to reference one."""
+
+    focus_keyphrase = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        verbose_name="عبارت کلیدی کانونی",
+    )
+    seo_title = models.CharField(
+        max_length=70,
+        null=True,
+        blank=True,
+        verbose_name="عنوان سئو",
+    )
+    meta_description = models.CharField(
+        max_length=300,
+        null=True,
+        blank=True,
+        verbose_name="توضیحات متا",
+    )
+    canonical_url = models.URLField(
+        max_length=2000,
+        null=True,
+        blank=True,
+        verbose_name="نشانی کنونیکال",
+    )
+    og_title = models.CharField(
+        max_length=95,
+        null=True,
+        blank=True,
+        verbose_name="عنوان اشتراک‌گذاری اجتماعی",
+    )
+    og_description = models.CharField(
+        max_length=300,
+        null=True,
+        blank=True,
+        verbose_name="توضیح اشتراک‌گذاری اجتماعی",
+    )
+    og_image_url = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name="نشانی تصویر اشتراک‌گذاری",
+    )
+    is_indexable = models.BooleanField(
+        default=True,
+        verbose_name="قابل نمایه‌سازی در موتورهای جستجو",
+    )
+    is_followable = models.BooleanField(
+        default=True,
+        verbose_name="قابل دنبال‌کردن پیوندهای صفحه",
+    )
+    is_cornerstone = models.BooleanField(
+        default=False,
+        verbose_name="محتوای محوری",
+    )
+
+    SEO_FIELD_NAMES = (
+        "focus_keyphrase",
+        "seo_title",
+        "meta_description",
+        "canonical_url",
+        "og_title",
+        "og_description",
+        "og_image_url",
+        "is_indexable",
+        "is_followable",
+        "is_cornerstone",
+    )
+
+    class Meta:
+        abstract = True
+
+    def seo_fields_dict(self):
+        return {name: getattr(self, name) for name in self.SEO_FIELD_NAMES}
+
+
 class ContentWorkflowModel(models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "پیش‌نویس"

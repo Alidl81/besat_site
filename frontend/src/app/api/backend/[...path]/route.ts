@@ -1,4 +1,7 @@
-import { requestBackend } from "@/lib/server/backend-client";
+import {
+  BackendConfigurationError,
+  requestBackend,
+} from "@/lib/server/backend-client";
 import {
   appendSessionCookies,
   clearSessionCookies,
@@ -54,10 +57,44 @@ function createProxyError(requestId: string, status = 502) {
   );
 }
 
+function createConfigurationError(requestId: string) {
+  return Response.json(
+    {
+      detail: "پیکربندی سرویس پشتیبان کامل نیست. لطفاً با مدیر سامانه تماس بگیرید.",
+      code: "backend_not_configured",
+      request_id: requestId,
+    },
+    {
+      status: 503,
+      headers: {
+        "cache-control": "no-store",
+        "x-request-id": requestId,
+      },
+    },
+  );
+}
+
+function requestOrigin(request: Request) {
+  const url = new URL(request.url);
+  const host = request.headers.get("host")?.trim();
+
+  if (!host) {
+    return url.origin;
+  }
+
+  const forwardedProtocol = request.headers
+    .get("x-forwarded-proto")
+    ?.split(",")[0]
+    ?.trim();
+  const protocol = forwardedProtocol || url.protocol.replace(":", "");
+
+  return `${protocol}://${host}`;
+}
+
 function isCrossOriginMutation(request: Request) {
   if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return false;
   const origin = request.headers.get("origin");
-  return origin !== null && origin !== new URL(request.url).origin;
+  return origin !== null && origin !== requestOrigin(request);
 }
 
 async function readRefreshPayload(response: Response) {
@@ -165,6 +202,10 @@ async function forwardToBackend(
       headers: responseHeaders,
     });
   } catch (reason) {
+    if (reason instanceof BackendConfigurationError) {
+      console.error("[besat-backend-proxy]", requestId, reason.message);
+      return createConfigurationError(requestId);
+    }
     console.error("[besat-backend-proxy]", requestId, reason);
     return createProxyError(requestId);
   }

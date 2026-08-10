@@ -106,12 +106,17 @@ class NewsListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
 class NewsDetailSerializer(NewsListSerializer):
     body_html = serializers.SerializerMethodField()
     body_json = serializers.SerializerMethodField()
+    seo = serializers.SerializerMethodField()
 
     def get_body_html(self, obj):
         return render_tiptap_html(obj.editor_json) if obj.editor_json else None
 
     def get_body_json(self, obj):
         return obj.editor_json
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_seo(self, obj):
+        return obj.seo_fields_dict()
 
     class Meta(NewsListSerializer.Meta):
         fields = (
@@ -132,6 +137,7 @@ class NewsDetailSerializer(NewsListSerializer):
             "is_important",
             "priority",
             "is_published",
+            "seo",
         )
         read_only_fields = fields
 

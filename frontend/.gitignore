@@ -15,6 +15,8 @@
 
 # next.js
 /.next/
+/.next-playwright-*/
+/.next-playwright-*.tsconfig.json
 /out/
 
 # production
@@ -31,7 +33,11 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 /.npm-cache/
-/data/mock-database.local.json
+/data/*.local.json
+/playwright-report-real-django/
+/test-results-real-django/
+/playwright-report/
+/test-results/
 
 # env files (can opt-in for committing if needed)
 .env*

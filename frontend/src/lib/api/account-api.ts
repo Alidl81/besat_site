@@ -40,6 +40,11 @@ export type LoginResponse = {
   redirect_path: string;
 };
 
+export type SetPasswordRequest = {
+  token: string;
+  password: string;
+};
+
 export type RefreshTokenRequest = {
   refresh: string;
 };
@@ -100,6 +105,13 @@ export function loginAccount(values: LoginRequest) {
 
 export function refreshAccountToken(values: RefreshTokenRequest) {
   return apiRequest<RefreshTokenResponse>("auth/refresh/", {
+    method: "POST",
+    body: JSON.stringify(values),
+  });
+}
+
+export function setAccountPassword(values: SetPasswordRequest) {
+  return apiRequest<void>("auth/set-password/", {
     method: "POST",
     body: JSON.stringify(values),
   });

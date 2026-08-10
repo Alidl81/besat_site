@@ -9,6 +9,7 @@ import {
   PanelLoading,
 } from "@/components/dashboard/panel-request-state";
 import { usePanelRequest } from "@/hooks/use-panel-request";
+import { readBesatSession } from "@/lib/auth/auth-session";
 import { panelService } from "@/services/panel-service";
 import type {
   AdminDashboard,
@@ -163,6 +164,17 @@ function AdminOverview({ payload }: { payload: AdminDashboard }) {
               </article>
             ))}
           </div>
+        ) : payload.accessible_units?.length ? (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {payload.accessible_units.map((unit) => (
+              <article key={unit.id} className="rounded-lg border border-slate-200 p-4">
+                <h3 className="text-sm font-black text-[#172b43]">{unit.title}</h3>
+                <p className="mt-2 text-xs font-bold leading-6 text-slate-500">
+                  جزئیات عملکرد این واحد در پاسخ فعلی داشبورد ارائه نشده است.
+                </p>
+              </article>
+            ))}
+          </div>
         ) : <PanelEmpty title="واحد آموزشی در دسترس نیست." />}
       </section>
     </div>
@@ -241,14 +253,16 @@ export function DashboardOverview({
 }) {
   const searchParams = useSearchParams();
   const query = searchParams.toString();
+  const role = readBesatSession()?.role;
   const { data, loading, error, reload } = usePanelRequest(
     () =>
       panelService.dashboard(panel, {
         academic_year: searchParams.get("academic_year"),
         unit: searchParams.get("unit"),
         child: searchParams.get("child"),
+        role: panel === "admin" ? role ?? null : null,
       }),
-    [panel, query],
+    [panel, query, role],
   );
 
   if (loading) return <PanelLoading label="در حال دریافت داشبورد..." />;

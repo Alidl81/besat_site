@@ -1459,13 +1459,24 @@ export async function handleMockApiRequest(
 
   if (route === "units" && request.method === "GET") {
     return jsonResponse(
-      database.units.filter((unit) => unit.is_active !== false),
+      database.units
+        .filter((unit) => unit.is_active !== false)
+        .map((unit) => ({
+          ...unit,
+          // The public contract always supplies this field. Keep the mock's
+          // GET response consistent with its registration POST behavior,
+          // where only an explicit false closes a unit.
+          accepts_registration: unit.accepts_registration !== false,
+        })),
     );
   }
   if (path[0] === "units" && path[1] && request.method === "GET") {
     const unit = database.units.find((record) => record.slug === path[1]);
     return unit
-      ? jsonResponse(unit)
+      ? jsonResponse({
+          ...unit,
+          accepts_registration: unit.accepts_registration !== false,
+        })
       : apiError("واحد آموزشی پیدا نشد.", 404, "not_found");
   }
   if (route === "departments" && request.method === "GET") {
@@ -1487,8 +1498,11 @@ export async function handleMockApiRequest(
   if (route === "news" && request.method === "GET") {
     return jsonResponse(
       paginatedResponse(
-        database.content.filter(
-          (record) => record.kind === "news" && record.status === "published",
+        filterRecords(
+          database.content.filter(
+            (record) => record.kind === "news" && record.status === "published",
+          ),
+          url,
         ),
         url,
         (record) => publicContent(record, database),
@@ -1509,9 +1523,12 @@ export async function handleMockApiRequest(
   if (route === "announcements" && request.method === "GET") {
     return jsonResponse(
       paginatedResponse(
-        database.content.filter(
-          (record) =>
-            record.kind === "announcement" && record.status === "published",
+        filterRecords(
+          database.content.filter(
+            (record) =>
+              record.kind === "announcement" && record.status === "published",
+          ),
+          url,
         ),
         url,
         (record) => publicContent(record, database),

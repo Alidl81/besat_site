@@ -42,19 +42,21 @@ export class ApiError extends Error {
 
 function getApiBaseUrl() {
   if (typeof window === "undefined") {
-    const backendApiUrl =
-      process.env.BESAT_BACKEND_API_URL ?? "mock://local";
+    const backendApiUrl = process.env.BESAT_BACKEND_API_URL?.trim();
+    const serverApiUrl = process.env.NEXT_SERVER_API_BASE_URL?.trim();
 
     if (backendApiUrl === "mock://local") {
       return (
-        process.env.NEXT_SERVER_API_BASE_URL ??
+        serverApiUrl ??
         "http://127.0.0.1:3000/api/backend"
       );
     }
 
-    return (
-      process.env.NEXT_SERVER_API_BASE_URL ??
-      backendApiUrl
+    if (serverApiUrl) return serverApiUrl;
+    if (backendApiUrl) return backendApiUrl;
+
+    throw new Error(
+      "Backend API is not configured. Set BESAT_BACKEND_API_URL or NEXT_SERVER_API_BASE_URL; mock mode requires an explicit mock://local value.",
     );
   }
 

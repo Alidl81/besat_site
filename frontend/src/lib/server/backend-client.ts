@@ -2,8 +2,27 @@ import "server-only";
 
 import { handleMockApiRequest } from "@/lib/mock-api/handler";
 
-export const DEFAULT_BACKEND_API_URL = "mock://local";
+export const MOCK_BACKEND_API_URL = "mock://local";
 export const UPSTREAM_TIMEOUT_MS = 30_000;
+
+export class BackendConfigurationError extends Error {
+  constructor() {
+    super(
+      "BESAT_BACKEND_API_URL is not configured. Set it to an HTTP(S) Django API URL or explicitly to mock://local for isolated tests.",
+    );
+    this.name = "BackendConfigurationError";
+  }
+}
+
+function createConfigurationResponse() {
+  return Response.json(
+    {
+      detail: "پیکربندی سرویس پشتیبان کامل نیست. لطفاً با مدیر سامانه تماس بگیرید.",
+      code: "backend_not_configured",
+    },
+    { status: 503 },
+  );
+}
 
 const REQUEST_HEADERS_TO_REMOVE = [
   "connection",
@@ -34,7 +53,9 @@ export type BackendRequest = {
 };
 
 export function getConfiguredBackendApiUrl() {
-  return process.env.BESAT_BACKEND_API_URL ?? DEFAULT_BACKEND_API_URL;
+  const configuredUrl = process.env.BESAT_BACKEND_API_URL?.trim();
+  if (!configuredUrl) throw new BackendConfigurationError();
+  return configuredUrl;
 }
 
 export function getBackendBaseUrl() {
@@ -70,6 +91,15 @@ export function createUpstreamUrl(requestUrl: string, path: string[]) {
   return upstreamUrl;
 }
 
+// This Next.js process is not guaranteed to sit behind a reverse proxy that
+// overwrites client-supplied forwarded headers, so x-forwarded-for read from
+// an inbound request is untrustworthy by default: any client can set it, and
+// forwarding it verbatim would let them spoof the IP Django uses for
+// throttling and audit logs. Only forward it when the deployment explicitly
+// confirms a trusted proxy sanitizes it before it reaches this process,
+// mirroring the backend's TRUST_PROXY_HEADERS opt-in.
+const TRUST_FORWARDED_FOR = process.env.BESAT_TRUST_FORWARDED_FOR === 'true';
+
 function createUpstreamHeaders({
   requestUrl,
   requestId,
@@ -77,6 +107,9 @@ function createUpstreamHeaders({
   accessToken,
 }: Pick<BackendRequest, 'requestUrl' | 'requestId' | 'headers' | 'accessToken'>) {
   const headers = new Headers(sourceHeaders);
+  const inboundForwardedFor = TRUST_FORWARDED_FOR
+    ? headers.get('x-forwarded-for')
+    : null;
 
   for (const header of REQUEST_HEADERS_TO_REMOVE) {
     headers.delete(header);
@@ -87,6 +120,9 @@ function createUpstreamHeaders({
   headers.set('x-request-id', requestId);
   headers.set('x-forwarded-host', frontendUrl.host);
   headers.set('x-forwarded-proto', frontendUrl.protocol.replace(':', ''));
+  if (inboundForwardedFor) {
+    headers.set('x-forwarded-for', inboundForwardedFor);
+  }
   if (accessToken && !headers.has('authorization')) {
     headers.set('authorization', `Bearer ${accessToken}`);
   }
@@ -102,6 +138,15 @@ export async function requestBackend({
   requestId,
   accessToken,
 }: BackendRequest) {
+  let configuredBackendUrl: string;
+  try {
+    configuredBackendUrl = getConfiguredBackendApiUrl();
+  } catch (reason) {
+    if (reason instanceof BackendConfigurationError) {
+      return createConfigurationResponse();
+    }
+    throw reason;
+  }
   const upstreamHeaders = createUpstreamHeaders({
     requestUrl,
     requestId,
@@ -109,7 +154,7 @@ export async function requestBackend({
     accessToken,
   });
 
-  if (getConfiguredBackendApiUrl() === DEFAULT_BACKEND_API_URL) {
+  if (configuredBackendUrl === MOCK_BACKEND_API_URL) {
     return handleMockApiRequest(
       new Request(requestUrl, {
         method,

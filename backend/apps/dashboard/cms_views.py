@@ -1,6 +1,5 @@
 from django.db.models import Q
 from django.utils import timezone
-from django.contrib.auth import get_user_model
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
@@ -18,6 +17,7 @@ from .cms_serializers import (
     ProgramSerializer,
     SchoolClassSerializer,
     StudentSerializer,
+    get_message_recipient_queryset,
 )
 from .models import InternalMessage, Program, SchoolClass, Student
 
@@ -163,16 +163,9 @@ class CMSInternalMessageViewSet(ModelViewSet):
 
     @action(detail=False, methods=("get",), url_path="recipients")
     def recipients(self, request):
-        User = get_user_model()
-        users = User.objects.filter(is_active=True).exclude(pk=request.user.pk)
-        if not is_general_manager(request.user):
-            accessible_unit_ids = get_accessible_unit_ids(request.user)
-            users = users.filter(
-                Q(profile__role=UserProfile.Role.GENERAL_MANAGER)
-                | Q(unit_memberships__unit_id__in=accessible_unit_ids)
-            )
+        users = get_message_recipient_queryset(request.user)
         payload = []
-        for user in users.select_related("profile").distinct().order_by("username"):
+        for user in users.select_related("profile").order_by("username"):
             profile = get_or_create_user_profile(user)
             payload.append(
                 {

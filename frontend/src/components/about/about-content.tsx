@@ -9,6 +9,7 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { CleanEmptyPanel } from "@/components/simple-pages/clean-empty-panel";
 import { getApiErrorMessage } from "@/lib/api/client";
 import { sanitizeCmsHtml } from "@/lib/content/sanitize-cms-html";
 import { safePublicMediaUrl } from "@/lib/media/safe-url";
@@ -39,7 +40,10 @@ function PeopleSection({
         {people.map((person, index) => {
           const image = safePublicMediaUrl(person.image_url);
           return (
-            <article key={`${person.name}-${index}`} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+            <article
+              key={`${person.name}-${index}`}
+              className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm transition duration-500 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/70"
+            >
               {image ? (
                 <div className="aspect-[4/3] overflow-hidden bg-slate-100">
                   <img src={image} alt={person.name} loading="lazy" className="size-full object-cover" />
@@ -119,6 +123,7 @@ export function AboutContent() {
   const poster = safePublicMediaUrl(content.video_poster_url);
   const hasContent =
     content.description ||
+    heroImage ||
     content.history ||
     content.founders.length ||
     content.key_people.length ||
@@ -130,12 +135,11 @@ export function AboutContent() {
 
   if (!hasContent) {
     return (
-      <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center">
-        <Users aria-hidden="true" className="mx-auto size-10 text-slate-400" />
-        <h2 className="mt-4 text-xl font-black text-[#0f2f4a]">
-          محتوای این صفحه هنوز منتشر نشده است
-        </h2>
-      </div>
+      <CleanEmptyPanel
+        icon="◌"
+        title="محتوای این صفحه هنوز منتشر نشده است"
+        description="پس از ثبت معرفی، تاریخچه یا سایر بخش‌های درباره ما، اطلاعات در همین صفحه نمایش داده می‌شود."
+      />
     );
   }
 
@@ -145,7 +149,7 @@ export function AboutContent() {
         <section className="grid items-center gap-8 lg:grid-cols-[1fr_0.8fr]">
           {content.description ? <RichText value={content.description} /> : <div />}
           {heroImage ? (
-            <div className="aspect-[4/3] overflow-hidden rounded-lg bg-slate-100">
+            <div className="aspect-[4/3] overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-100 shadow-sm">
               <img src={heroImage} alt="" loading="eager" className="size-full object-cover" />
             </div>
           ) : null}
@@ -153,7 +157,7 @@ export function AboutContent() {
       ) : null}
 
       {content.history ? (
-        <section className="border-r-4 border-r-[#b87522] bg-white py-2 pr-6 text-right">
+        <section className="rounded-[2rem] border border-slate-200 border-r-4 border-r-[#b87522] bg-white p-6 text-right shadow-sm sm:p-8">
           <h2 className="flex items-center gap-3 text-2xl font-black text-[#0f2f4a]">
             <History aria-hidden="true" className="size-6 text-[#9a5b14]" />
             تاریخچه
@@ -168,14 +172,14 @@ export function AboutContent() {
       {content.mission || content.values.length || content.goals.length ? (
         <section className="grid gap-5 lg:grid-cols-3">
           {content.mission ? (
-            <article className="rounded-lg border border-slate-200 bg-white p-6 text-right">
+            <article className="rounded-[2rem] border border-slate-200 bg-white p-6 text-right shadow-sm sm:p-8">
               <Flag aria-hidden="true" className="size-6 text-blue-700" />
               <h2 className="mt-4 text-xl font-black text-[#0f2f4a]">ماموریت</h2>
               <div className="mt-3"><RichText value={content.mission} /></div>
             </article>
           ) : null}
           {content.values.length ? (
-            <article className="rounded-lg border border-slate-200 bg-white p-6 text-right">
+            <article className="rounded-[2rem] border border-slate-200 bg-white p-6 text-right shadow-sm sm:p-8">
               <Users aria-hidden="true" className="size-6 text-blue-700" />
               <h2 className="mt-4 text-xl font-black text-[#0f2f4a]">ارزش‌ها</h2>
               <ul className="mt-4 space-y-3 text-sm font-bold leading-7 text-slate-600">
@@ -184,7 +188,7 @@ export function AboutContent() {
             </article>
           ) : null}
           {content.goals.length ? (
-            <article className="rounded-lg border border-slate-200 bg-white p-6 text-right">
+            <article className="rounded-[2rem] border border-slate-200 bg-white p-6 text-right shadow-sm sm:p-8">
               <Target aria-hidden="true" className="size-6 text-blue-700" />
               <h2 className="mt-4 text-xl font-black text-[#0f2f4a]">اهداف</h2>
               <ul className="mt-4 space-y-3 text-sm font-bold leading-7 text-slate-600">
@@ -206,7 +210,10 @@ export function AboutContent() {
               const image = safePublicMediaUrl(item.url);
               if (!image) return null;
               return (
-                <figure key={`${item.url}-${index}`} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                <figure
+                  key={`${item.url}-${index}`}
+                  className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm transition duration-500 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/70"
+                >
                   <div className="aspect-[4/3] overflow-hidden bg-slate-100">
                     <img src={image} alt={item.alt || ""} loading="lazy" className="size-full object-cover" />
                   </div>
@@ -219,7 +226,7 @@ export function AboutContent() {
       ) : null}
 
       {videoUrl ? (
-        <section>
+        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           {content.video_title ? <h2 className="text-2xl font-black text-[#0f2f4a]">{content.video_title}</h2> : null}
           {content.video_description ? <p className="mt-3 text-sm font-bold leading-8 text-slate-600">{content.video_description}</p> : null}
           <video
@@ -227,7 +234,7 @@ export function AboutContent() {
             preload="metadata"
             poster={poster ?? undefined}
             aria-label={content.video_title || "ویدیوی معرفی مجتمع بعثت"}
-            className="mt-5 aspect-video w-full rounded-lg bg-black"
+            className="mt-5 aspect-video w-full rounded-[1.4rem] bg-black"
           >
             <source src={videoUrl} />
             مرورگر شما امکان پخش این ویدیو را ندارد.

@@ -18,6 +18,58 @@ type DashboardTopbarProps = {
   mobileMenu: ReactNode;
 };
 
+function ContextUnavailable({
+  icon,
+  children,
+}: {
+  icon: "calendar" | "students" | "building";
+  children: ReactNode;
+}) {
+  return (
+    <p className="flex min-h-11 min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold leading-5 text-slate-500">
+      <PanelIcon name={icon} className="size-4 shrink-0 text-slate-400" />
+      <span>{children}</span>
+    </p>
+  );
+}
+
+function UnitContextSelect({
+  context,
+  selectedUnit,
+  onSelect,
+}: {
+  context: PanelContext | null;
+  selectedUnit: string;
+  onSelect: (value: string) => void;
+}) {
+  if (!context) {
+    return <ContextUnavailable icon="building">در حال دریافت واحدهای مجاز…</ContextUnavailable>;
+  }
+
+  if (context.units.length === 0) {
+    return <ContextUnavailable icon="building">واحد قابل انتخابی برای این حساب ثبت نشده است.</ContextUnavailable>;
+  }
+
+  return (
+    <label className="panel-top-select min-w-[16.5rem]">
+      <PanelIcon name="building" className="size-5" />
+      <select
+        value={selectedUnit}
+        onChange={(event) => onSelect(event.target.value)}
+        aria-label="انتخاب واحد آموزشی"
+        className="min-w-0 flex-1 bg-transparent font-inherit outline-none"
+      >
+        <option value="">همه واحدهای مجاز</option>
+        {context.units.map((unit) => (
+          <option key={unit.id} value={unit.id}>
+            {unit.title}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export function DashboardTopbar({
   panel,
   profileHref,
@@ -26,6 +78,7 @@ export function DashboardTopbar({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const queryString = searchParams.toString();
   const [context, setContext] = useState<PanelContext | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<ReturnType<typeof readBesatSession>>(null);
@@ -37,11 +90,12 @@ export function DashboardTopbar({
 
   useEffect(() => {
     let active = true;
+    const params = new URLSearchParams(queryString);
     panelService
       .context({
-        academic_year: searchParams.get("academic_year"),
-        unit: searchParams.get("unit"),
-        child: searchParams.get("child"),
+        academic_year: params.get("academic_year"),
+        unit: params.get("unit"),
+        child: params.get("child"),
       })
       .then((result) => {
         if (active) {
@@ -55,30 +109,31 @@ export function DashboardTopbar({
     return () => {
       active = false;
     };
-  }, [panel, searchParams]);
+  }, [panel, queryString]);
 
   function select(name: "academic_year" | "unit" | "child", value: string) {
-    const next = new URLSearchParams(searchParams.toString());
+    const next = new URLSearchParams(queryString);
     if (value) next.set(name, value);
     else next.delete(name);
-    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+    const suffix = next.toString();
+    router.replace(suffix ? `${pathname}?${suffix}` : pathname, { scroll: false });
   }
 
   const displayName =
     context?.user.full_name ??
     (session ? getBesatSessionDisplayName(session) : "حساب کاربری");
   const roleTitle = context?.user.role_display ?? "";
-  const selectedAcademicYear = String(
-    searchParams.get("academic_year") ??
-      context?.selected_academic_year_id ??
-      "",
-  );
   const selectedUnit = String(
     searchParams.get("unit") ?? context?.selected_unit_id ?? "",
   );
-  const selectedChild = String(
-    searchParams.get("child") ?? context?.selected_child_id ?? "",
-  );
+  const hasAcademicYearFilters = Boolean(context?.academic_years.length);
+  const messagesHref =
+    panel === "parents"
+      ? "/dashboard/parents/messages"
+      : panel === "contentManager"
+        ? "/dashboard/content-manager/messages"
+        : "/dashboard/admin/messages";
+  const parentFiltersUnavailable = context && !hasAcademicYearFilters;
 
   return (
     <header className="sticky top-0 z-30 border-b border-[#e7e9ec] bg-white/95 backdrop-blur-xl">
@@ -87,107 +142,45 @@ export function DashboardTopbar({
 
         <div className="hidden min-w-0 flex-1 items-center justify-end md:flex">
           {panel === "parents" ? (
-            <label className="panel-top-select min-w-[16.5rem]">
-              <PanelIcon name="calendar" className="size-5" />
-              <select
-                value={selectedAcademicYear}
-                onChange={(event) => select("academic_year", event.target.value)}
-                aria-label="انتخاب سال تحصیلی"
-                disabled={!context}
-                className="min-w-0 flex-1 bg-transparent font-inherit outline-none"
-              >
-                <option value="">انتخاب سال تحصیلی</option>
-                {context?.academic_years.map((year) => (
-                  <option key={year.id} value={year.id}>
-                    {year.title}
-                  </option>
-                ))}
-              </select>
-            </label>
+            context ? (
+              hasAcademicYearFilters ? (
+                <ContextUnavailable icon="calendar">فیلتر سال تحصیلی هنوز برای پنل والدین پشتیبانی نمی‌شود.</ContextUnavailable>
+              ) : (
+                <ContextUnavailable icon="calendar">سال تحصیلی قابل انتخابی ثبت نشده است.</ContextUnavailable>
+              )
+            ) : (
+              <ContextUnavailable icon="calendar">در حال دریافت محدوده حساب…</ContextUnavailable>
+            )
           ) : (
-            <label className="panel-top-select min-w-[16.5rem]">
-              <PanelIcon name="building" className="size-5" />
-              <select
-                value={selectedUnit}
-                onChange={(event) => select("unit", event.target.value)}
-                aria-label="انتخاب واحد آموزشی"
-                disabled={!context}
-                className="min-w-0 flex-1 bg-transparent font-inherit outline-none"
-              >
-                <option value="">همه واحدهای مجاز</option>
-                {context?.units.map((unit) => (
-                  <option key={unit.id} value={unit.id}>
-                    {unit.title}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <UnitContextSelect
+              context={context}
+              selectedUnit={selectedUnit}
+              onSelect={(value) => select("unit", value)}
+            />
           )}
         </div>
 
         <div className="hidden flex-1 items-center justify-center lg:flex">
           {panel === "parents" ? (
-            <label className="panel-top-select min-w-[16rem]">
-              <PanelIcon name="students" className="size-5" />
-              <select
-                value={selectedChild}
-                onChange={(event) => select("child", event.target.value)}
-                aria-label="انتخاب فرزند"
-                disabled={!context}
-                className="min-w-0 flex-1 bg-transparent font-inherit outline-none"
-              >
-                <option value="">انتخاب فرزند</option>
-                {context?.children.map((child) => (
-                  <option key={child.id} value={child.id}>
-                    {child.title}
-                    {child.subtitle ? ` — ${child.subtitle}` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
+            context ? (
+              <ContextUnavailable icon="students">انتخاب فرزند از بخش «فرزندان من» انجام می‌شود.</ContextUnavailable>
+            ) : (
+              <ContextUnavailable icon="students">در حال دریافت محدوده حساب…</ContextUnavailable>
+            )
+          ) : context ? (
+            hasAcademicYearFilters ? (
+              <ContextUnavailable icon="calendar">فیلتر سال تحصیلی هنوز برای این پنل پشتیبانی نمی‌شود.</ContextUnavailable>
+            ) : (
+              <ContextUnavailable icon="calendar">سال تحصیلی قابل انتخابی ثبت نشده است.</ContextUnavailable>
+            )
           ) : (
-            <label className="panel-top-select min-w-[16rem]">
-              <PanelIcon name="calendar" className="size-5" />
-              <select
-                value={selectedAcademicYear}
-                onChange={(event) => select("academic_year", event.target.value)}
-                aria-label="انتخاب سال تحصیلی"
-                disabled={!context}
-                className="min-w-0 flex-1 bg-transparent font-inherit outline-none"
-              >
-                <option value="">انتخاب سال تحصیلی</option>
-                {context?.academic_years.map((year) => (
-                  <option key={year.id} value={year.id}>
-                    {year.title}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <ContextUnavailable icon="calendar">در حال دریافت محدوده پنل…</ContextUnavailable>
           )}
         </div>
 
         <div className="mr-auto flex items-center gap-1 sm:gap-2">
-          <button type="button" className="panel-icon-button relative" aria-label="تقویم">
-            <PanelIcon name="calendar" />
-          </button>
-          <button
-            type="button"
-            className="panel-icon-button relative"
-            aria-label={`اعلان‌ها${context?.unread_notifications ? `، ${context.unread_notifications} خوانده‌نشده` : ""}`}
-          >
-            <PanelIcon name="bell" />
-            {context?.unread_notifications ? (
-              <span className="absolute right-1 top-1 size-2 rounded-full bg-[#df8d16]" />
-            ) : null}
-          </button>
           <Link
-            href={
-              panel === "parents"
-                ? "/dashboard/parents/messages"
-                : panel === "contentManager"
-                  ? "/dashboard/content-manager/messages"
-                    : "/dashboard/admin/messages"
-            }
+            href={messagesHref}
             className="panel-icon-button relative"
             aria-label={`پیام‌ها${context?.unread_messages ? `، ${context.unread_messages} خوانده‌نشده` : ""}`}
           >
@@ -229,6 +222,26 @@ export function DashboardTopbar({
             <PanelIcon name="chevron" className="hidden size-4 rotate-90 text-slate-500 sm:block" />
           </Link>
         </div>
+      </div>
+
+      <div className="border-t border-slate-100 px-4 py-2 md:hidden sm:px-6">
+        {error ? (
+          <p role="status" className="text-xs font-bold leading-5 text-rose-700">
+            دریافت محدوده پنل ناموفق بود: {error}
+          </p>
+        ) : panel === "parents" ? (
+          <ContextUnavailable icon="students">
+            {parentFiltersUnavailable
+              ? "سال تحصیلی تا زمان پشتیبانی API در دسترس نیست؛ انتخاب فرزند در بخش «فرزندان من» انجام می‌شود."
+              : "در حال دریافت محدوده حساب…"}
+          </ContextUnavailable>
+        ) : (
+          <UnitContextSelect
+            context={context}
+            selectedUnit={selectedUnit}
+            onSelect={(value) => select("unit", value)}
+          />
+        )}
       </div>
     </header>
   );

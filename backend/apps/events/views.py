@@ -62,6 +62,8 @@ def parse_bool_param(value):
             OpenApiParameter("unit_id", int, required=False),
             OpenApiParameter("featured", bool, required=False),
             OpenApiParameter("upcoming", bool, required=False),
+            OpenApiParameter("date_from", str, required=False),
+            OpenApiParameter("date_to", str, required=False),
             OpenApiParameter("search", str, required=False),
             OpenApiParameter("ordering", str, required=False),
         ],
@@ -146,6 +148,16 @@ class EventViewSet(ReadOnlyModelViewSet):
         elif upcoming is False:
             queryset = queryset.filter(event_start_at__lt=now)
 
+        date_from = self.request.query_params.get("date_from")
+
+        if date_from:
+            queryset = queryset.filter(event_start_at__date__gte=date_from)
+
+        date_to = self.request.query_params.get("date_to")
+
+        if date_to:
+            queryset = queryset.filter(event_start_at__date__lte=date_to)
+
         return queryset
 
     def get_serializer_class(self):
@@ -166,6 +178,8 @@ class EventViewSet(ReadOnlyModelViewSet):
             OpenApiParameter("featured", bool, required=False),
             OpenApiParameter("active", bool, required=False),
             OpenApiParameter("upcoming", bool, required=False),
+            OpenApiParameter("date_from", str, required=False),
+            OpenApiParameter("date_to", str, required=False),
             OpenApiParameter("search", str, required=False),
             OpenApiParameter("ordering", str, required=False),
             OpenApiParameter("page", int, required=False),
@@ -294,6 +308,16 @@ class CMSEventViewSet(ModelViewSet):
 
             else:
                 queryset = queryset.filter(event_start_at__lt=now)
+
+        date_from = self.request.query_params.get("date_from")
+
+        if date_from:
+            queryset = queryset.filter(event_start_at__date__gte=date_from)
+
+        date_to = self.request.query_params.get("date_to")
+
+        if date_to:
+            queryset = queryset.filter(event_start_at__date__lte=date_to)
 
         return queryset
 

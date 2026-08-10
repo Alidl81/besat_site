@@ -10,6 +10,32 @@ from .models import Department
 from .serializers import CMSDepartmentSerializer, DepartmentDetailSerializer, DepartmentListSerializer
 
 
+def _normalize_department_title(value: str) -> str:
+    """Collapse whitespace/ZWNJ variance and unify Arabic/Persian letter
+    forms (ي/ی, ك/ک) so title matching is exact but tolerant of the
+    encoding variance common in Persian data entry."""
+    if not value:
+        return ""
+
+    normalized = value.replace("‌", " ").replace("ي", "ی").replace("ك", "ک")
+    return " ".join(normalized.strip().split())
+
+
+# Retired department entries: kept manageable in the CMS (apps/departments
+# admin panel) so a general manager can still see/edit/delete them, but
+# excluded from the public departments wheel and virtual tour. Matched by
+# normalized title rather than slug/id because the offending rows are
+# pre-existing production data whose exact slugs vary by environment.
+_RETIRED_DEPARTMENT_TITLES = frozenset(
+    _normalize_department_title(title)
+    for title in (
+        "معاونت آموزشی",
+        "معاونت فرهنگی",
+        "باشگاه المپیاد",
+    )
+)
+
+
 @extend_schema_view(
     list=extend_schema(
         tags=["Departments"],
@@ -65,7 +91,16 @@ class DepartmentViewSet(ReadOnlyModelViewSet):
         if getattr(self, "swagger_fake_view", False):
             return Department.objects.none()
 
-        return Department.objects.filter(is_active=True).order_by("order", "id")
+        queryset = Department.objects.filter(is_active=True)
+        retired_ids = [
+            department.id
+            for department in queryset
+            if _normalize_department_title(department.title) in _RETIRED_DEPARTMENT_TITLES
+        ]
+        if retired_ids:
+            queryset = queryset.exclude(id__in=retired_ids)
+
+        return queryset.order_by("order", "id")
 
     def get_serializer_class(self):
         if self.action == "retrieve":

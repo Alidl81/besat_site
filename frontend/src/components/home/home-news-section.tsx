@@ -14,10 +14,6 @@ function formatDate(value: string | null) {
   }
 }
 
-function getNewsTime(item: PublicNewsItem) {
-  return new Date(item.published_at).getTime();
-}
-
 export function HomeNewsSection() {
   const [news, setNews] = useState<PublicNewsItem[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -25,21 +21,19 @@ export function HomeNewsSection() {
 
   useEffect(() => {
     let mounted = true;
-    getPublicNews({ page_size: 12 })
+    // Disjoint with the slider (is_featured) and the /news archive
+    // (is_featured=false && is_important=false): this section shows only
+    // is_important=true && is_featured=false, ordered by priority.
+    getPublicNews({
+      page_size: 4,
+      important: "true",
+      featured: "false",
+      ordering: "-priority",
+    })
       .then(({ results }) => {
         if (!mounted) return;
         setFailed(false);
-        setNews(
-          results
-            .sort(
-              (a, b) =>
-                Number(b.is_featured) - Number(a.is_featured) ||
-                Number(b.is_important) - Number(a.is_important) ||
-                b.priority - a.priority ||
-                getNewsTime(b) - getNewsTime(a),
-            )
-            .slice(0, 4),
-        );
+        setNews(results);
       })
       .catch(() => {
         if (!mounted) return;

@@ -6,7 +6,7 @@ info:
 paths:
   /api/about/:
     get:
-      operationId: api_about_retrieve
+      operationId: about_retrieve
       summary: Get public about page information
       tags:
       - About
@@ -22,7 +22,7 @@ paths:
           description: ''
   /api/achievements/:
     get:
-      operationId: api_achievements_list
+      operationId: achievements_list
       summary: List active achievements
       parameters:
       - in: query
@@ -65,7 +65,7 @@ paths:
           description: ''
   /api/achievements/{slug}/:
     get:
-      operationId: api_achievements_retrieve
+      operationId: achievements_retrieve
       summary: Retrieve active achievement by slug
       parameters:
       - in: path
@@ -88,7 +88,7 @@ paths:
           description: ''
   /api/announcements/:
     get:
-      operationId: api_announcements_list
+      operationId: announcements_list
       summary: List published announcements
       parameters:
       - in: query
@@ -152,7 +152,7 @@ paths:
           description: ''
   /api/announcements/{slug}/:
     get:
-      operationId: api_announcements_retrieve
+      operationId: announcements_retrieve
       summary: Retrieve published announcement by slug
       parameters:
       - in: path
@@ -175,7 +175,7 @@ paths:
           description: ''
   /api/announcements/categories/:
     get:
-      operationId: api_announcements_categories_list
+      operationId: announcements_categories_list
       summary: List active announcement categories
       parameters:
       - name: ordering
@@ -206,7 +206,7 @@ paths:
           description: ''
   /api/auth/login/:
     post:
-      operationId: api_auth_login_create
+      operationId: auth_login_create
       description: |-
         Takes a set of user credentials and returns an access and refresh JSON web
         token pair to prove the authentication of those credentials.
@@ -226,7 +226,7 @@ paths:
           description: No response body
   /api/auth/logout/:
     post:
-      operationId: api_auth_logout_create
+      operationId: auth_logout_create
       summary: Logout by blacklisting refresh token
       tags:
       - Auth
@@ -243,7 +243,7 @@ paths:
           description: No response body
   /api/auth/refresh/:
     post:
-      operationId: api_auth_refresh_create
+      operationId: auth_refresh_create
       description: |-
         Takes a refresh type JSON web token and returns an access type JSON web
         token if the refresh token is valid.
@@ -265,9 +265,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/TokenRefresh'
           description: ''
+  /api/auth/set-password/:
+    post:
+      operationId: auth_set_password_create
+      summary: Set password using an invitation token
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetPasswordRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
   /api/cms/achievements/:
     get:
-      operationId: api_cms_achievements_list
+      operationId: cms_achievements_list
       summary: CMS list achievements
       parameters:
       - in: query
@@ -313,7 +331,7 @@ paths:
                 $ref: '#/components/schemas/PaginatedCMSAchievementListList'
           description: ''
     post:
-      operationId: api_cms_achievements_create
+      operationId: cms_achievements_create
       summary: CMS create achievement
       tags:
       - CMS - Achievements
@@ -340,7 +358,7 @@ paths:
           description: ''
   /api/cms/achievements/{id}/:
     get:
-      operationId: api_cms_achievements_retrieve
+      operationId: cms_achievements_retrieve
       summary: CMS retrieve achievement
       parameters:
       - in: path
@@ -362,7 +380,7 @@ paths:
                 $ref: '#/components/schemas/CMSAchievementDetail'
           description: ''
     put:
-      operationId: api_cms_achievements_update
+      operationId: cms_achievements_update
       summary: CMS update achievement
       parameters:
       - in: path
@@ -395,7 +413,7 @@ paths:
                 $ref: '#/components/schemas/CMSAchievementWrite'
           description: ''
     patch:
-      operationId: api_cms_achievements_partial_update
+      operationId: cms_achievements_partial_update
       summary: CMS partially update achievement
       parameters:
       - in: path
@@ -427,7 +445,7 @@ paths:
                 $ref: '#/components/schemas/CMSAchievementWrite'
           description: ''
     delete:
-      operationId: api_cms_achievements_destroy
+      operationId: cms_achievements_destroy
       summary: CMS delete achievement
       parameters:
       - in: path
@@ -445,7 +463,7 @@ paths:
           description: No response body
   /api/cms/announcements/:
     get:
-      operationId: api_cms_announcements_list
+      operationId: cms_announcements_list
       summary: CMS list announcements
       parameters:
       - name: ordering
@@ -484,7 +502,7 @@ paths:
                 $ref: '#/components/schemas/PaginatedCMSAnnouncementListList'
           description: ''
     post:
-      operationId: api_cms_announcements_create
+      operationId: cms_announcements_create
       summary: CMS create announcement draft or article
       tags:
       - CMS - Announcements
@@ -511,7 +529,7 @@ paths:
           description: ''
   /api/cms/announcements/{id}/:
     get:
-      operationId: api_cms_announcements_retrieve
+      operationId: cms_announcements_retrieve
       summary: CMS retrieve announcement by id
       parameters:
       - in: path
@@ -532,7 +550,7 @@ paths:
                 $ref: '#/components/schemas/CMSAnnouncementDetail'
           description: ''
     put:
-      operationId: api_cms_announcements_update
+      operationId: cms_announcements_update
       summary: CMS update announcement
       parameters:
       - in: path
@@ -565,7 +583,7 @@ paths:
                 $ref: '#/components/schemas/CMSAnnouncementWrite'
           description: ''
     patch:
-      operationId: api_cms_announcements_partial_update
+      operationId: cms_announcements_partial_update
       summary: CMS partially update announcement
       parameters:
       - in: path
@@ -597,7 +615,7 @@ paths:
                 $ref: '#/components/schemas/CMSAnnouncementWrite'
           description: ''
     delete:
-      operationId: api_cms_announcements_destroy
+      operationId: cms_announcements_destroy
       summary: CMS delete announcement
       parameters:
       - in: path
@@ -615,7 +633,7 @@ paths:
           description: No response body
   /api/cms/announcements/{id}/approve/:
     post:
-      operationId: api_cms_announcements_approve_create
+      operationId: cms_announcements_approve_create
       summary: Approve announcement
       parameters:
       - in: path
@@ -648,7 +666,7 @@ paths:
           description: ''
   /api/cms/announcements/{id}/archive/:
     post:
-      operationId: api_cms_announcements_archive_create
+      operationId: cms_announcements_archive_create
       summary: Archive announcement
       parameters:
       - in: path
@@ -681,7 +699,7 @@ paths:
           description: ''
   /api/cms/announcements/{id}/publish/:
     post:
-      operationId: api_cms_announcements_publish_create
+      operationId: cms_announcements_publish_create
       summary: Publish announcement
       parameters:
       - in: path
@@ -714,7 +732,7 @@ paths:
           description: ''
   /api/cms/announcements/{id}/reject/:
     post:
-      operationId: api_cms_announcements_reject_create
+      operationId: cms_announcements_reject_create
       summary: Reject announcement
       parameters:
       - in: path
@@ -747,7 +765,7 @@ paths:
           description: ''
   /api/cms/announcements/{id}/restore/:
     post:
-      operationId: api_cms_announcements_restore_create
+      operationId: cms_announcements_restore_create
       summary: Restore archived announcement to draft
       parameters:
       - in: path
@@ -780,7 +798,7 @@ paths:
           description: ''
   /api/cms/announcements/{id}/submit-review/:
     post:
-      operationId: api_cms_announcements_submit_review_create
+      operationId: cms_announcements_submit_review_create
       summary: Submit announcement for review
       parameters:
       - in: path
@@ -813,7 +831,7 @@ paths:
           description: ''
   /api/cms/announcements/{id}/upload-image/:
     post:
-      operationId: api_cms_announcements_upload_image_create
+      operationId: cms_announcements_upload_image_create
       summary: Upload image for announcement editor content
       parameters:
       - in: path
@@ -844,7 +862,7 @@ paths:
           description: ''
   /api/cms/announcements/categories/:
     get:
-      operationId: api_cms_announcements_categories_list
+      operationId: cms_announcements_categories_list
       summary: CMS list announcement categories
       parameters:
       - name: ordering
@@ -883,7 +901,7 @@ paths:
                 $ref: '#/components/schemas/PaginatedCMSAnnouncementCategoryList'
           description: ''
     post:
-      operationId: api_cms_announcements_categories_create
+      operationId: cms_announcements_categories_create
       summary: CMS create announcement category
       tags:
       - CMS - Announcement Categories
@@ -904,7 +922,7 @@ paths:
           description: ''
   /api/cms/announcements/categories/{id}/:
     get:
-      operationId: api_cms_announcements_categories_retrieve
+      operationId: cms_announcements_categories_retrieve
       summary: CMS retrieve announcement category
       parameters:
       - in: path
@@ -925,7 +943,7 @@ paths:
                 $ref: '#/components/schemas/CMSAnnouncementCategory'
           description: ''
     put:
-      operationId: api_cms_announcements_categories_update
+      operationId: cms_announcements_categories_update
       summary: CMS update announcement category
       parameters:
       - in: path
@@ -952,7 +970,7 @@ paths:
                 $ref: '#/components/schemas/CMSAnnouncementCategory'
           description: ''
     patch:
-      operationId: api_cms_announcements_categories_partial_update
+      operationId: cms_announcements_categories_partial_update
       summary: CMS partially update announcement category
       parameters:
       - in: path
@@ -978,7 +996,7 @@ paths:
                 $ref: '#/components/schemas/CMSAnnouncementCategory'
           description: ''
     delete:
-      operationId: api_cms_announcements_categories_destroy
+      operationId: cms_announcements_categories_destroy
       summary: CMS delete announcement category
       parameters:
       - in: path
@@ -996,7 +1014,7 @@ paths:
           description: No response body
   /api/cms/classes/:
     get:
-      operationId: api_cms_classes_list
+      operationId: cms_classes_list
       parameters:
       - name: ordering
         required: false
@@ -1023,7 +1041,7 @@ paths:
         schema:
           type: string
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -1034,9 +1052,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedSchoolClassList'
           description: ''
     post:
-      operationId: api_cms_classes_create
+      operationId: cms_classes_create
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -1054,7 +1072,7 @@ paths:
           description: ''
   /api/cms/classes/{id}/:
     get:
-      operationId: api_cms_classes_retrieve
+      operationId: cms_classes_retrieve
       parameters:
       - in: path
         name: id
@@ -1063,7 +1081,7 @@ paths:
         description: یک مقداد عدد یکتا که این school class را شناسایی میکند.
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -1074,7 +1092,7 @@ paths:
                 $ref: '#/components/schemas/SchoolClass'
           description: ''
     put:
-      operationId: api_cms_classes_update
+      operationId: cms_classes_update
       parameters:
       - in: path
         name: id
@@ -1083,7 +1101,7 @@ paths:
         description: یک مقداد عدد یکتا که این school class را شناسایی میکند.
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -1100,7 +1118,7 @@ paths:
                 $ref: '#/components/schemas/SchoolClass'
           description: ''
     patch:
-      operationId: api_cms_classes_partial_update
+      operationId: cms_classes_partial_update
       parameters:
       - in: path
         name: id
@@ -1109,7 +1127,7 @@ paths:
         description: یک مقداد عدد یکتا که این school class را شناسایی میکند.
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -1125,7 +1143,7 @@ paths:
                 $ref: '#/components/schemas/SchoolClass'
           description: ''
     delete:
-      operationId: api_cms_classes_destroy
+      operationId: cms_classes_destroy
       parameters:
       - in: path
         name: id
@@ -1134,7 +1152,7 @@ paths:
         description: یک مقداد عدد یکتا که این school class را شناسایی میکند.
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -1142,7 +1160,7 @@ paths:
           description: No response body
   /api/cms/content/:
     get:
-      operationId: api_cms_content_list
+      operationId: cms_content_list
       description: Compatibility CRUD API for the frontend's unified content repository.
       parameters:
       - name: ordering
@@ -1170,7 +1188,7 @@ paths:
         schema:
           type: string
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       - {}
@@ -1182,10 +1200,10 @@ paths:
                 $ref: '#/components/schemas/PaginatedFrontendContentList'
           description: ''
     post:
-      operationId: api_cms_content_create
+      operationId: cms_content_create
       description: Compatibility CRUD API for the frontend's unified content repository.
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -1203,7 +1221,7 @@ paths:
           description: ''
   /api/cms/content/{id}/:
     get:
-      operationId: api_cms_content_retrieve
+      operationId: cms_content_retrieve
       description: Compatibility CRUD API for the frontend's unified content repository.
       parameters:
       - in: path
@@ -1212,7 +1230,7 @@ paths:
           type: string
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       - {}
@@ -1224,7 +1242,7 @@ paths:
                 $ref: '#/components/schemas/FrontendContent'
           description: ''
     put:
-      operationId: api_cms_content_update
+      operationId: cms_content_update
       description: Compatibility CRUD API for the frontend's unified content repository.
       parameters:
       - in: path
@@ -1233,7 +1251,7 @@ paths:
           type: string
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -1250,7 +1268,7 @@ paths:
                 $ref: '#/components/schemas/FrontendContent'
           description: ''
     patch:
-      operationId: api_cms_content_partial_update
+      operationId: cms_content_partial_update
       description: Compatibility CRUD API for the frontend's unified content repository.
       parameters:
       - in: path
@@ -1259,7 +1277,7 @@ paths:
           type: string
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -1275,7 +1293,7 @@ paths:
                 $ref: '#/components/schemas/FrontendContent'
           description: ''
     delete:
-      operationId: api_cms_content_destroy
+      operationId: cms_content_destroy
       description: Compatibility CRUD API for the frontend's unified content repository.
       parameters:
       - in: path
@@ -1284,15 +1302,203 @@ paths:
           type: string
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
         '204':
           description: No response body
+  /api/cms/content/{id}/approve/:
+    post:
+      operationId: cms_content_approve_create
+      description: Compatibility CRUD API for the frontend's unified content repository.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FrontendContentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontendContent'
+          description: ''
+  /api/cms/content/{id}/publish/:
+    post:
+      operationId: cms_content_publish_create
+      description: Compatibility CRUD API for the frontend's unified content repository.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FrontendContentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontendContent'
+          description: ''
+  /api/cms/content/{id}/reject/:
+    post:
+      operationId: cms_content_reject_create
+      description: Compatibility CRUD API for the frontend's unified content repository.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FrontendContentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontendContent'
+          description: ''
+  /api/cms/content/{id}/revisions/:
+    get:
+      operationId: cms_content_revisions_retrieve
+      description: Compatibility CRUD API for the frontend's unified content repository.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - cms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontendContent'
+          description: ''
+  /api/cms/content/{id}/revisions/{revision_id}/restore/:
+    post:
+      operationId: cms_content_revisions_restore_create
+      description: Compatibility CRUD API for the frontend's unified content repository.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: revision_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FrontendContentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontendContent'
+          description: ''
+  /api/cms/content/{id}/schedule/:
+    post:
+      operationId: cms_content_schedule_create
+      description: Compatibility CRUD API for the frontend's unified content repository.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FrontendContentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontendContent'
+          description: ''
+  /api/cms/content/{id}/submit-review/:
+    post:
+      operationId: cms_content_submit_review_create
+      description: Compatibility CRUD API for the frontend's unified content repository.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FrontendContentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontendContent'
+          description: ''
   /api/cms/departments/:
     get:
-      operationId: api_cms_departments_list
+      operationId: cms_departments_list
       parameters:
       - name: ordering
         required: false
@@ -1319,7 +1525,7 @@ paths:
         schema:
           type: string
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       - {}
@@ -1331,9 +1537,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedCMSDepartmentList'
           description: ''
     post:
-      operationId: api_cms_departments_create
+      operationId: cms_departments_create
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -1351,7 +1557,7 @@ paths:
           description: ''
   /api/cms/departments/{id}/:
     get:
-      operationId: api_cms_departments_retrieve
+      operationId: cms_departments_retrieve
       parameters:
       - in: path
         name: id
@@ -1360,7 +1566,7 @@ paths:
           pattern: ^\d+$
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       - {}
@@ -1372,7 +1578,7 @@ paths:
                 $ref: '#/components/schemas/CMSDepartment'
           description: ''
     put:
-      operationId: api_cms_departments_update
+      operationId: cms_departments_update
       parameters:
       - in: path
         name: id
@@ -1381,7 +1587,7 @@ paths:
           pattern: ^\d+$
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -1398,7 +1604,7 @@ paths:
                 $ref: '#/components/schemas/CMSDepartment'
           description: ''
     patch:
-      operationId: api_cms_departments_partial_update
+      operationId: cms_departments_partial_update
       parameters:
       - in: path
         name: id
@@ -1407,7 +1613,7 @@ paths:
           pattern: ^\d+$
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -1423,7 +1629,7 @@ paths:
                 $ref: '#/components/schemas/CMSDepartment'
           description: ''
     delete:
-      operationId: api_cms_departments_destroy
+      operationId: cms_departments_destroy
       parameters:
       - in: path
         name: id
@@ -1432,7 +1638,7 @@ paths:
           pattern: ^\d+$
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -1440,7 +1646,7 @@ paths:
           description: No response body
   /api/cms/events/:
     get:
-      operationId: api_cms_events_list
+      operationId: cms_events_list
       summary: CMS list events
       parameters:
       - in: query
@@ -1497,7 +1703,7 @@ paths:
                 $ref: '#/components/schemas/PaginatedCMSEventListList'
           description: ''
     post:
-      operationId: api_cms_events_create
+      operationId: cms_events_create
       summary: CMS create event
       tags:
       - CMS - Events
@@ -1524,7 +1730,7 @@ paths:
           description: ''
   /api/cms/events/{id}/:
     get:
-      operationId: api_cms_events_retrieve
+      operationId: cms_events_retrieve
       summary: CMS retrieve event
       parameters:
       - in: path
@@ -1545,7 +1751,7 @@ paths:
                 $ref: '#/components/schemas/CMSEventDetail'
           description: ''
     put:
-      operationId: api_cms_events_update
+      operationId: cms_events_update
       summary: CMS update event
       parameters:
       - in: path
@@ -1578,7 +1784,7 @@ paths:
                 $ref: '#/components/schemas/CMSEventWrite'
           description: ''
     patch:
-      operationId: api_cms_events_partial_update
+      operationId: cms_events_partial_update
       summary: CMS partially update event
       parameters:
       - in: path
@@ -1610,7 +1816,7 @@ paths:
                 $ref: '#/components/schemas/CMSEventWrite'
           description: ''
     delete:
-      operationId: api_cms_events_destroy
+      operationId: cms_events_destroy
       summary: CMS delete event
       parameters:
       - in: path
@@ -1628,7 +1834,7 @@ paths:
           description: No response body
   /api/cms/events/{id}/approve/:
     post:
-      operationId: api_cms_events_approve_create
+      operationId: cms_events_approve_create
       parameters:
       - in: path
         name: id
@@ -1637,7 +1843,7 @@ paths:
           pattern: ^\d+$
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -1649,7 +1855,7 @@ paths:
           description: ''
   /api/cms/events/{id}/archive/:
     post:
-      operationId: api_cms_events_archive_create
+      operationId: cms_events_archive_create
       parameters:
       - in: path
         name: id
@@ -1658,7 +1864,7 @@ paths:
           pattern: ^\d+$
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -1670,7 +1876,7 @@ paths:
           description: ''
   /api/cms/events/{id}/publish/:
     post:
-      operationId: api_cms_events_publish_create
+      operationId: cms_events_publish_create
       parameters:
       - in: path
         name: id
@@ -1679,7 +1885,7 @@ paths:
           pattern: ^\d+$
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -1691,7 +1897,7 @@ paths:
           description: ''
   /api/cms/events/{id}/reject/:
     post:
-      operationId: api_cms_events_reject_create
+      operationId: cms_events_reject_create
       parameters:
       - in: path
         name: id
@@ -1700,7 +1906,7 @@ paths:
           pattern: ^\d+$
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -1712,7 +1918,7 @@ paths:
           description: ''
   /api/cms/events/{id}/restore/:
     post:
-      operationId: api_cms_events_restore_create
+      operationId: cms_events_restore_create
       parameters:
       - in: path
         name: id
@@ -1721,7 +1927,7 @@ paths:
           pattern: ^\d+$
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -1733,7 +1939,7 @@ paths:
           description: ''
   /api/cms/events/{id}/submit-review/:
     post:
-      operationId: api_cms_events_submit_review_create
+      operationId: cms_events_submit_review_create
       parameters:
       - in: path
         name: id
@@ -1742,7 +1948,7 @@ paths:
           pattern: ^\d+$
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -1754,7 +1960,7 @@ paths:
           description: ''
   /api/cms/gallery/:
     get:
-      operationId: api_cms_gallery_list
+      operationId: cms_gallery_list
       summary: CMS list gallery items
       parameters:
       - name: ordering
@@ -1794,7 +2000,7 @@ paths:
                 $ref: '#/components/schemas/PaginatedCMSGalleryItemListList'
           description: ''
     post:
-      operationId: api_cms_gallery_create
+      operationId: cms_gallery_create
       summary: CMS create gallery item
       tags:
       - CMS - Gallery
@@ -1821,7 +2027,7 @@ paths:
           description: ''
   /api/cms/gallery/{id}/:
     get:
-      operationId: api_cms_gallery_retrieve
+      operationId: cms_gallery_retrieve
       summary: CMS retrieve gallery item by id
       parameters:
       - in: path
@@ -1843,7 +2049,7 @@ paths:
                 $ref: '#/components/schemas/CMSGalleryItemDetail'
           description: ''
     put:
-      operationId: api_cms_gallery_update
+      operationId: cms_gallery_update
       summary: CMS update gallery item
       parameters:
       - in: path
@@ -1876,7 +2082,7 @@ paths:
                 $ref: '#/components/schemas/CMSGalleryItemWrite'
           description: ''
     patch:
-      operationId: api_cms_gallery_partial_update
+      operationId: cms_gallery_partial_update
       summary: CMS partially update gallery item
       parameters:
       - in: path
@@ -1908,7 +2114,7 @@ paths:
                 $ref: '#/components/schemas/CMSGalleryItemWrite'
           description: ''
     delete:
-      operationId: api_cms_gallery_destroy
+      operationId: cms_gallery_destroy
       summary: CMS delete gallery item
       parameters:
       - in: path
@@ -1926,7 +2132,7 @@ paths:
           description: No response body
   /api/cms/gallery/{id}/approve/:
     post:
-      operationId: api_cms_gallery_approve_create
+      operationId: cms_gallery_approve_create
       summary: Approve gallery item
       parameters:
       - in: path
@@ -1959,7 +2165,7 @@ paths:
           description: ''
   /api/cms/gallery/{id}/archive/:
     post:
-      operationId: api_cms_gallery_archive_create
+      operationId: cms_gallery_archive_create
       summary: Archive gallery item
       parameters:
       - in: path
@@ -1992,7 +2198,7 @@ paths:
           description: ''
   /api/cms/gallery/{id}/publish/:
     post:
-      operationId: api_cms_gallery_publish_create
+      operationId: cms_gallery_publish_create
       summary: Publish gallery item
       parameters:
       - in: path
@@ -2025,7 +2231,7 @@ paths:
           description: ''
   /api/cms/gallery/{id}/reject/:
     post:
-      operationId: api_cms_gallery_reject_create
+      operationId: cms_gallery_reject_create
       summary: Reject gallery item
       parameters:
       - in: path
@@ -2058,7 +2264,7 @@ paths:
           description: ''
   /api/cms/gallery/{id}/restore/:
     post:
-      operationId: api_cms_gallery_restore_create
+      operationId: cms_gallery_restore_create
       summary: Restore archived gallery item to draft
       parameters:
       - in: path
@@ -2091,7 +2297,7 @@ paths:
           description: ''
   /api/cms/gallery/{id}/submit-review/:
     post:
-      operationId: api_cms_gallery_submit_review_create
+      operationId: cms_gallery_submit_review_create
       summary: Submit gallery item for review
       parameters:
       - in: path
@@ -2124,7 +2330,7 @@ paths:
           description: ''
   /api/cms/home-slides/:
     get:
-      operationId: api_cms_home_slides_list
+      operationId: cms_home_slides_list
       summary: CMS list home slides
       parameters:
       - in: query
@@ -2158,7 +2364,7 @@ paths:
                 $ref: '#/components/schemas/PaginatedCMSHomeSlideList'
           description: ''
     post:
-      operationId: api_cms_home_slides_create
+      operationId: cms_home_slides_create
       summary: CMS create home slide
       tags:
       - CMS - Home Slides
@@ -2184,7 +2390,7 @@ paths:
           description: ''
   /api/cms/home-slides/{id}/:
     get:
-      operationId: api_cms_home_slides_retrieve
+      operationId: cms_home_slides_retrieve
       summary: CMS retrieve home slide
       parameters:
       - in: path
@@ -2206,7 +2412,7 @@ paths:
                 $ref: '#/components/schemas/CMSHomeSlide'
           description: ''
     put:
-      operationId: api_cms_home_slides_update
+      operationId: cms_home_slides_update
       summary: CMS update home slide
       parameters:
       - in: path
@@ -2238,7 +2444,7 @@ paths:
                 $ref: '#/components/schemas/CMSHomeSlideWrite'
           description: ''
     patch:
-      operationId: api_cms_home_slides_partial_update
+      operationId: cms_home_slides_partial_update
       summary: CMS partially update home slide
       parameters:
       - in: path
@@ -2270,7 +2476,7 @@ paths:
                 $ref: '#/components/schemas/CMSHomeSlideWrite'
           description: ''
     delete:
-      operationId: api_cms_home_slides_destroy
+      operationId: cms_home_slides_destroy
       summary: CMS delete home slide
       parameters:
       - in: path
@@ -2288,7 +2494,7 @@ paths:
           description: No response body
   /api/cms/internal-messages/:
     get:
-      operationId: api_cms_internal_messages_list
+      operationId: cms_internal_messages_list
       parameters:
       - name: ordering
         required: false
@@ -2315,7 +2521,7 @@ paths:
         schema:
           type: string
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -2326,9 +2532,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedInternalMessageList'
           description: ''
     post:
-      operationId: api_cms_internal_messages_create
+      operationId: cms_internal_messages_create
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -2346,7 +2552,7 @@ paths:
           description: ''
   /api/cms/internal-messages/{id}/:
     get:
-      operationId: api_cms_internal_messages_retrieve
+      operationId: cms_internal_messages_retrieve
       parameters:
       - in: path
         name: id
@@ -2355,7 +2561,7 @@ paths:
         description: یک مقداد عدد یکتا که این internal message را شناسایی میکند.
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -2366,7 +2572,7 @@ paths:
                 $ref: '#/components/schemas/InternalMessage'
           description: ''
     put:
-      operationId: api_cms_internal_messages_update
+      operationId: cms_internal_messages_update
       parameters:
       - in: path
         name: id
@@ -2375,7 +2581,7 @@ paths:
         description: یک مقداد عدد یکتا که این internal message را شناسایی میکند.
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -2392,7 +2598,7 @@ paths:
                 $ref: '#/components/schemas/InternalMessage'
           description: ''
     patch:
-      operationId: api_cms_internal_messages_partial_update
+      operationId: cms_internal_messages_partial_update
       parameters:
       - in: path
         name: id
@@ -2401,7 +2607,7 @@ paths:
         description: یک مقداد عدد یکتا که این internal message را شناسایی میکند.
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -2417,7 +2623,7 @@ paths:
                 $ref: '#/components/schemas/InternalMessage'
           description: ''
     delete:
-      operationId: api_cms_internal_messages_destroy
+      operationId: cms_internal_messages_destroy
       parameters:
       - in: path
         name: id
@@ -2426,7 +2632,160 @@ paths:
         description: یک مقداد عدد یکتا که این internal message را شناسایی میکند.
         required: true
       tags:
-      - api
+      - cms
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/cms/internal-messages/{id}/mark-read/:
+    post:
+      operationId: cms_internal_messages_mark_read_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: یک مقداد عدد یکتا که این internal message را شناسایی میکند.
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InternalMessageRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalMessage'
+          description: ''
+  /api/cms/internal-messages/recipients/:
+    get:
+      operationId: cms_internal_messages_recipients_retrieve
+      tags:
+      - cms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalMessage'
+          description: ''
+  /api/cms/media/:
+    get:
+      operationId: cms_media_list
+      parameters:
+      - in: query
+        name: media_type
+        schema:
+          type: string
+          enum:
+          - image
+          - video
+        description: |-
+          * `image` - تصویر
+          * `video` - ویدئو
+      - name: ordering
+        required: false
+        in: query
+        description: کدام فیلد باید هنگام مرتب‌سازی نتایج استفاده شود.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: یک شماره صفحه‌ در مجموعه نتایج صفحه‌بندی شده.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: تعداد نتایج برای نمایش در هر صفحه.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: یک عبارت جستجو.
+        schema:
+          type: string
+      - in: query
+        name: unit
+        schema:
+          type: integer
+      tags:
+      - cms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMediaAssetList'
+          description: ''
+    post:
+      operationId: cms_media_create
+      tags:
+      - cms
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MediaAssetRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MediaAssetRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaAsset'
+          description: ''
+  /api/cms/media/{id}/:
+    get:
+      operationId: cms_media_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: یک مقداد عدد یکتا که این media asset را شناسایی میکند.
+        required: true
+      tags:
+      - cms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaAsset'
+          description: ''
+    delete:
+      operationId: cms_media_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: یک مقداد عدد یکتا که این media asset را شناسایی میکند.
+        required: true
+      tags:
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -2434,7 +2793,7 @@ paths:
           description: No response body
   /api/cms/messages/:
     get:
-      operationId: api_cms_messages_list
+      operationId: cms_messages_list
       summary: CMS list contact messages
       parameters:
       - in: query
@@ -2471,9 +2830,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedCMSContactMessageList'
           description: ''
     post:
-      operationId: api_cms_messages_create
+      operationId: cms_messages_create
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -2491,7 +2850,7 @@ paths:
           description: ''
   /api/cms/messages/{id}/:
     get:
-      operationId: api_cms_messages_retrieve
+      operationId: cms_messages_retrieve
       summary: CMS retrieve contact message
       parameters:
       - in: path
@@ -2512,7 +2871,7 @@ paths:
                 $ref: '#/components/schemas/CMSContactMessage'
           description: ''
     put:
-      operationId: api_cms_messages_update
+      operationId: cms_messages_update
       summary: CMS update contact message
       parameters:
       - in: path
@@ -2538,7 +2897,7 @@ paths:
                 $ref: '#/components/schemas/CMSContactMessageUpdate'
           description: ''
     patch:
-      operationId: api_cms_messages_partial_update
+      operationId: cms_messages_partial_update
       summary: CMS partially update contact message
       parameters:
       - in: path
@@ -2564,7 +2923,7 @@ paths:
                 $ref: '#/components/schemas/CMSContactMessageUpdate'
           description: ''
     delete:
-      operationId: api_cms_messages_destroy
+      operationId: cms_messages_destroy
       summary: CMS delete contact message
       parameters:
       - in: path
@@ -2582,7 +2941,7 @@ paths:
           description: No response body
   /api/cms/news/:
     get:
-      operationId: api_cms_news_list
+      operationId: cms_news_list
       summary: CMS list news
       parameters:
       - name: ordering
@@ -2621,7 +2980,7 @@ paths:
                 $ref: '#/components/schemas/PaginatedCMSNewsListList'
           description: ''
     post:
-      operationId: api_cms_news_create
+      operationId: cms_news_create
       summary: CMS create news draft or article
       tags:
       - CMS - News
@@ -2648,7 +3007,7 @@ paths:
           description: ''
   /api/cms/news/{id}/:
     get:
-      operationId: api_cms_news_retrieve
+      operationId: cms_news_retrieve
       summary: CMS retrieve news by id
       parameters:
       - in: path
@@ -2669,7 +3028,7 @@ paths:
                 $ref: '#/components/schemas/CMSNewsDetail'
           description: ''
     put:
-      operationId: api_cms_news_update
+      operationId: cms_news_update
       summary: CMS update news
       parameters:
       - in: path
@@ -2702,7 +3061,7 @@ paths:
                 $ref: '#/components/schemas/CMSNewsWrite'
           description: ''
     patch:
-      operationId: api_cms_news_partial_update
+      operationId: cms_news_partial_update
       summary: CMS partially update news
       parameters:
       - in: path
@@ -2734,7 +3093,7 @@ paths:
                 $ref: '#/components/schemas/CMSNewsWrite'
           description: ''
     delete:
-      operationId: api_cms_news_destroy
+      operationId: cms_news_destroy
       summary: CMS delete news
       parameters:
       - in: path
@@ -2752,7 +3111,7 @@ paths:
           description: No response body
   /api/cms/news/{id}/approve/:
     post:
-      operationId: api_cms_news_approve_create
+      operationId: cms_news_approve_create
       summary: Approve news
       parameters:
       - in: path
@@ -2785,7 +3144,7 @@ paths:
           description: ''
   /api/cms/news/{id}/archive/:
     post:
-      operationId: api_cms_news_archive_create
+      operationId: cms_news_archive_create
       summary: Archive news
       parameters:
       - in: path
@@ -2818,7 +3177,7 @@ paths:
           description: ''
   /api/cms/news/{id}/publish/:
     post:
-      operationId: api_cms_news_publish_create
+      operationId: cms_news_publish_create
       summary: Publish news
       parameters:
       - in: path
@@ -2851,7 +3210,7 @@ paths:
           description: ''
   /api/cms/news/{id}/reject/:
     post:
-      operationId: api_cms_news_reject_create
+      operationId: cms_news_reject_create
       summary: Reject news
       parameters:
       - in: path
@@ -2884,7 +3243,7 @@ paths:
           description: ''
   /api/cms/news/{id}/restore/:
     post:
-      operationId: api_cms_news_restore_create
+      operationId: cms_news_restore_create
       summary: Restore archived news to draft
       parameters:
       - in: path
@@ -2917,7 +3276,7 @@ paths:
           description: ''
   /api/cms/news/{id}/submit-review/:
     post:
-      operationId: api_cms_news_submit_review_create
+      operationId: cms_news_submit_review_create
       summary: Submit news for review
       parameters:
       - in: path
@@ -2950,7 +3309,7 @@ paths:
           description: ''
   /api/cms/news/{id}/upload-image/:
     post:
-      operationId: api_cms_news_upload_image_create
+      operationId: cms_news_upload_image_create
       summary: Upload image for news editor content
       parameters:
       - in: path
@@ -2981,7 +3340,7 @@ paths:
           description: ''
   /api/cms/news/categories/:
     get:
-      operationId: api_cms_news_categories_list
+      operationId: cms_news_categories_list
       summary: CMS list news categories
       parameters:
       - name: ordering
@@ -3020,7 +3379,7 @@ paths:
                 $ref: '#/components/schemas/PaginatedCMSNewsCategoryList'
           description: ''
     post:
-      operationId: api_cms_news_categories_create
+      operationId: cms_news_categories_create
       summary: CMS create news category
       tags:
       - CMS - News Categories
@@ -3041,7 +3400,7 @@ paths:
           description: ''
   /api/cms/news/categories/{id}/:
     get:
-      operationId: api_cms_news_categories_retrieve
+      operationId: cms_news_categories_retrieve
       summary: CMS retrieve news category
       parameters:
       - in: path
@@ -3062,7 +3421,7 @@ paths:
                 $ref: '#/components/schemas/CMSNewsCategory'
           description: ''
     put:
-      operationId: api_cms_news_categories_update
+      operationId: cms_news_categories_update
       summary: CMS update news category
       parameters:
       - in: path
@@ -3089,7 +3448,7 @@ paths:
                 $ref: '#/components/schemas/CMSNewsCategory'
           description: ''
     patch:
-      operationId: api_cms_news_categories_partial_update
+      operationId: cms_news_categories_partial_update
       summary: CMS partially update news category
       parameters:
       - in: path
@@ -3115,7 +3474,7 @@ paths:
                 $ref: '#/components/schemas/CMSNewsCategory'
           description: ''
     delete:
-      operationId: api_cms_news_categories_destroy
+      operationId: cms_news_categories_destroy
       summary: CMS delete news category
       parameters:
       - in: path
@@ -3133,7 +3492,7 @@ paths:
           description: No response body
   /api/cms/programs/:
     get:
-      operationId: api_cms_programs_list
+      operationId: cms_programs_list
       parameters:
       - name: ordering
         required: false
@@ -3160,7 +3519,7 @@ paths:
         schema:
           type: string
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -3171,9 +3530,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedProgramList'
           description: ''
     post:
-      operationId: api_cms_programs_create
+      operationId: cms_programs_create
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -3191,7 +3550,7 @@ paths:
           description: ''
   /api/cms/programs/{id}/:
     get:
-      operationId: api_cms_programs_retrieve
+      operationId: cms_programs_retrieve
       parameters:
       - in: path
         name: id
@@ -3200,7 +3559,7 @@ paths:
         description: یک مقداد عدد یکتا که این program را شناسایی میکند.
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -3211,7 +3570,7 @@ paths:
                 $ref: '#/components/schemas/Program'
           description: ''
     put:
-      operationId: api_cms_programs_update
+      operationId: cms_programs_update
       parameters:
       - in: path
         name: id
@@ -3220,7 +3579,7 @@ paths:
         description: یک مقداد عدد یکتا که این program را شناسایی میکند.
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -3237,7 +3596,7 @@ paths:
                 $ref: '#/components/schemas/Program'
           description: ''
     patch:
-      operationId: api_cms_programs_partial_update
+      operationId: cms_programs_partial_update
       parameters:
       - in: path
         name: id
@@ -3246,7 +3605,7 @@ paths:
         description: یک مقداد عدد یکتا که این program را شناسایی میکند.
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -3262,7 +3621,7 @@ paths:
                 $ref: '#/components/schemas/Program'
           description: ''
     delete:
-      operationId: api_cms_programs_destroy
+      operationId: cms_programs_destroy
       parameters:
       - in: path
         name: id
@@ -3271,7 +3630,7 @@ paths:
         description: یک مقداد عدد یکتا که این program را شناسایی میکند.
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -3279,7 +3638,7 @@ paths:
           description: No response body
   /api/cms/registration-requests/:
     get:
-      operationId: api_cms_registration_requests_list
+      operationId: cms_registration_requests_list
       summary: CMS list registration requests
       parameters:
       - in: query
@@ -3320,9 +3679,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedCMSRegistrationRequestList'
           description: ''
     post:
-      operationId: api_cms_registration_requests_create
+      operationId: cms_registration_requests_create
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -3339,7 +3698,7 @@ paths:
           description: ''
   /api/cms/registration-requests/{id}/:
     get:
-      operationId: api_cms_registration_requests_retrieve
+      operationId: cms_registration_requests_retrieve
       summary: CMS retrieve registration request
       parameters:
       - in: path
@@ -3360,7 +3719,7 @@ paths:
                 $ref: '#/components/schemas/CMSRegistrationRequest'
           description: ''
     put:
-      operationId: api_cms_registration_requests_update
+      operationId: cms_registration_requests_update
       summary: CMS update registration request
       parameters:
       - in: path
@@ -3386,7 +3745,7 @@ paths:
                 $ref: '#/components/schemas/CMSRegistrationRequestUpdate'
           description: ''
     patch:
-      operationId: api_cms_registration_requests_partial_update
+      operationId: cms_registration_requests_partial_update
       summary: CMS partially update registration request
       parameters:
       - in: path
@@ -3412,7 +3771,7 @@ paths:
                 $ref: '#/components/schemas/CMSRegistrationRequestUpdate'
           description: ''
     delete:
-      operationId: api_cms_registration_requests_destroy
+      operationId: cms_registration_requests_destroy
       summary: CMS delete registration request
       parameters:
       - in: path
@@ -3428,9 +3787,127 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/cms/registration-requests/{id}/approve/:
+    post:
+      operationId: cms_registration_requests_approve_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: یک مقداد عدد یکتا که این درخواست پیش‌ثبت‌نام را شناسایی میکند.
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CMSRegistrationRequestRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CMSRegistrationRequest'
+          description: ''
+  /api/cms/registration-requests/{id}/contact/:
+    post:
+      operationId: cms_registration_requests_contact_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: یک مقداد عدد یکتا که این درخواست پیش‌ثبت‌نام را شناسایی میکند.
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CMSRegistrationRequestRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CMSRegistrationRequest'
+          description: ''
+  /api/cms/registration-requests/{id}/reject/:
+    post:
+      operationId: cms_registration_requests_reject_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: یک مقداد عدد یکتا که این درخواست پیش‌ثبت‌نام را شناسایی میکند.
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CMSRegistrationRequestRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CMSRegistrationRequest'
+          description: ''
+  /api/cms/registration-requests/{id}/request-documents/:
+    post:
+      operationId: cms_registration_requests_request_documents_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: یک مقداد عدد یکتا که این درخواست پیش‌ثبت‌نام را شناسایی میکند.
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CMSRegistrationRequestRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CMSRegistrationRequest'
+          description: ''
+  /api/cms/registration-requests/summary/:
+    get:
+      operationId: cms_registration_requests_summary_retrieve
+      tags:
+      - cms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CMSRegistrationRequest'
+          description: ''
   /api/cms/registrations/:
     get:
-      operationId: api_cms_registrations_list
+      operationId: cms_registrations_list
       summary: CMS list registration requests
       parameters:
       - in: query
@@ -3471,9 +3948,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedCMSRegistrationRequestList'
           description: ''
     post:
-      operationId: api_cms_registrations_create
+      operationId: cms_registrations_create
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -3490,7 +3967,7 @@ paths:
           description: ''
   /api/cms/registrations-requests/:
     get:
-      operationId: api_cms_registrations_requests_list
+      operationId: cms_registrations_requests_list
       summary: CMS list registration requests
       parameters:
       - in: query
@@ -3531,9 +4008,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedCMSRegistrationRequestList'
           description: ''
     post:
-      operationId: api_cms_registrations_requests_create
+      operationId: cms_registrations_requests_create
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -3550,7 +4027,7 @@ paths:
           description: ''
   /api/cms/registrations-requests/{id}/:
     get:
-      operationId: api_cms_registrations_requests_retrieve
+      operationId: cms_registrations_requests_retrieve
       summary: CMS retrieve registration request
       parameters:
       - in: path
@@ -3571,7 +4048,7 @@ paths:
                 $ref: '#/components/schemas/CMSRegistrationRequest'
           description: ''
     put:
-      operationId: api_cms_registrations_requests_update
+      operationId: cms_registrations_requests_update
       summary: CMS update registration request
       parameters:
       - in: path
@@ -3597,7 +4074,7 @@ paths:
                 $ref: '#/components/schemas/CMSRegistrationRequestUpdate'
           description: ''
     patch:
-      operationId: api_cms_registrations_requests_partial_update
+      operationId: cms_registrations_requests_partial_update
       summary: CMS partially update registration request
       parameters:
       - in: path
@@ -3623,7 +4100,7 @@ paths:
                 $ref: '#/components/schemas/CMSRegistrationRequestUpdate'
           description: ''
     delete:
-      operationId: api_cms_registrations_requests_destroy
+      operationId: cms_registrations_requests_destroy
       summary: CMS delete registration request
       parameters:
       - in: path
@@ -3639,9 +4116,127 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/cms/registrations-requests/{id}/approve/:
+    post:
+      operationId: cms_registrations_requests_approve_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: یک مقداد عدد یکتا که این درخواست پیش‌ثبت‌نام را شناسایی میکند.
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CMSRegistrationRequestRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CMSRegistrationRequest'
+          description: ''
+  /api/cms/registrations-requests/{id}/contact/:
+    post:
+      operationId: cms_registrations_requests_contact_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: یک مقداد عدد یکتا که این درخواست پیش‌ثبت‌نام را شناسایی میکند.
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CMSRegistrationRequestRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CMSRegistrationRequest'
+          description: ''
+  /api/cms/registrations-requests/{id}/reject/:
+    post:
+      operationId: cms_registrations_requests_reject_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: یک مقداد عدد یکتا که این درخواست پیش‌ثبت‌نام را شناسایی میکند.
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CMSRegistrationRequestRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CMSRegistrationRequest'
+          description: ''
+  /api/cms/registrations-requests/{id}/request-documents/:
+    post:
+      operationId: cms_registrations_requests_request_documents_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: یک مقداد عدد یکتا که این درخواست پیش‌ثبت‌نام را شناسایی میکند.
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CMSRegistrationRequestRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CMSRegistrationRequest'
+          description: ''
+  /api/cms/registrations-requests/summary/:
+    get:
+      operationId: cms_registrations_requests_summary_retrieve
+      tags:
+      - cms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CMSRegistrationRequest'
+          description: ''
   /api/cms/registrations/{id}/:
     get:
-      operationId: api_cms_registrations_retrieve
+      operationId: cms_registrations_retrieve
       summary: CMS retrieve registration request
       parameters:
       - in: path
@@ -3662,7 +4257,7 @@ paths:
                 $ref: '#/components/schemas/CMSRegistrationRequest'
           description: ''
     put:
-      operationId: api_cms_registrations_update
+      operationId: cms_registrations_update
       summary: CMS update registration request
       parameters:
       - in: path
@@ -3688,7 +4283,7 @@ paths:
                 $ref: '#/components/schemas/CMSRegistrationRequestUpdate'
           description: ''
     patch:
-      operationId: api_cms_registrations_partial_update
+      operationId: cms_registrations_partial_update
       summary: CMS partially update registration request
       parameters:
       - in: path
@@ -3714,7 +4309,7 @@ paths:
                 $ref: '#/components/schemas/CMSRegistrationRequestUpdate'
           description: ''
     delete:
-      operationId: api_cms_registrations_destroy
+      operationId: cms_registrations_destroy
       summary: CMS delete registration request
       parameters:
       - in: path
@@ -3729,10 +4324,158 @@ paths:
       - jwtAuth: []
       responses:
         '204':
+          description: No response body
+  /api/cms/registrations/{id}/approve/:
+    post:
+      operationId: cms_registrations_approve_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: یک مقداد عدد یکتا که این درخواست پیش‌ثبت‌نام را شناسایی میکند.
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CMSRegistrationRequestRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CMSRegistrationRequest'
+          description: ''
+  /api/cms/registrations/{id}/contact/:
+    post:
+      operationId: cms_registrations_contact_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: یک مقداد عدد یکتا که این درخواست پیش‌ثبت‌نام را شناسایی میکند.
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CMSRegistrationRequestRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CMSRegistrationRequest'
+          description: ''
+  /api/cms/registrations/{id}/reject/:
+    post:
+      operationId: cms_registrations_reject_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: یک مقداد عدد یکتا که این درخواست پیش‌ثبت‌نام را شناسایی میکند.
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CMSRegistrationRequestRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CMSRegistrationRequest'
+          description: ''
+  /api/cms/registrations/{id}/request-documents/:
+    post:
+      operationId: cms_registrations_request_documents_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: یک مقداد عدد یکتا که این درخواست پیش‌ثبت‌نام را شناسایی میکند.
+        required: true
+      tags:
+      - cms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CMSRegistrationRequestRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CMSRegistrationRequest'
+          description: ''
+  /api/cms/registrations/summary/:
+    get:
+      operationId: cms_registrations_summary_retrieve
+      tags:
+      - cms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CMSRegistrationRequest'
+          description: ''
+  /api/cms/reports/export/:
+    get:
+      operationId: cms_reports_export_retrieve
+      tags:
+      - cms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/cms/reports/overview/:
+    get:
+      operationId: cms_reports_overview_retrieve
+      tags:
+      - cms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/cms/services/:
+    get:
+      operationId: cms_services_retrieve
+      tags:
+      - cms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
           description: No response body
   /api/cms/staff/:
     get:
-      operationId: api_cms_staff_list
+      operationId: cms_staff_list
       summary: CMS list staff members
       parameters:
       - in: query
@@ -3789,7 +4532,7 @@ paths:
                 $ref: '#/components/schemas/PaginatedCMSStaffMemberListList'
           description: ''
     post:
-      operationId: api_cms_staff_create
+      operationId: cms_staff_create
       summary: CMS create staff member
       tags:
       - CMS - Staff
@@ -3816,7 +4559,7 @@ paths:
           description: ''
   /api/cms/staff/{id}/:
     get:
-      operationId: api_cms_staff_retrieve
+      operationId: cms_staff_retrieve
       summary: CMS retrieve staff member
       parameters:
       - in: path
@@ -3837,7 +4580,7 @@ paths:
                 $ref: '#/components/schemas/CMSStaffMemberDetail'
           description: ''
     put:
-      operationId: api_cms_staff_update
+      operationId: cms_staff_update
       summary: CMS update staff member
       parameters:
       - in: path
@@ -3870,7 +4613,7 @@ paths:
                 $ref: '#/components/schemas/CMSStaffMemberWrite'
           description: ''
     patch:
-      operationId: api_cms_staff_partial_update
+      operationId: cms_staff_partial_update
       summary: CMS partially update staff member
       parameters:
       - in: path
@@ -3902,7 +4645,7 @@ paths:
                 $ref: '#/components/schemas/CMSStaffMemberWrite'
           description: ''
     delete:
-      operationId: api_cms_staff_destroy
+      operationId: cms_staff_destroy
       summary: CMS delete staff member
       parameters:
       - in: path
@@ -3920,7 +4663,7 @@ paths:
           description: No response body
   /api/cms/static-pages/:
     get:
-      operationId: api_cms_static_pages_list
+      operationId: cms_static_pages_list
       description: Expose the existing AboutPage model using the frontend static-page
         shape.
       parameters:
@@ -3949,7 +4692,7 @@ paths:
         schema:
           type: string
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       - {}
@@ -3961,11 +4704,11 @@ paths:
                 $ref: '#/components/schemas/PaginatedStaticPageCompatibilityList'
           description: ''
     post:
-      operationId: api_cms_static_pages_create
+      operationId: cms_static_pages_create
       description: Expose the existing AboutPage model using the frontend static-page
         shape.
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -3983,7 +4726,7 @@ paths:
           description: ''
   /api/cms/static-pages/{id}/:
     get:
-      operationId: api_cms_static_pages_retrieve
+      operationId: cms_static_pages_retrieve
       description: Expose the existing AboutPage model using the frontend static-page
         shape.
       parameters:
@@ -3993,7 +4736,7 @@ paths:
           type: string
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       - {}
@@ -4005,7 +4748,7 @@ paths:
                 $ref: '#/components/schemas/StaticPageCompatibility'
           description: ''
     put:
-      operationId: api_cms_static_pages_update
+      operationId: cms_static_pages_update
       description: Expose the existing AboutPage model using the frontend static-page
         shape.
       parameters:
@@ -4015,7 +4758,7 @@ paths:
           type: string
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -4032,7 +4775,7 @@ paths:
                 $ref: '#/components/schemas/StaticPageCompatibility'
           description: ''
     patch:
-      operationId: api_cms_static_pages_partial_update
+      operationId: cms_static_pages_partial_update
       description: Expose the existing AboutPage model using the frontend static-page
         shape.
       parameters:
@@ -4042,7 +4785,7 @@ paths:
           type: string
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -4058,7 +4801,7 @@ paths:
                 $ref: '#/components/schemas/StaticPageCompatibility'
           description: ''
     delete:
-      operationId: api_cms_static_pages_destroy
+      operationId: cms_static_pages_destroy
       description: Expose the existing AboutPage model using the frontend static-page
         shape.
       parameters:
@@ -4068,7 +4811,7 @@ paths:
           type: string
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -4076,7 +4819,7 @@ paths:
           description: No response body
   /api/cms/students/:
     get:
-      operationId: api_cms_students_list
+      operationId: cms_students_list
       parameters:
       - name: ordering
         required: false
@@ -4103,7 +4846,7 @@ paths:
         schema:
           type: string
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -4114,9 +4857,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedStudentList'
           description: ''
     post:
-      operationId: api_cms_students_create
+      operationId: cms_students_create
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -4134,7 +4877,7 @@ paths:
           description: ''
   /api/cms/students/{id}/:
     get:
-      operationId: api_cms_students_retrieve
+      operationId: cms_students_retrieve
       parameters:
       - in: path
         name: id
@@ -4143,7 +4886,7 @@ paths:
         description: یک مقداد عدد یکتا که این student را شناسایی میکند.
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -4154,7 +4897,7 @@ paths:
                 $ref: '#/components/schemas/Student'
           description: ''
     put:
-      operationId: api_cms_students_update
+      operationId: cms_students_update
       parameters:
       - in: path
         name: id
@@ -4163,7 +4906,7 @@ paths:
         description: یک مقداد عدد یکتا که این student را شناسایی میکند.
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -4180,7 +4923,7 @@ paths:
                 $ref: '#/components/schemas/Student'
           description: ''
     patch:
-      operationId: api_cms_students_partial_update
+      operationId: cms_students_partial_update
       parameters:
       - in: path
         name: id
@@ -4189,7 +4932,7 @@ paths:
         description: یک مقداد عدد یکتا که این student را شناسایی میکند.
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -4205,7 +4948,7 @@ paths:
                 $ref: '#/components/schemas/Student'
           description: ''
     delete:
-      operationId: api_cms_students_destroy
+      operationId: cms_students_destroy
       parameters:
       - in: path
         name: id
@@ -4214,15 +4957,29 @@ paths:
         description: یک مقداد عدد یکتا که این student را شناسایی میکند.
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
         '204':
           description: No response body
+  /api/cms/students/summary/:
+    get:
+      operationId: cms_students_summary_retrieve
+      tags:
+      - cms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
   /api/cms/units/:
     get:
-      operationId: api_cms_units_list
+      operationId: cms_units_list
       parameters:
       - name: ordering
         required: false
@@ -4249,7 +5006,7 @@ paths:
         schema:
           type: string
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       - {}
@@ -4261,9 +5018,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedCMSSchoolUnitList'
           description: ''
     post:
-      operationId: api_cms_units_create
+      operationId: cms_units_create
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -4281,7 +5038,7 @@ paths:
           description: ''
   /api/cms/units/{id}/:
     get:
-      operationId: api_cms_units_retrieve
+      operationId: cms_units_retrieve
       parameters:
       - in: path
         name: id
@@ -4290,7 +5047,7 @@ paths:
           pattern: ^\d+$
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       - {}
@@ -4302,7 +5059,7 @@ paths:
                 $ref: '#/components/schemas/CMSSchoolUnit'
           description: ''
     put:
-      operationId: api_cms_units_update
+      operationId: cms_units_update
       parameters:
       - in: path
         name: id
@@ -4311,7 +5068,7 @@ paths:
           pattern: ^\d+$
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -4328,7 +5085,7 @@ paths:
                 $ref: '#/components/schemas/CMSSchoolUnit'
           description: ''
     patch:
-      operationId: api_cms_units_partial_update
+      operationId: cms_units_partial_update
       parameters:
       - in: path
         name: id
@@ -4337,7 +5094,7 @@ paths:
           pattern: ^\d+$
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -4353,7 +5110,7 @@ paths:
                 $ref: '#/components/schemas/CMSSchoolUnit'
           description: ''
     delete:
-      operationId: api_cms_units_destroy
+      operationId: cms_units_destroy
       parameters:
       - in: path
         name: id
@@ -4362,7 +5119,7 @@ paths:
           pattern: ^\d+$
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -4370,7 +5127,7 @@ paths:
           description: No response body
   /api/cms/users/:
     get:
-      operationId: api_cms_users_list
+      operationId: cms_users_list
       parameters:
       - name: ordering
         required: false
@@ -4397,7 +5154,7 @@ paths:
         schema:
           type: string
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -4408,9 +5165,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedCMSUserCompatibilityList'
           description: ''
     post:
-      operationId: api_cms_users_create
+      operationId: cms_users_create
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -4428,7 +5185,7 @@ paths:
           description: ''
   /api/cms/users/{id}/:
     get:
-      operationId: api_cms_users_retrieve
+      operationId: cms_users_retrieve
       parameters:
       - in: path
         name: id
@@ -4436,7 +5193,7 @@ paths:
           type: string
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -4447,7 +5204,7 @@ paths:
                 $ref: '#/components/schemas/CMSUserCompatibility'
           description: ''
     put:
-      operationId: api_cms_users_update
+      operationId: cms_users_update
       parameters:
       - in: path
         name: id
@@ -4455,7 +5212,7 @@ paths:
           type: string
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -4472,7 +5229,7 @@ paths:
                 $ref: '#/components/schemas/CMSUserCompatibility'
           description: ''
     patch:
-      operationId: api_cms_users_partial_update
+      operationId: cms_users_partial_update
       parameters:
       - in: path
         name: id
@@ -4480,7 +5237,7 @@ paths:
           type: string
         required: true
       tags:
-      - api
+      - cms
       requestBody:
         content:
           application/json:
@@ -4496,7 +5253,7 @@ paths:
                 $ref: '#/components/schemas/CMSUserCompatibility'
           description: ''
     delete:
-      operationId: api_cms_users_destroy
+      operationId: cms_users_destroy
       parameters:
       - in: path
         name: id
@@ -4504,7 +5261,7 @@ paths:
           type: string
         required: true
       tags:
-      - api
+      - cms
       security:
       - jwtAuth: []
       responses:
@@ -4512,7 +5269,13 @@ paths:
           description: No response body
   /api/contact/:
     get:
-      operationId: api_contact_retrieve
+      operationId: contact_retrieve
+      description: |-
+        GET is a read of low-sensitivity public info fetched on every page
+        load (e.g. by the site footer) and must not be throttled at the
+        contact-message rate. POST creates a message through the same "contact"
+        scope as the dedicated /api/messages/ endpoint, closing an
+        anon-rate-only amplification gap on this compatibility alias.
       summary: Get public contact information
       tags:
       - Contact
@@ -4527,7 +5290,13 @@ paths:
                 $ref: '#/components/schemas/ContactInfo'
           description: ''
     post:
-      operationId: api_contact_create
+      operationId: contact_create
+      description: |-
+        GET is a read of low-sensitivity public info fetched on every page
+        load (e.g. by the site footer) and must not be throttled at the
+        contact-message rate. POST creates a message through the same "contact"
+        scope as the dedicated /api/messages/ endpoint, closing an
+        anon-rate-only amplification gap on this compatibility alias.
       summary: Create public contact message (frontend-compatible alias)
       tags:
       - Contact
@@ -4549,7 +5318,7 @@ paths:
           description: ''
   /api/content/:
     get:
-      operationId: api_content_list
+      operationId: content_list
       summary: Aggregate published public content from news, announcements, gallery,
         and events
       parameters:
@@ -4619,9 +5388,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedContentAggregateItemList'
           description: ''
+  /api/dashboard/context/:
+    get:
+      operationId: dashboard_context_retrieve
+      summary: Current panel context
+      tags:
+      - Dashboard
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardContext'
+          description: ''
   /api/dashboard/general-manager/:
     get:
-      operationId: api_dashboard_general_manager_retrieve
+      operationId: dashboard_general_manager_retrieve
       summary: General manager dashboard
       tags:
       - Dashboard
@@ -4636,7 +5420,7 @@ paths:
           description: ''
   /api/dashboard/media/:
     get:
-      operationId: api_dashboard_media_retrieve
+      operationId: dashboard_media_retrieve
       summary: Media dashboard
       tags:
       - Dashboard
@@ -4651,7 +5435,7 @@ paths:
           description: ''
   /api/dashboard/parents/:
     get:
-      operationId: api_dashboard_parents_retrieve
+      operationId: dashboard_parents_retrieve
       summary: Parents dashboard
       tags:
       - Dashboard
@@ -4666,7 +5450,7 @@ paths:
           description: ''
   /api/dashboard/unit-manager/:
     get:
-      operationId: api_dashboard_unit_manager_retrieve
+      operationId: dashboard_unit_manager_retrieve
       summary: Unit manager dashboard
       tags:
       - Dashboard
@@ -4681,7 +5465,7 @@ paths:
           description: ''
   /api/departments/:
     get:
-      operationId: api_departments_list
+      operationId: departments_list
       summary: List active departments
       parameters:
       - in: query
@@ -4710,7 +5494,7 @@ paths:
           description: ''
   /api/departments/{slug}/:
     get:
-      operationId: api_departments_retrieve
+      operationId: departments_retrieve
       summary: Retrieve active department by slug
       parameters:
       - in: path
@@ -4735,7 +5519,7 @@ paths:
           description: ''
   /api/events/:
     get:
-      operationId: api_events_list
+      operationId: events_list
       summary: List published events
       parameters:
       - in: query
@@ -4786,7 +5570,7 @@ paths:
           description: ''
   /api/events/{slug}/:
     get:
-      operationId: api_events_retrieve
+      operationId: events_retrieve
       summary: Retrieve published event by slug
       parameters:
       - in: path
@@ -4809,9 +5593,21 @@ paths:
           description: ''
   /api/gallery/:
     get:
-      operationId: api_gallery_list
+      operationId: gallery_list
       summary: List published gallery items
       parameters:
+      - in: query
+        name: album
+        schema:
+          type: string
+      - in: query
+        name: date_from
+        schema:
+          type: string
+      - in: query
+        name: date_to
+        schema:
+          type: string
       - in: query
         name: featured
         schema:
@@ -4860,7 +5656,7 @@ paths:
           description: ''
   /api/gallery/{slug}/:
     get:
-      operationId: api_gallery_retrieve
+      operationId: gallery_retrieve
       summary: Retrieve published gallery item by slug
       parameters:
       - in: path
@@ -4883,7 +5679,7 @@ paths:
           description: ''
   /api/health/:
     get:
-      operationId: api_health_retrieve
+      operationId: health_retrieve
       tags:
       - Core
       security:
@@ -4894,7 +5690,7 @@ paths:
           description: API is healthy
   /api/home/:
     get:
-      operationId: api_home_retrieve
+      operationId: home_retrieve
       summary: Get public home page aggregate payload
       tags:
       - Home
@@ -4911,7 +5707,7 @@ paths:
           description: ''
   /api/home/slides/:
     get:
-      operationId: api_home_slides_list
+      operationId: home_slides_list
       tags:
       - Home
       security:
@@ -4928,7 +5724,7 @@ paths:
           description: ''
   /api/me/:
     get:
-      operationId: api_me_retrieve
+      operationId: me_retrieve
       summary: Get current user basic information
       tags:
       - Me
@@ -4943,7 +5739,7 @@ paths:
           description: ''
   /api/me/change-password/:
     post:
-      operationId: api_me_change_password_create
+      operationId: me_change_password_create
       summary: Change current user password
       tags:
       - Me
@@ -4960,7 +5756,7 @@ paths:
           description: No response body
   /api/me/permissions/:
     get:
-      operationId: api_me_permissions_retrieve
+      operationId: me_permissions_retrieve
       summary: Get current user role and permissions
       tags:
       - Me
@@ -4975,7 +5771,7 @@ paths:
           description: ''
   /api/me/profile/:
     get:
-      operationId: api_me_profile_retrieve
+      operationId: me_profile_retrieve
       summary: Get current user profile
       tags:
       - Me
@@ -4989,7 +5785,7 @@ paths:
                 $ref: '#/components/schemas/Profile'
           description: ''
     patch:
-      operationId: api_me_profile_partial_update
+      operationId: me_profile_partial_update
       summary: Update current user profile
       tags:
       - Me
@@ -5015,7 +5811,7 @@ paths:
           description: ''
   /api/me/profile/avatar/:
     post:
-      operationId: api_me_profile_avatar_create
+      operationId: me_profile_avatar_create
       summary: Upload current user avatar
       tags:
       - Me
@@ -5039,7 +5835,7 @@ paths:
           description: ''
   /api/me/units/:
     get:
-      operationId: api_me_units_list
+      operationId: me_units_list
       summary: Get current user's accessible units
       tags:
       - Me
@@ -5056,7 +5852,7 @@ paths:
           description: ''
   /api/messages/:
     post:
-      operationId: api_messages_create
+      operationId: messages_create
       summary: Create public contact message
       tags:
       - Contact
@@ -5078,7 +5874,7 @@ paths:
           description: ''
   /api/news/:
     get:
-      operationId: api_news_list
+      operationId: news_list
       summary: List published news
       parameters:
       - in: query
@@ -5092,10 +5888,16 @@ paths:
           type: boolean
         description: 'Filter featured news. Accepted values: true, false.'
       - in: query
+        name: important
+        schema:
+          type: boolean
+        description: 'Filter important news. Accepted values: true, false.'
+      - in: query
         name: ordering
         schema:
           type: string
-        description: 'Allowed: published_at, -published_at, title, -title.'
+        description: 'Allowed: published_at, -published_at, priority, -priority, title,
+          -title.'
       - in: query
         name: page
         schema:
@@ -5142,7 +5944,7 @@ paths:
           description: ''
   /api/news/{slug}/:
     get:
-      operationId: api_news_retrieve
+      operationId: news_retrieve
       summary: Retrieve published news by slug
       parameters:
       - in: path
@@ -5167,7 +5969,7 @@ paths:
           description: ''
   /api/news/categories/:
     get:
-      operationId: api_news_categories_list
+      operationId: news_categories_list
       summary: List active news categories
       parameters:
       - name: ordering
@@ -5196,9 +5998,61 @@ paths:
                 items:
                   $ref: '#/components/schemas/NewsCategoryList'
           description: ''
+  /api/parents/children/:
+    get:
+      operationId: parents_children_retrieve
+      tags:
+      - parents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/parents/children/{id}/:
+    get:
+      operationId: parents_children_retrieve_2
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - parents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/parents/programs/:
+    get:
+      operationId: parents_programs_retrieve
+      tags:
+      - parents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/parents/registrations/:
+    get:
+      operationId: parents_registrations_retrieve
+      tags:
+      - parents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/registration/:
     get:
-      operationId: api_registration_retrieve
+      operationId: registration_retrieve
+      description: |-
+        GET is public info fetched on every visit to the pre-registration
+        page and must not be throttled at the submission rate. POST creates a
+        request through the same "registration" scope as the dedicated
+        /api/registration-requests/ endpoint, closing an anon-rate-only
+        amplification gap on this compatibility alias.
       summary: Get public registration information
       tags:
       - Registration
@@ -5213,7 +6067,13 @@ paths:
                 $ref: '#/components/schemas/RegistrationInfo'
           description: ''
     post:
-      operationId: api_registration_create
+      operationId: registration_create
+      description: |-
+        GET is public info fetched on every visit to the pre-registration
+        page and must not be throttled at the submission rate. POST creates a
+        request through the same "registration" scope as the dedicated
+        /api/registration-requests/ endpoint, closing an anon-rate-only
+        amplification gap on this compatibility alias.
       summary: Create public registration request (frontend-compatible alias)
       tags:
       - Registration
@@ -5235,7 +6095,7 @@ paths:
           description: ''
   /api/registration-requests/:
     post:
-      operationId: api_registration_requests_create
+      operationId: registration_requests_create
       summary: Create public registration request
       tags:
       - Registration
@@ -5257,7 +6117,7 @@ paths:
           description: ''
   /api/site-settings/:
     get:
-      operationId: api_site_settings_retrieve
+      operationId: site_settings_retrieve
       tags:
       - Site Settings
       security:
@@ -5272,7 +6132,7 @@ paths:
           description: ''
   /api/staff/:
     get:
-      operationId: api_staff_list
+      operationId: staff_list
       summary: List active staff members
       parameters:
       - in: query
@@ -5327,7 +6187,7 @@ paths:
           description: ''
   /api/staff/{slug}/:
     get:
-      operationId: api_staff_retrieve
+      operationId: staff_retrieve
       summary: Retrieve active staff member by slug
       parameters:
       - in: path
@@ -5350,7 +6210,7 @@ paths:
           description: ''
   /api/units/:
     get:
-      operationId: api_units_list
+      operationId: units_list
       summary: List active school units
       parameters:
       - in: query
@@ -5380,7 +6240,7 @@ paths:
           description: ''
   /api/units/{slug}/:
     get:
-      operationId: api_units_retrieve
+      operationId: units_retrieve
       summary: Retrieve active school unit by slug or id
       parameters:
       - in: path
@@ -5426,11 +6286,75 @@ components:
           readOnly: true
           nullable: true
           title: توضیحات متا
+        history:
+          type: string
+          readOnly: true
+          nullable: true
+          title: تاریخچه
+        founders:
+          readOnly: true
+          title: بنیان‌گذاران
+        key_people:
+          readOnly: true
+          title: افراد کلیدی
+        mission:
+          type: string
+          readOnly: true
+          nullable: true
+          title: ماموریت
+        values:
+          readOnly: true
+          title: ارزش‌ها
+        goals:
+          readOnly: true
+          title: اهداف
+        images:
+          readOnly: true
+          title: تصاویر تکمیلی
+        video_url:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+          title: نشانی ویدیو
+        video_poster_url:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+          title: پوستر ویدیو
+        video_title:
+          type: string
+          readOnly: true
+          nullable: true
+          title: عنوان ویدیو
+        video_description:
+          type: string
+          readOnly: true
+          nullable: true
+          title: توضیح ویدیو
+        video_caption:
+          type: string
+          readOnly: true
+          nullable: true
+          title: زیرنویس ویدیو
       required:
       - description
+      - founders
+      - goals
+      - history
       - image
+      - images
+      - key_people
       - meta_description
+      - mission
       - title
+      - values
+      - video_caption
+      - video_description
+      - video_poster_url
+      - video_title
+      - video_url
     AchievementDetail:
       type: object
       description: Helper mixin for returning absolute media URLs in serializers.
@@ -5672,6 +6596,12 @@ components:
         content_json:
           readOnly: true
           title: محتوای ساختاریافته
+        body_html:
+          type: string
+          readOnly: true
+        body_json:
+          type: string
+          readOnly: true
         cover_image:
           type: string
           format: uri
@@ -5704,10 +6634,16 @@ components:
           type: boolean
           readOnly: true
           title: اطلاعیه ویژه؟
+        seo:
+          type: object
+          additionalProperties: {}
+          readOnly: true
         is_published:
           type: boolean
           readOnly: true
       required:
+      - body_html
+      - body_json
       - category
       - content_json
       - cover_image
@@ -5716,6 +6652,7 @@ components:
       - is_published
       - published_at
       - scope
+      - seo
       - slug
       - status
       - summary
@@ -6638,6 +7575,14 @@ components:
         message:
           type: string
           title: متن پیام
+        related_unit:
+          type: integer
+          nullable: true
+          title: واحد مرتبط
+        message_type:
+          allOf:
+          - $ref: '#/components/schemas/MessageTypeEnum'
+          title: نوع پیام
         status:
           allOf:
           - $ref: '#/components/schemas/StatusF11Enum'
@@ -6701,6 +7646,14 @@ components:
           type: string
           minLength: 1
           title: متن پیام
+        related_unit:
+          type: integer
+          nullable: true
+          title: واحد مرتبط
+        message_type:
+          allOf:
+          - $ref: '#/components/schemas/MessageTypeEnum'
+          title: نوع پیام
         status:
           allOf:
           - $ref: '#/components/schemas/StatusF11Enum'
@@ -7183,6 +8136,7 @@ components:
         published_at:
           type: string
           format: date
+          readOnly: true
           nullable: true
           title: تاریخ انتشار
         scope:
@@ -7207,9 +8161,11 @@ components:
         status:
           allOf:
           - $ref: '#/components/schemas/Status439Enum'
+          readOnly: true
           title: وضعیت
         review_note:
           type: string
+          readOnly: true
           nullable: true
           title: یادداشت بررسی
         created_by:
@@ -7242,7 +8198,10 @@ components:
       - created_by
       - event_start_at
       - id
+      - published_at
       - published_by
+      - review_note
+      - status
       - title
       - updated_at
       - updated_by
@@ -7295,11 +8254,6 @@ components:
           nullable: true
           title: لینک ثبت‌نام یا اطلاعات بیشتر
           maxLength: 500
-        published_at:
-          type: string
-          format: date
-          nullable: true
-          title: تاریخ انتشار
         scope:
           allOf:
           - $ref: '#/components/schemas/Scope1e1Enum'
@@ -7319,14 +8273,6 @@ components:
           minimum: 0
           format: int64
           title: ترتیب نمایش
-        status:
-          allOf:
-          - $ref: '#/components/schemas/Status439Enum'
-          title: وضعیت
-        review_note:
-          type: string
-          nullable: true
-          title: یادداشت بررسی
       required:
       - event_start_at
       - title
@@ -8046,6 +8992,15 @@ components:
           type: boolean
           readOnly: true
           title: خبر ویژه؟
+        is_important:
+          type: boolean
+          readOnly: true
+          title: خبر مهم؟
+        priority:
+          type: integer
+          readOnly: true
+          title: اولویت نمایش
+          description: عدد بزرگ‌تر در چیدمان خبرهای مهم زودتر نمایش داده می‌شود.
         is_active:
           type: boolean
           readOnly: true
@@ -8084,7 +9039,9 @@ components:
       - id
       - is_active
       - is_featured
+      - is_important
       - media_items
+      - priority
       - published_at
       - published_by
       - scope
@@ -8152,6 +9109,15 @@ components:
           type: boolean
           readOnly: true
           title: خبر ویژه؟
+        is_important:
+          type: boolean
+          readOnly: true
+          title: خبر مهم؟
+        priority:
+          type: integer
+          readOnly: true
+          title: اولویت نمایش
+          description: عدد بزرگ‌تر در چیدمان خبرهای مهم زودتر نمایش داده می‌شود.
         is_active:
           type: boolean
           readOnly: true
@@ -8183,6 +9149,8 @@ components:
       - id
       - is_active
       - is_featured
+      - is_important
+      - priority
       - published_at
       - published_by
       - scope
@@ -8248,6 +9216,16 @@ components:
         is_featured:
           type: boolean
           title: خبر ویژه؟
+        is_important:
+          type: boolean
+          title: خبر مهم؟
+        priority:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: اولویت نمایش
+          description: عدد بزرگ‌تر در چیدمان خبرهای مهم زودتر نمایش داده می‌شود.
         is_active:
           type: boolean
           title: فعال است؟
@@ -8333,6 +9311,16 @@ components:
         is_featured:
           type: boolean
           title: خبر ویژه؟
+        is_important:
+          type: boolean
+          title: خبر مهم؟
+        priority:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: اولویت نمایش
+          description: عدد بزرگ‌تر در چیدمان خبرهای مهم زودتر نمایش داده می‌شود.
         is_active:
           type: boolean
           title: فعال است؟
@@ -8388,7 +9376,7 @@ components:
           title: توضیحات
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusFdfEnum'
+          - $ref: '#/components/schemas/StatusA29Enum'
           title: وضعیت
         admin_note:
           type: string
@@ -8434,7 +9422,7 @@ components:
       properties:
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusFdfEnum'
+          - $ref: '#/components/schemas/StatusA29Enum'
           title: وضعیت
         admin_note:
           type: string
@@ -8445,7 +9433,7 @@ components:
       properties:
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusFdfEnum'
+          - $ref: '#/components/schemas/StatusA29Enum'
           title: وضعیت
         admin_note:
           type: string
@@ -8456,7 +9444,7 @@ components:
       properties:
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusFdfEnum'
+          - $ref: '#/components/schemas/StatusA29Enum'
           title: وضعیت
         admin_note:
           type: string
@@ -8510,6 +9498,52 @@ components:
           nullable: true
           title: پایه‌های تحصیلی
           maxLength: 100
+        address:
+          type: string
+          nullable: true
+          title: نشانی
+        phone:
+          type: string
+          nullable: true
+          title: شماره تماس اصلی
+          maxLength: 50
+        phone_secondary:
+          type: string
+          nullable: true
+          title: شماره تماس دوم
+          maxLength: 50
+        email:
+          type: string
+          format: email
+          nullable: true
+          title: ایمیل
+          maxLength: 254
+        office_hours:
+          type: string
+          nullable: true
+          title: ساعات پاسخ‌گویی
+          maxLength: 255
+        map_url:
+          type: string
+          format: uri
+          nullable: true
+          title: لینک نقشه
+          maxLength: 1000
+        latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          nullable: true
+          title: عرض جغرافیایی
+        longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          nullable: true
+          title: طول جغرافیایی
+        accepts_registration:
+          type: boolean
+          title: پیش‌ثبت‌نام فعال است؟
         is_active:
           type: boolean
           title: فعال است؟
@@ -8580,6 +9614,52 @@ components:
           nullable: true
           title: پایه‌های تحصیلی
           maxLength: 100
+        address:
+          type: string
+          nullable: true
+          title: نشانی
+        phone:
+          type: string
+          nullable: true
+          title: شماره تماس اصلی
+          maxLength: 50
+        phone_secondary:
+          type: string
+          nullable: true
+          title: شماره تماس دوم
+          maxLength: 50
+        email:
+          type: string
+          format: email
+          nullable: true
+          title: ایمیل
+          maxLength: 254
+        office_hours:
+          type: string
+          nullable: true
+          title: ساعات پاسخ‌گویی
+          maxLength: 255
+        map_url:
+          type: string
+          format: uri
+          nullable: true
+          title: لینک نقشه
+          maxLength: 1000
+        latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          nullable: true
+          title: عرض جغرافیایی
+        longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          nullable: true
+          title: طول جغرافیایی
+        accepts_registration:
+          type: boolean
+          title: پیش‌ثبت‌نام فعال است؟
         is_active:
           type: boolean
           title: فعال است؟
@@ -9203,6 +10283,13 @@ components:
           type: string
           minLength: 1
           title: متن پیام
+        related_unit:
+          type: integer
+          nullable: true
+        message_type:
+          allOf:
+          - $ref: '#/components/schemas/MessageTypeEnum'
+          title: نوع پیام
       required:
       - full_name
       - message
@@ -9307,6 +10394,80 @@ components:
       - key
       - label
       - value
+    DashboardContext:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/DashboardContextUser'
+        academic_years:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        selected_academic_year_id:
+          type: integer
+          nullable: true
+        units:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardContextUnit'
+        selected_unit_id:
+          type: integer
+          nullable: true
+        children:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        selected_child_id:
+          type: integer
+          nullable: true
+        unread_notifications:
+          type: integer
+        unread_messages:
+          type: integer
+        current_date:
+          type: string
+          format: date-time
+      required:
+      - academic_years
+      - children
+      - current_date
+      - selected_academic_year_id
+      - selected_child_id
+      - selected_unit_id
+      - units
+      - unread_messages
+      - unread_notifications
+      - user
+    DashboardContextUnit:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+      required:
+      - id
+      - title
+    DashboardContextUser:
+      type: object
+      properties:
+        id:
+          type: integer
+        full_name:
+          type: string
+        role_display:
+          type: string
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+      required:
+      - avatar_url
+      - full_name
+      - id
+      - role_display
     DashboardResponse:
       type: object
       properties:
@@ -9699,7 +10860,9 @@ components:
           nullable: true
         body_html:
           type: string
-        cover_image:
+        body_json:
+          nullable: true
+        cover_image_url:
           type: string
           nullable: true
         scope:
@@ -9707,24 +10870,42 @@ components:
         unit_id:
           type: integer
           nullable: true
+        unit:
+          type: object
+          additionalProperties: {}
+          nullable: true
         category:
-          type: string
+          type: object
+          additionalProperties: {}
           nullable: true
         status:
           type: string
+        author:
+          type: object
+          additionalProperties: {}
+          nullable: true
         author_role:
           type: string
+          nullable: true
+        scheduled_at:
+          type: string
+          format: date
           nullable: true
         published_at:
           type: string
           format: date
           nullable: true
+        is_featured:
+          type: boolean
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
+        seo:
+          type: object
+          additionalProperties: {}
       required:
       - body_html
       - created_at
@@ -9765,7 +10946,9 @@ components:
           minLength: 1
         body_html:
           type: string
-        cover_image:
+        body_json:
+          nullable: true
+        cover_image_url:
           type: string
           nullable: true
           minLength: 1
@@ -9774,27 +10957,44 @@ components:
         unit_id:
           type: integer
           nullable: true
-        category:
-          type: string
+        unit:
+          type: object
+          additionalProperties: {}
           nullable: true
-          minLength: 1
+        category:
+          type: object
+          additionalProperties: {}
+          nullable: true
         status:
           type: string
           minLength: 1
+        author:
+          type: object
+          additionalProperties: {}
+          nullable: true
         author_role:
           type: string
           nullable: true
           minLength: 1
+        scheduled_at:
+          type: string
+          format: date
+          nullable: true
         published_at:
           type: string
           format: date
           nullable: true
+        is_featured:
+          type: boolean
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
+        seo:
+          type: object
+          additionalProperties: {}
       required:
       - body_html
       - created_at
@@ -10085,6 +11285,12 @@ components:
         id:
           type: integer
           readOnly: true
+        sender:
+          type: string
+          readOnly: true
+        recipient:
+          type: string
+          readOnly: true
         sender_id:
           type: string
           readOnly: true
@@ -10128,9 +11334,11 @@ components:
       - body
       - created_at
       - id
+      - recipient
       - recipient_id
       - recipient_name
       - recipient_role
+      - sender
       - sender_id
       - sender_name
       - sender_role
@@ -10291,6 +11499,102 @@ components:
       - role_display
       - unit_id
       - username
+    MediaAsset:
+      type: object
+      description: Helper mixin for returning absolute media URLs in serializers.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+        url:
+          type: string
+          readOnly: true
+        media_type:
+          allOf:
+          - $ref: '#/components/schemas/MediaTypeEnum'
+          readOnly: true
+        content_type:
+          type: string
+          readOnly: true
+        size:
+          type: integer
+          readOnly: true
+        alt_text:
+          type: string
+          maxLength: 255
+        caption:
+          type: string
+          maxLength: 500
+        unit:
+          type: integer
+          nullable: true
+        uploaded_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: تاریخ ایجاد
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: تاریخ بروزرسانی
+      required:
+      - content_type
+      - created_at
+      - id
+      - media_type
+      - size
+      - updated_at
+      - uploaded_by
+      - url
+    MediaAssetRequest:
+      type: object
+      description: Helper mixin for returning absolute media URLs in serializers.
+      properties:
+        title:
+          type: string
+        file:
+          type: string
+          format: binary
+          writeOnly: true
+        alt_text:
+          type: string
+          maxLength: 255
+        caption:
+          type: string
+          maxLength: 500
+        unit:
+          type: integer
+          nullable: true
+      required:
+      - file
+    MediaTypeEnum:
+      enum:
+      - image
+      - video
+      type: string
+      description: |-
+        * `image` - تصویر
+        * `video` - ویدئو
+    MessageTypeEnum:
+      enum:
+      - general
+      - criticism
+      - suggestion
+      - complaint
+      - feedback
+      type: string
+      description: |-
+        * `general` - ارتباط عمومی
+        * `criticism` - انتقاد
+        * `suggestion` - پیشنهاد
+        * `complaint` - شکایت
+        * `feedback` - بازخورد
     NewsCategoryBrief:
       type: object
       properties:
@@ -10356,6 +11660,12 @@ components:
           readOnly: true
           title: محتوای ساختاریافته
           description: خروجی JSON ادیتور خبر. برای نمایش در فرانت استفاده می‌شود.
+        body_html:
+          type: string
+          readOnly: true
+        body_json:
+          type: string
+          readOnly: true
         cover_image:
           type: string
           format: uri
@@ -10390,18 +11700,36 @@ components:
           type: boolean
           readOnly: true
           title: خبر ویژه؟
+        is_important:
+          type: boolean
+          readOnly: true
+          title: خبر مهم؟
+        priority:
+          type: integer
+          readOnly: true
+          title: اولویت نمایش
+          description: عدد بزرگ‌تر در چیدمان خبرهای مهم زودتر نمایش داده می‌شود.
         is_published:
           type: boolean
           readOnly: true
+        seo:
+          type: object
+          additionalProperties: {}
+          readOnly: true
       required:
+      - body_html
+      - body_json
       - category
       - content_json
       - cover_image
       - id
       - is_featured
+      - is_important
       - is_published
+      - priority
       - published_at
       - scope
+      - seo
       - slug
       - status
       - summary
@@ -10472,6 +11800,15 @@ components:
           type: boolean
           readOnly: true
           title: خبر ویژه؟
+        is_important:
+          type: boolean
+          readOnly: true
+          title: خبر مهم؟
+        priority:
+          type: integer
+          readOnly: true
+          title: اولویت نمایش
+          description: عدد بزرگ‌تر در چیدمان خبرهای مهم زودتر نمایش داده می‌شود.
         is_published:
           type: boolean
           readOnly: true
@@ -10482,7 +11819,9 @@ components:
       - id
       - image
       - is_featured
+      - is_important
       - is_published
+      - priority
       - published_at
       - scope
       - slug
@@ -11035,6 +12374,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/InternalMessage'
+    PaginatedMediaAssetList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaAsset'
     PaginatedNewsListList:
       type: object
       required:
@@ -11387,11 +12749,6 @@ components:
           nullable: true
           title: لینک ثبت‌نام یا اطلاعات بیشتر
           maxLength: 500
-        published_at:
-          type: string
-          format: date
-          nullable: true
-          title: تاریخ انتشار
         scope:
           allOf:
           - $ref: '#/components/schemas/Scope1e1Enum'
@@ -11411,14 +12768,6 @@ components:
           minimum: 0
           format: int64
           title: ترتیب نمایش
-        status:
-          allOf:
-          - $ref: '#/components/schemas/Status439Enum'
-          title: وضعیت
-        review_note:
-          type: string
-          nullable: true
-          title: یادداشت بررسی
     PatchedCMSGalleryItemWriteRequest:
       type: object
       properties:
@@ -11598,6 +12947,16 @@ components:
         is_featured:
           type: boolean
           title: خبر ویژه؟
+        is_important:
+          type: boolean
+          title: خبر مهم؟
+        priority:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          title: اولویت نمایش
+          description: عدد بزرگ‌تر در چیدمان خبرهای مهم زودتر نمایش داده می‌شود.
         is_active:
           type: boolean
           title: فعال است؟
@@ -11606,7 +12965,7 @@ components:
       properties:
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusFdfEnum'
+          - $ref: '#/components/schemas/StatusA29Enum'
           title: وضعیت
         admin_note:
           type: string
@@ -11658,6 +13017,52 @@ components:
           nullable: true
           title: پایه‌های تحصیلی
           maxLength: 100
+        address:
+          type: string
+          nullable: true
+          title: نشانی
+        phone:
+          type: string
+          nullable: true
+          title: شماره تماس اصلی
+          maxLength: 50
+        phone_secondary:
+          type: string
+          nullable: true
+          title: شماره تماس دوم
+          maxLength: 50
+        email:
+          type: string
+          format: email
+          nullable: true
+          title: ایمیل
+          maxLength: 254
+        office_hours:
+          type: string
+          nullable: true
+          title: ساعات پاسخ‌گویی
+          maxLength: 255
+        map_url:
+          type: string
+          format: uri
+          nullable: true
+          title: لینک نقشه
+          maxLength: 1000
+        latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          nullable: true
+          title: عرض جغرافیایی
+        longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          nullable: true
+          title: طول جغرافیایی
+        accepts_registration:
+          type: boolean
+          title: پیش‌ثبت‌نام فعال است؟
         is_active:
           type: boolean
           title: فعال است؟
@@ -11789,7 +13194,9 @@ components:
           minLength: 1
         body_html:
           type: string
-        cover_image:
+        body_json:
+          nullable: true
+        cover_image_url:
           type: string
           nullable: true
           minLength: 1
@@ -11798,27 +13205,44 @@ components:
         unit_id:
           type: integer
           nullable: true
-        category:
-          type: string
+        unit:
+          type: object
+          additionalProperties: {}
           nullable: true
-          minLength: 1
+        category:
+          type: object
+          additionalProperties: {}
+          nullable: true
         status:
           type: string
           minLength: 1
+        author:
+          type: object
+          additionalProperties: {}
+          nullable: true
         author_role:
           type: string
           nullable: true
           minLength: 1
+        scheduled_at:
+          type: string
+          format: date
+          nullable: true
         published_at:
           type: string
           format: date
           nullable: true
+        is_featured:
+          type: boolean
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
+        seo:
+          type: object
+          additionalProperties: {}
     PatchedInternalMessageRequest:
       type: object
       properties:
@@ -11895,6 +13319,51 @@ components:
         body_html:
           type: string
         meta_description:
+          type: string
+          nullable: true
+          minLength: 1
+        history:
+          type: string
+          nullable: true
+          minLength: 1
+        founders:
+          type: array
+          items: {}
+        key_people:
+          type: array
+          items: {}
+        mission:
+          type: string
+          nullable: true
+          minLength: 1
+        values:
+          type: array
+          items: {}
+        goals:
+          type: array
+          items: {}
+        images:
+          type: array
+          items: {}
+        video_url:
+          type: string
+          format: uri
+          nullable: true
+          minLength: 1
+        video_poster_url:
+          type: string
+          format: uri
+          nullable: true
+          minLength: 1
+        video_title:
+          type: string
+          nullable: true
+          minLength: 1
+        video_description:
+          type: string
+          nullable: true
+          minLength: 1
+        video_caption:
           type: string
           nullable: true
           minLength: 1
@@ -12273,15 +13742,74 @@ components:
           readOnly: true
           nullable: true
           title: پایه‌های تحصیلی
+        address:
+          type: string
+          readOnly: true
+          nullable: true
+          title: نشانی
+        phone:
+          type: string
+          readOnly: true
+          nullable: true
+          title: شماره تماس اصلی
+        phone_secondary:
+          type: string
+          readOnly: true
+          nullable: true
+          title: شماره تماس دوم
+        email:
+          type: string
+          format: email
+          readOnly: true
+          nullable: true
+          title: ایمیل
+        office_hours:
+          type: string
+          readOnly: true
+          nullable: true
+          title: ساعات پاسخ‌گویی
+        map_url:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+          title: لینک نقشه
+        latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          readOnly: true
+          nullable: true
+          title: عرض جغرافیایی
+        longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          readOnly: true
+          nullable: true
+          title: طول جغرافیایی
+        accepts_registration:
+          type: boolean
+          readOnly: true
+          title: پیش‌ثبت‌نام فعال است؟
       required:
+      - accepts_registration
+      - address
       - age_range
       - cover_image
       - description
+      - email
       - gender
       - grade_range
       - icon
       - id
       - kind
+      - latitude
+      - longitude
+      - map_url
+      - office_hours
+      - phone
+      - phone_secondary
       - slug
       - subtitle
       - title
@@ -12343,15 +13871,74 @@ components:
           readOnly: true
           nullable: true
           title: پایه‌های تحصیلی
+        address:
+          type: string
+          readOnly: true
+          nullable: true
+          title: نشانی
+        phone:
+          type: string
+          readOnly: true
+          nullable: true
+          title: شماره تماس اصلی
+        phone_secondary:
+          type: string
+          readOnly: true
+          nullable: true
+          title: شماره تماس دوم
+        email:
+          type: string
+          format: email
+          readOnly: true
+          nullable: true
+          title: ایمیل
+        office_hours:
+          type: string
+          readOnly: true
+          nullable: true
+          title: ساعات پاسخ‌گویی
+        map_url:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+          title: لینک نقشه
+        latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          readOnly: true
+          nullable: true
+          title: عرض جغرافیایی
+        longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          readOnly: true
+          nullable: true
+          title: طول جغرافیایی
+        accepts_registration:
+          type: boolean
+          readOnly: true
+          title: پیش‌ثبت‌نام فعال است؟
       required:
+      - accepts_registration
+      - address
       - age_range
       - cover_image
       - description
+      - email
       - gender
       - grade_range
       - icon
       - id
       - kind
+      - latitude
+      - longitude
+      - map_url
+      - office_hours
+      - phone
+      - phone_secondary
       - slug
       - subtitle
       - title
@@ -12363,6 +13950,20 @@ components:
       description: |-
         * `school` - کل مدرسه
         * `unit` - واحد آموزشی
+    SetPasswordRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - token
     SiteSettings:
       type: object
       description: Helper mixin for returning absolute media URLs in serializers.
@@ -12768,6 +14369,44 @@ components:
         meta_description:
           type: string
           nullable: true
+        history:
+          type: string
+          nullable: true
+        founders:
+          type: array
+          items: {}
+        key_people:
+          type: array
+          items: {}
+        mission:
+          type: string
+          nullable: true
+        values:
+          type: array
+          items: {}
+        goals:
+          type: array
+          items: {}
+        images:
+          type: array
+          items: {}
+        video_url:
+          type: string
+          format: uri
+          nullable: true
+        video_poster_url:
+          type: string
+          format: uri
+          nullable: true
+        video_title:
+          type: string
+          nullable: true
+        video_description:
+          type: string
+          nullable: true
+        video_caption:
+          type: string
+          nullable: true
         is_published:
           type: boolean
         created_at:
@@ -12799,6 +14438,51 @@ components:
         body_html:
           type: string
         meta_description:
+          type: string
+          nullable: true
+          minLength: 1
+        history:
+          type: string
+          nullable: true
+          minLength: 1
+        founders:
+          type: array
+          items: {}
+        key_people:
+          type: array
+          items: {}
+        mission:
+          type: string
+          nullable: true
+          minLength: 1
+        values:
+          type: array
+          items: {}
+        goals:
+          type: array
+          items: {}
+        images:
+          type: array
+          items: {}
+        video_url:
+          type: string
+          format: uri
+          nullable: true
+          minLength: 1
+        video_poster_url:
+          type: string
+          format: uri
+          nullable: true
+          minLength: 1
+        video_title:
+          type: string
+          nullable: true
+          minLength: 1
+        video_description:
+          type: string
+          nullable: true
+          minLength: 1
+        video_caption:
           type: string
           nullable: true
           minLength: 1
@@ -12835,6 +14519,24 @@ components:
         * `published` - منتشر شده
         * `rejected` - رد شده
         * `archived` - آرشیو شده
+    StatusA29Enum:
+      enum:
+      - new
+      - reviewing
+      - needs_documents
+      - contacted
+      - accepted
+      - rejected
+      - archived
+      type: string
+      description: |-
+        * `new` - جدید
+        * `reviewing` - در حال بررسی
+        * `needs_documents` - نیازمند مدارک
+        * `contacted` - تماس گرفته‌شده
+        * `accepted` - پذیرفته‌شده
+        * `rejected` - ردشده
+        * `archived` - آرشیوشده
     StatusF11Enum:
       enum:
       - new
@@ -12846,22 +14548,6 @@ components:
         * `new` - جدید
         * `seen` - دیده‌شده
         * `answered` - پاسخ‌داده‌شده
-        * `archived` - آرشیوشده
-    StatusFdfEnum:
-      enum:
-      - new
-      - reviewing
-      - contacted
-      - accepted
-      - rejected
-      - archived
-      type: string
-      description: |-
-        * `new` - جدید
-        * `reviewing` - در حال بررسی
-        * `contacted` - تماس گرفته‌شده
-        * `accepted` - پذیرفته‌شده
-        * `rejected` - ردشده
         * `archived` - آرشیوشده
     Student:
       type: object

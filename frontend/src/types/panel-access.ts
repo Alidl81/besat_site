@@ -1,4 +1,7 @@
-﻿export type DashboardRole =
+﻿// "unit_manager" is a legacy value retained only so pre-existing accounts
+// still type-check; it is not assignable to new users and does not appear
+// in any role-selection UI.
+export type DashboardRole =
   | "general_manager"
   | "unit_manager"
   | "unit_media"

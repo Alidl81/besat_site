@@ -12,6 +12,7 @@ from apps.core.models import (
     ContentWorkflowModel,
     OrderedModel,
     ScopedContentModel,
+    SEOFieldsModel,
     TimeStampedModel,
 )
 from apps.core.utils import normalize_text
@@ -112,6 +113,7 @@ class Announcement(
     ActiveModel,
     ScopedContentModel,
     ContentWorkflowModel,
+    SEOFieldsModel,
 ):
     title = models.CharField(
         max_length=255,

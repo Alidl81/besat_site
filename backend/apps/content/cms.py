@@ -15,6 +15,7 @@ from rest_framework.viewsets import GenericViewSet
 from apps.accounts.models import UserProfile
 from apps.accounts.selectors import get_or_create_user_profile
 from apps.announcements.models import Announcement, AnnouncementCategory
+from apps.core.models import SEOFieldsModel
 from apps.news.models import News, NewsCategory
 from apps.news.permissions import get_accessible_unit_ids, is_general_manager
 from apps.units.models import SchoolUnit
@@ -50,6 +51,7 @@ class FrontendContentSerializer(serializers.Serializer):
     is_featured = serializers.BooleanField(required=False)
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
+    seo = serializers.DictField(required=False)
 
 
 def _absolute_file_or_fallback(request, file_field, fallback):
@@ -348,7 +350,47 @@ def serialize_content_item(request, kind, item):
         "published_at": item.published_at,
         "created_at": item.created_at,
         "updated_at": item.updated_at,
+        "seo": _serialize_seo_fields(item),
     }
+
+
+def _serialize_seo_fields(item):
+    return item.seo_fields_dict()
+
+
+_SEO_FIELD_NAMES = SEOFieldsModel.SEO_FIELD_NAMES
+_SEO_BOOLEAN_FIELDS = ("is_indexable", "is_followable", "is_cornerstone")
+_SEO_BOOLEAN_DEFAULTS = {
+    "is_indexable": True,
+    "is_followable": True,
+    "is_cornerstone": False,
+}
+
+
+def _seo_field_default(name):
+    return _SEO_BOOLEAN_DEFAULTS[name] if name in _SEO_BOOLEAN_FIELDS else None
+
+
+def _validated_seo_values(data, current):
+    seo_data = data.get("seo")
+    if not isinstance(seo_data, dict):
+        return {name: current(name, _seo_field_default(name)) for name in _SEO_FIELD_NAMES}
+
+    values = {}
+    for name in _SEO_FIELD_NAMES:
+        if name not in seo_data:
+            values[name] = current(name, _seo_field_default(name))
+            continue
+
+        value = seo_data.get(name)
+        if name in _SEO_BOOLEAN_FIELDS:
+            values[name] = bool(value) if value is not None else _SEO_BOOLEAN_DEFAULTS[name]
+        elif isinstance(value, str):
+            values[name] = value.strip() or None
+        else:
+            values[name] = None
+
+    return values
 
 
 class CMSContentViewSet(GenericViewSet):
@@ -423,7 +465,7 @@ class CMSContentViewSet(GenericViewSet):
         item = model.objects.filter(pk=object_id).first()
         if item is None:
             raise NotFound("محتوا یافت نشد.")
-        self._ensure_write_access(request.user, item.scope, item.unit_id)
+        self._ensure_delete_access(request.user, item.scope, item.unit_id)
         ContentRevision.objects.filter(content_kind=kind, object_id=item.id).delete()
         item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -636,6 +678,11 @@ class CMSContentViewSet(GenericViewSet):
         ):
             if field_name in snapshot:
                 setattr(item, field_name, snapshot[field_name])
+        snapshot_seo = snapshot.get("seo")
+        if isinstance(snapshot_seo, dict):
+            for field_name in _SEO_FIELD_NAMES:
+                if field_name in snapshot_seo:
+                    setattr(item, field_name, snapshot_seo[field_name])
         item.category = category
         if is_general_manager(request.user):
             item.status = snapshot.get("status", item.status)
@@ -840,6 +887,7 @@ class CMSContentViewSet(GenericViewSet):
             "cover_image_url": cover_image_url,
             "is_featured": data.get("is_featured", current("is_featured", False)),
             "is_active": True,
+            **_validated_seo_values(data, current),
         }
         return values
 
@@ -868,6 +916,7 @@ class CMSContentViewSet(GenericViewSet):
             "published_at": item.published_at.isoformat() if item.published_at else None,
             "is_featured": item.is_featured,
             "is_active": item.is_active,
+            "seo": _serialize_seo_fields(item),
         }
 
     def _record_revision(self, kind, item, actor, autosave=False, note=None):
@@ -892,6 +941,9 @@ class CMSContentViewSet(GenericViewSet):
         )
 
     def _ensure_write_access(self, user, scope, unit_id):
+        """Create/edit/submit-for-review access. The media role may author
+        its own unit's content but may not delete it — see
+        _ensure_delete_access."""
         if is_general_manager(user):
             return
         if not user or not user.is_authenticated:
@@ -902,6 +954,19 @@ class CMSContentViewSet(GenericViewSet):
             raise PermissionDenied("اجازه مدیریت محتوا را ندارید.")
         if scope != "unit" or unit_id not in get_accessible_unit_ids(user):
             raise PermissionDenied("فقط محتوای واحدهای مجاز قابل مدیریت است.")
+
+    def _ensure_delete_access(self, user, scope, unit_id):
+        """Deletion stays out of the media role's reach even for its own unit."""
+        if is_general_manager(user):
+            return
+        if not user or not user.is_authenticated:
+            raise PermissionDenied("ورود به حساب کاربری الزامی است.")
+
+        profile = get_or_create_user_profile(user)
+        if profile.role != UserProfile.Role.UNIT_MANAGER:
+            raise PermissionDenied("اجازه حذف محتوا را ندارید.")
+        if scope != "unit" or unit_id not in get_accessible_unit_ids(user):
+            raise PermissionDenied("فقط محتوای واحدهای مجاز قابل حذف است.")
 
     @staticmethod
     def _raise_validation(exc):

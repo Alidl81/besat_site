@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.accounts.models import UserProfile
+from apps.accounts.models import UserProfile, UserUnitMembership
 from apps.announcements.models import Announcement, AnnouncementCategory
 from apps.gallery.models import GalleryItem
 from apps.news.models import News, NewsCategory
@@ -383,3 +383,202 @@ class CMSContentRevisionTests(TestCase):
         )
         self.assertEqual(restored.status_code, 200)
         self.assertEqual(restored.data["title"], "نسخه دوم")
+
+
+class CMSContentSEOFieldsTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username="seo-editor",
+            password="password123",
+        )
+        profile, _ = UserProfile.objects.get_or_create(user=self.user)
+        profile.role = UserProfile.Role.GENERAL_MANAGER
+        profile.is_active = True
+        profile.save()
+        self.client.force_authenticate(user=self.user)
+
+    def create_content_with_seo(self, seo):
+        return self.client.post(
+            "/api/cms/content/",
+            {
+                "kind": "news",
+                "title": "خبر با سئوی کامل",
+                "summary": "خلاصه محتوا",
+                "body_html": "<p>متن</p>",
+                "body_json": {
+                    "type": "doc",
+                    "content": [{"type": "paragraph", "content": [{"type": "text", "text": "متن"}]}],
+                },
+                "scope": "school",
+                "seo": seo,
+            },
+            format="json",
+        )
+
+    def test_create_persists_full_seo_payload(self):
+        response = self.create_content_with_seo(
+            {
+                "focus_keyphrase": "بعثت",
+                "seo_title": "عنوان سئو خبر",
+                "meta_description": "توضیحات متای خبر",
+                "canonical_url": "https://besat.example.com/news/sample",
+                "og_title": "عنوان اشتراک‌گذاری",
+                "og_description": "توضیح اشتراک‌گذاری",
+                "og_image_url": "https://besat.example.com/media/cover.jpg",
+                "is_indexable": False,
+                "is_followable": False,
+                "is_cornerstone": True,
+            }
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data["seo"]["focus_keyphrase"], "بعثت")
+        self.assertEqual(response.data["seo"]["seo_title"], "عنوان سئو خبر")
+        self.assertFalse(response.data["seo"]["is_indexable"])
+        self.assertFalse(response.data["seo"]["is_followable"])
+        self.assertTrue(response.data["seo"]["is_cornerstone"])
+
+        content_id = response.data["id"]
+        news_id = int(content_id.removeprefix("news-"))
+        news = News.objects.get(pk=news_id)
+        self.assertEqual(news.canonical_url, "https://besat.example.com/news/sample")
+        self.assertEqual(news.og_image_url, "https://besat.example.com/media/cover.jpg")
+
+    def test_create_without_seo_payload_uses_safe_defaults(self):
+        response = self.client.post(
+            "/api/cms/content/",
+            {
+                "kind": "news",
+                "title": "خبر بدون سئو",
+                "summary": "خلاصه",
+                "body_html": "<p>متن</p>",
+                "body_json": {
+                    "type": "doc",
+                    "content": [{"type": "paragraph", "content": [{"type": "text", "text": "متن"}]}],
+                },
+                "scope": "school",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertIsNone(response.data["seo"]["focus_keyphrase"])
+        self.assertTrue(response.data["seo"]["is_indexable"])
+        self.assertTrue(response.data["seo"]["is_followable"])
+        self.assertFalse(response.data["seo"]["is_cornerstone"])
+
+    def test_partial_update_only_changes_supplied_seo_fields(self):
+        created = self.create_content_with_seo(
+            {
+                "focus_keyphrase": "بعثت",
+                "meta_description": "توضیحات اولیه",
+                "is_cornerstone": True,
+            }
+        )
+        self.assertEqual(created.status_code, 201, created.data)
+        content_id = created.data["id"]
+
+        updated = self.client.patch(
+            f"/api/cms/content/{content_id}/",
+            {"seo": {"meta_description": "توضیحات بروزشده"}},
+            format="json",
+        )
+
+        self.assertEqual(updated.status_code, 200, updated.data)
+        self.assertEqual(updated.data["seo"]["meta_description"], "توضیحات بروزشده")
+        self.assertEqual(updated.data["seo"]["focus_keyphrase"], "بعثت")
+        self.assertTrue(updated.data["seo"]["is_cornerstone"])
+
+    def test_revision_restore_recovers_previous_seo_metadata(self):
+        created = self.create_content_with_seo({"seo_title": "نسخه اول سئو"})
+        self.assertEqual(created.status_code, 201, created.data)
+        content_id = created.data["id"]
+
+        self.client.patch(
+            f"/api/cms/content/{content_id}/",
+            {"seo": {"seo_title": "نسخه دوم سئو"}, "autosave": False},
+            format="json",
+        )
+
+        revisions = self.client.get(f"/api/cms/content/{content_id}/revisions/")
+        self.assertEqual(revisions.status_code, 200)
+        first_revision_id = revisions.data[-1]["id"]
+
+        restored = self.client.post(
+            f"/api/cms/content/{content_id}/revisions/{first_revision_id}/restore/",
+            format="json",
+        )
+
+        self.assertEqual(restored.status_code, 200, restored.data)
+        self.assertEqual(restored.data["seo"]["seo_title"], "نسخه اول سئو")
+
+
+class CMSContentUnitMediaDeleteRestrictionTests(TestCase):
+    """The media role authors its own unit's content via /api/cms/content/
+    but may not delete it — see CMSContentViewSet._ensure_delete_access."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.unit = SchoolUnit.objects.create(title="دبستان", slug="primary-school", is_active=True)
+
+        self.unit_media = User.objects.create_user(username="unitmedia", password="password123")
+        media_profile, _ = UserProfile.objects.get_or_create(user=self.unit_media)
+        media_profile.role = UserProfile.Role.UNIT_MEDIA
+        media_profile.is_active = True
+        media_profile.save()
+        UserUnitMembership.objects.create(
+            user=self.unit_media,
+            unit=self.unit,
+            role=UserUnitMembership.UnitRole.UNIT_MEDIA,
+            is_active=True,
+        )
+
+        self.unit_manager = User.objects.create_user(username="unitmanager", password="password123")
+        manager_profile, _ = UserProfile.objects.get_or_create(user=self.unit_manager)
+        manager_profile.role = UserProfile.Role.UNIT_MANAGER
+        manager_profile.is_active = True
+        manager_profile.save()
+        UserUnitMembership.objects.create(
+            user=self.unit_manager,
+            unit=self.unit,
+            role=UserUnitMembership.UnitRole.UNIT_MANAGER,
+            is_active=True,
+        )
+
+    def create_unit_content(self, author):
+        self.client.force_authenticate(user=author)
+        response = self.client.post(
+            "/api/cms/content/",
+            {
+                "kind": "news",
+                "title": "خبر واحد",
+                "summary": "خلاصه",
+                "body_html": "<p>متن</p>",
+                "body_json": {
+                    "type": "doc",
+                    "content": [
+                        {"type": "paragraph", "content": [{"type": "text", "text": "متن"}]}
+                    ],
+                },
+                "scope": "unit",
+                "unit_id": self.unit.id,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        return response.data["id"]
+
+    def test_unit_media_can_create_but_not_delete_own_unit_content(self):
+        content_id = self.create_unit_content(self.unit_media)
+
+        response = self.client.delete(f"/api/cms/content/{content_id}/")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_unit_manager_can_delete_own_unit_content(self):
+        content_id = self.create_unit_content(self.unit_manager)
+
+        response = self.client.delete(f"/api/cms/content/{content_id}/")
+
+        self.assertEqual(response.status_code, 204)

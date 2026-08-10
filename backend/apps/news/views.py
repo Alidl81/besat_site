@@ -25,6 +25,7 @@ from .permissions import (
     get_accessible_unit_ids,
     is_general_manager,
     is_unit_manager,
+    is_unit_media,
     user_can_upload_news_media,
     user_can_write_news_object,
 )
@@ -444,7 +445,11 @@ class CMSNewsViewSet(ModelViewSet):
         if is_general_manager(self.request.user):
             return
 
-        if not is_unit_manager(self.request.user):
+        if is_unit_manager(self.request.user):
+            allowed_roles = (UserUnitMembership.UnitRole.UNIT_MANAGER,)
+        elif is_unit_media(self.request.user):
+            allowed_roles = (UserUnitMembership.UnitRole.UNIT_MEDIA,)
+        else:
             raise PermissionDenied("شما اجازه مدیریت خبر را ندارید.")
 
         instance = serializer.instance
@@ -463,16 +468,14 @@ class CMSNewsViewSet(ModelViewSet):
         )
 
         if scope != News.Scope.UNIT:
-            raise PermissionDenied("مدیر واحد فقط می‌تواند محتوای وابسته به واحد ایجاد یا ویرایش کند.")
+            raise PermissionDenied("این نقش فقط می‌تواند محتوای وابسته به واحد ایجاد یا ویرایش کند.")
 
         if unit is None:
             raise PermissionDenied("برای محتوای واحدی، انتخاب واحد الزامی است.")
 
         accessible_unit_ids = get_accessible_unit_ids(
             self.request.user,
-            allowed_roles=(
-                UserUnitMembership.UnitRole.UNIT_MANAGER,
-            ),
+            allowed_roles=allowed_roles,
         )
 
         if unit.id not in accessible_unit_ids:
@@ -482,7 +485,7 @@ class CMSNewsViewSet(ModelViewSet):
             News.Status.APPROVED,
             News.Status.PUBLISHED,
         ):
-            raise PermissionDenied("مدیر واحد اجازه تأیید نهایی یا انتشار مستقیم خبر را ندارد.")
+            raise PermissionDenied("این نقش اجازه تأیید نهایی یا انتشار مستقیم خبر را ندارد.")
 
     def perform_create(self, serializer):
         self._ensure_user_can_write_payload(serializer)

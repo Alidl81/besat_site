@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+/* eslint-disable @next/next/no-img-element */
+
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { createPortal } from "react-dom";
 import { EditorIcon } from "@/components/editor/editor-icons";
 import { getApiErrorMessage } from "@/lib/api/client";
 import { panelService } from "@/services/panel-service";
@@ -98,6 +101,13 @@ export function MediaPickerDialog({
   const [isUploading, setIsUploading] = useState(false);
   const [errorText, setErrorText] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const dismiss = useCallback(() => {
+    onClose();
+    window.setTimeout(() => openerRef.current?.focus(), 0);
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -137,6 +147,42 @@ export function MediaPickerDialog({
       document.body.style.overflow = "";
     };
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    openerRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        dismiss();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])",
+      )).filter((element) => element.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [dismiss, open]);
 
   const canConfirm = useMemo(() => selectedUrl.trim().length > 0, [selectedUrl]);
 
@@ -187,7 +233,7 @@ export function MediaPickerDialog({
       return;
     }
     onSelect(url);
-    onClose();
+    dismiss();
   }
 
   const tabs: { key: MediaTab; label: string }[] = [
@@ -196,19 +242,19 @@ export function MediaPickerDialog({
     { key: "library", label: "کتابخانه" },
   ];
 
-  return (
+  return createPortal(
     <div
       dir="rtl"
-      className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-slate-950/45 p-4 backdrop-blur-sm sm:p-8"
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm sm:p-8"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) dismiss();
       }}
     >
-      <div className="w-full max-w-5xl overflow-hidden rounded-[2.25rem] border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5 sm:p-7">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="media-picker-dialog-title" tabIndex={-1} className="flex max-h-[90dvh] w-full max-w-5xl flex-col overflow-hidden rounded-[2.25rem] border border-slate-200 bg-white shadow-2xl">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 p-5 sm:p-7">
           <div className="text-right">
             <p className="text-xs font-black text-blue-600">کتابخانه مدیا</p>
-            <h2 className="mt-1 text-xl font-black text-[#062452]">
+            <h2 id="media-picker-dialog-title" className="mt-1 text-xl font-black text-[#062452]">
               افزودن یا انتخاب عکس و ویدیو
             </h2>
             <p className="mt-2 text-sm font-bold leading-7 text-slate-500">
@@ -217,8 +263,9 @@ export function MediaPickerDialog({
           </div>
 
           <button
+            ref={closeButtonRef}
             type="button"
-            onClick={onClose}
+            onClick={dismiss}
             aria-label="بستن"
             className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
           >
@@ -226,7 +273,7 @@ export function MediaPickerDialog({
           </button>
         </div>
 
-        <div className="grid gap-0 lg:grid-cols-[1fr_20rem]">
+        <div className="grid min-h-0 flex-1 gap-0 overflow-y-auto lg:grid-cols-[1fr_20rem]">
           <div className="p-5 sm:p-7">
             <div className="mb-5 flex flex-wrap gap-2 rounded-2xl bg-slate-100 p-1">
               {tabs.map((tab) => (
@@ -234,6 +281,7 @@ export function MediaPickerDialog({
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveTab(tab.key)}
+                  aria-pressed={activeTab === tab.key}
                   className={`h-11 rounded-xl px-5 text-sm font-black transition ${
                     activeTab === tab.key
                       ? "bg-white text-blue-700 shadow-sm"
@@ -332,6 +380,7 @@ export function MediaPickerDialog({
                           key={item.id}
                           type="button"
                           onClick={() => setSelectedUrl(item.url)}
+                          aria-pressed={selected}
                           className={`overflow-hidden rounded-3xl border bg-white text-right transition ${
                             selected
                               ? "border-blue-400 ring-4 ring-blue-100"
@@ -356,7 +405,7 @@ export function MediaPickerDialog({
             ) : null}
 
             {errorText ? (
-              <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600">
+              <p role="alert" className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600">
                 {errorText}
               </p>
             ) : null}
@@ -383,7 +432,7 @@ export function MediaPickerDialog({
               </button>
               <button
                 type="button"
-                onClick={onClose}
+                onClick={dismiss}
                 className="h-12 rounded-2xl bg-white px-5 text-sm font-black text-slate-500 transition hover:text-rose-600"
               >
                 انصراف
@@ -392,6 +441,7 @@ export function MediaPickerDialog({
           </aside>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

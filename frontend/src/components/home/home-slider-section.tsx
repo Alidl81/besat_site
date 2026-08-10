@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { BookOpen, FilePenLine, Play } from "lucide-react";
+import { useEffect, useState, type KeyboardEvent } from "react";
+import { BookOpen, FilePenLine, Newspaper, Play } from "lucide-react";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { safePublicMediaUrl } from "@/lib/media/safe-url";
 import {
   getPublicHomeSlides,
+  getPublicNews,
   getPublicSiteSettings,
 } from "@/services/public-content-service";
 
@@ -18,21 +20,49 @@ type Slide = {
   href?: string;
   title?: string;
   subtitle?: string;
+  kind?: "news";
 };
 
 export function HomeSliderSection() {
   const [slides, setSlides] = useState<Slide[] | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
   const reducedMotion = useReducedMotion();
   const visibleSlides = slides ?? [];
 
   useEffect(() => {
     let mounted = true;
 
-    Promise.all([getPublicHomeSlides(), getPublicSiteSettings()])
-      .then(([all, settings]) => {
+    Promise.all([
+      getPublicHomeSlides(),
+      getPublicSiteSettings(),
+      // Featured news (is_featured=true) belongs in the main slider only —
+      // it must never also appear in the homepage "important" section or
+      // the /news archive (enforced by their own is_featured/is_important
+      // filters).
+      getPublicNews({ featured: "true", ordering: "-priority", page_size: 5 }).catch(
+        () => ({ results: [] as Awaited<ReturnType<typeof getPublicNews>>["results"] }),
+      ),
+    ])
+      .then(([all, settings, featuredNews]) => {
         if (!mounted) return;
-        const mapped = all
+        const newsSlides: Slide[] = featuredNews.results
+          .map((item): Slide | null => {
+            const imageSrc = safePublicMediaUrl(item.cover_image ?? item.image);
+            return imageSrc
+              ? {
+                  id: `news-${item.id}`,
+                  imageSrc,
+                  imageAlt: item.title,
+                  href: `/news/${encodeURIComponent(item.slug)}`,
+                  title: item.title,
+                  subtitle: item.summary ?? undefined,
+                  kind: "news",
+                }
+              : null;
+          })
+          .filter((slide): slide is Slide => slide !== null);
+        const cmsSlides = all
           .filter((slide) => slide.is_active && slide.image)
           .sort((a, b) => a.order - b.order)
           .map((slide) => ({
@@ -43,6 +73,7 @@ export function HomeSliderSection() {
             title: slide.title ?? undefined,
             subtitle: slide.subtitle ?? undefined,
           }));
+        const mapped = [...newsSlides, ...cmsSlides];
         setSlides(
           mapped.length > 0
             ? mapped
@@ -68,12 +99,33 @@ export function HomeSliderSection() {
   }, []);
 
   useEffect(() => {
-    if (visibleSlides.length <= 1 || reducedMotion) return;
+    if (visibleSlides.length <= 1 || reducedMotion || paused) return;
     const timer = window.setInterval(() => {
       setActiveIndex((current) => (current + 1) % visibleSlides.length);
     }, slideDuration);
     return () => window.clearInterval(timer);
-  }, [reducedMotion, visibleSlides.length]);
+  }, [reducedMotion, paused, visibleSlides.length]);
+
+  function goToSlide(index: number) {
+    setActiveIndex(((index % visibleSlides.length) + visibleSlides.length) % visibleSlides.length);
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
+    // RTL reading direction: left is "forward" (next), right is "back".
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      goToSlide(activeIndex + 1);
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      goToSlide(activeIndex - 1);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      goToSlide(0);
+    } else if (event.key === "End") {
+      event.preventDefault();
+      goToSlide(visibleSlides.length - 1);
+    }
+  }
 
   if (slides === null) {
     return (
@@ -94,7 +146,22 @@ export function HomeSliderSection() {
   }
 
   return (
-    <section dir="rtl" className="relative min-h-[660px] overflow-hidden bg-[#071b31] text-white sm:min-h-[700px] lg:min-h-[720px]">
+    <section
+      dir="rtl"
+      role="region"
+      aria-roledescription="اسلایدر"
+      aria-label="اسلایدر معرفی مجتمع بعثت"
+      tabIndex={0}
+      onKeyDown={visibleSlides.length > 1 ? handleKeyDown : undefined}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      className="relative min-h-[660px] overflow-hidden bg-[#071b31] text-white outline-none sm:min-h-[700px] lg:min-h-[720px] focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/60"
+    >
+      <div aria-live="polite" className="sr-only">
+        {visibleSlides[activeIndex]?.title}
+      </div>
       <div className="absolute inset-0">
         {visibleSlides.map((slide, index) => (
           <div
@@ -126,20 +193,32 @@ export function HomeSliderSection() {
           </p>
 
           <div className="besat-hero-line besat-hero-line-4 mt-8 flex flex-wrap items-center gap-3 sm:gap-4">
-            <Link
-              href="/registration"
-              className="inline-flex h-13 items-center justify-center gap-2 rounded-xl bg-[#e2ae5b] px-6 text-sm font-black text-[#0b213c] shadow-[0_15px_35px_rgba(226,174,91,0.2)] transition hover:-translate-y-0.5 hover:bg-[#edc57f]"
-            >
-              <FilePenLine className="size-5" aria-hidden="true" />
-              پیش‌ثبت‌نام آنلاین
-            </Link>
-            <Link
-              href="/about"
-              className="inline-flex h-13 items-center justify-center gap-2 rounded-xl border border-white/65 bg-white/[0.04] px-6 text-sm font-black text-white backdrop-blur-sm transition hover:bg-white/12"
-            >
-              <BookOpen className="size-5" aria-hidden="true" />
-              آشنایی با بعثت
-            </Link>
+            {visibleSlides[activeIndex]?.kind === "news" ? (
+              <Link
+                href={visibleSlides[activeIndex]?.href ?? "/news"}
+                className="inline-flex h-13 items-center justify-center gap-2 rounded-xl bg-[#e2ae5b] px-6 text-sm font-black text-[#0b213c] shadow-[0_15px_35px_rgba(226,174,91,0.2)] transition hover:-translate-y-0.5 hover:bg-[#edc57f]"
+              >
+                <Newspaper className="size-5" aria-hidden="true" />
+                مطالعه کامل خبر
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/registration"
+                  className="inline-flex h-13 items-center justify-center gap-2 rounded-xl bg-[#e2ae5b] px-6 text-sm font-black text-[#0b213c] shadow-[0_15px_35px_rgba(226,174,91,0.2)] transition hover:-translate-y-0.5 hover:bg-[#edc57f]"
+                >
+                  <FilePenLine className="size-5" aria-hidden="true" />
+                  پیش‌ثبت‌نام آنلاین
+                </Link>
+                <Link
+                  href="/about"
+                  className="inline-flex h-13 items-center justify-center gap-2 rounded-xl border border-white/65 bg-white/[0.04] px-6 text-sm font-black text-white backdrop-blur-sm transition hover:bg-white/12"
+                >
+                  <BookOpen className="size-5" aria-hidden="true" />
+                  آشنایی با بعثت
+                </Link>
+              </>
+            )}
           </div>
 
           <Link href="/gallery" className="besat-hero-line besat-hero-line-5 mt-10 inline-flex items-center gap-3 text-xs font-bold text-white/82 transition hover:text-[#e7b665]">

@@ -2,8 +2,11 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema
 from rest_framework import filters, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
+
+from apps.core.utils import throttle_rate_configured
 
 from .models import ContactInfo, ContactMessage
 from .permissions import HasContactMessageCMSPermission
@@ -32,7 +35,19 @@ def empty_contact_payload():
 
 
 class ContactInfoAPIView(APIView):
+    """GET is a read of low-sensitivity public info fetched on every page
+    load (e.g. by the site footer) and must not be throttled at the
+    contact-message rate. POST creates a message through the same "contact"
+    scope as the dedicated /api/messages/ endpoint, closing an
+    anon-rate-only amplification gap on this compatibility alias."""
+
     permission_classes = [AllowAny]
+
+    def get_throttles(self):
+        if self.request.method == "POST" and throttle_rate_configured("contact"):
+            self.throttle_scope = "contact"
+            return [ScopedRateThrottle()]
+        return super().get_throttles()
 
     @extend_schema(
         tags=["Contact"],

@@ -7,7 +7,7 @@ from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
 
-from apps.core.models import ActiveModel, OrderedModel, TimeStampedModel
+from apps.core.models import ActiveModel, OrderedModel, SEOFieldsModel, TimeStampedModel
 from apps.core.utils import normalize_text
 from apps.content.rich_text import extract_tiptap_plain_text, validate_tiptap_document
 
@@ -102,7 +102,7 @@ class NewsCategory(ActiveModel, OrderedModel):
         return slug
 
 
-class News(TimeStampedModel, ActiveModel):
+class News(TimeStampedModel, ActiveModel, SEOFieldsModel):
     class Scope(models.TextChoices):
         SCHOOL = "school", "کل مدرسه"
         UNIT = "unit", "واحد آموزشی"

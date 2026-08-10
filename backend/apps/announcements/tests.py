@@ -531,7 +531,9 @@ class AnnouncementCMSPermissionTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
-    def test_unit_media_cannot_create_announcement(self):
+    def test_unit_media_can_create_announcement_for_own_unit(self):
+        """The media role authors its own unit's content — see
+        apps.announcements.permissions.user_can_write_announcement_object."""
         self.authenticate(self.unit_media)
 
         payload = {
@@ -547,7 +549,85 @@ class AnnouncementCMSPermissionTests(TestCase):
 
         response = self.client.post("/api/cms/announcements/", payload, format="json")
 
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["scope"], Announcement.Scope.UNIT)
+        self.assertEqual(response.data["unit"], self.unit_1.id)
+
+    def test_unit_media_cannot_create_announcement_for_other_unit(self):
+        self.authenticate(self.unit_media)
+
+        payload = {
+            "title": "اطلاعیه واحد دیگر",
+            "summary": "خلاصه اطلاعیه",
+            "category": self.category.id,
+            "scope": Announcement.Scope.UNIT,
+            "unit": self.unit_2.id,
+            "status": Announcement.Status.DRAFT,
+            "content_json": valid_content_json("متن اطلاعیه"),
+            "is_active": True,
+        }
+
+        response = self.client.post("/api/cms/announcements/", payload, format="json")
+
         self.assertEqual(response.status_code, 403)
+
+    def test_unit_media_can_edit_own_unit_announcement(self):
+        self.authenticate(self.unit_media)
+
+        response = self.client.patch(
+            f"/api/cms/announcements/{self.unit_1_announcement.id}/",
+            {"summary": "خلاصه ویرایش‌شده توسط رسانه"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.unit_1_announcement.refresh_from_db()
+        self.assertEqual(self.unit_1_announcement.summary, "خلاصه ویرایش‌شده توسط رسانه")
+
+    def test_unit_media_can_submit_own_announcement_for_review(self):
+        self.authenticate(self.unit_media)
+
+        response = self.client.post(f"/api/cms/announcements/{self.unit_1_announcement.id}/submit-review/")
+
+        self.assertEqual(response.status_code, 200)
+        self.unit_1_announcement.refresh_from_db()
+        self.assertEqual(self.unit_1_announcement.status, Announcement.Status.WAITING_REVIEW)
+
+    def test_unit_media_cannot_approve_announcement(self):
+        self.unit_1_announcement.status = Announcement.Status.WAITING_REVIEW
+        self.unit_1_announcement.save()
+
+        self.authenticate(self.unit_media)
+
+        response = self.client.post(f"/api/cms/announcements/{self.unit_1_announcement.id}/approve/")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_unit_media_cannot_publish_announcement(self):
+        self.unit_1_announcement.status = Announcement.Status.APPROVED
+        self.unit_1_announcement.save()
+
+        self.authenticate(self.unit_media)
+
+        response = self.client.post(f"/api/cms/announcements/{self.unit_1_announcement.id}/publish/")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_unit_media_cannot_delete_own_unit_announcement(self):
+        self.authenticate(self.unit_media)
+
+        response = self.client.delete(f"/api/cms/announcements/{self.unit_1_announcement.id}/")
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Announcement.objects.filter(id=self.unit_1_announcement.id).exists())
+
+    def test_unit_manager_can_delete_own_unit_announcement(self):
+        self.authenticate(self.unit_manager)
+
+        response = self.client.delete(f"/api/cms/announcements/{self.unit_1_announcement.id}/")
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Announcement.objects.filter(id=self.unit_1_announcement.id).exists())
 
     def test_unit_manager_can_submit_own_announcement_for_review(self):
         self.authenticate(self.unit_manager)

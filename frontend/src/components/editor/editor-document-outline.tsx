@@ -46,7 +46,7 @@ const insertItems: Array<{
   { type: "heading", label: "عنوان", icon: "heading" },
   { type: "paragraph", label: "پاراگراف", icon: "paragraph" },
   { type: "image", label: "تصویر", icon: "image" },
-  { type: "gallery", label: "گالری خالی", icon: "gallery" },
+  { type: "gallery", label: "گالری", icon: "gallery" },
   { type: "quote", label: "نقل‌قول", icon: "quote" },
   { type: "table", label: "جدول", icon: "table" },
   { type: "divider", label: "جداکننده", icon: "divider" },

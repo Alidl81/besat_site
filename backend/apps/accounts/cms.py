@@ -10,6 +10,7 @@ from rest_framework.viewsets import GenericViewSet
 from apps.news.permissions import is_general_manager
 from apps.units.models import SchoolUnit
 
+from .invitations import create_invitation, send_invitation_email
 from .models import UserProfile, UserUnitMembership
 from .selectors import get_or_create_user_profile
 
@@ -84,7 +85,17 @@ class CMSUserViewSet(GenericViewSet):
             password=None,
         )
         self._apply_payload(user, request.data)
-        return Response(serialize_cms_user(user), status=status.HTTP_201_CREATED)
+
+        invitation, raw_token = create_invitation(user=user, created_by=request.user)
+        email_sent = send_invitation_email(user, raw_token)
+
+        payload = serialize_cms_user(user)
+        payload["invitation"] = {
+            "token": raw_token,
+            "email_sent": email_sent,
+            "expires_at": invitation.expires_at,
+        }
+        return Response(payload, status=status.HTTP_201_CREATED)
 
     def update(self, request, pk=None):
         return self._update(request, pk)

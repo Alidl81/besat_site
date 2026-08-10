@@ -262,7 +262,7 @@ class NewsCMSPermissionTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
-    def test_unit_media_cannot_create_news(self):
+    def test_unit_media_can_create_news_for_own_unit(self):
         self.authenticate(self.unit_media)
 
         payload = {
@@ -277,6 +277,31 @@ class NewsCMSPermissionTests(TestCase):
         }
 
         response = self.client.post("/api/cms/news/", payload, format="json")
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_unit_media_cannot_create_news_for_other_unit(self):
+        self.authenticate(self.unit_media)
+
+        payload = {
+            "title": "خبر توسط رسانه",
+            "summary": "خلاصه خبر",
+            "category": self.category.id,
+            "scope": News.Scope.UNIT,
+            "unit": self.unit_2.id,
+            "status": News.Status.DRAFT,
+            "content_json": valid_content_json("متن خبر"),
+            "is_active": True,
+        }
+
+        response = self.client.post("/api/cms/news/", payload, format="json")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_unit_media_cannot_delete_own_unit_news(self):
+        self.authenticate(self.unit_media)
+
+        response = self.client.delete(f"/api/cms/news/{self.unit_1_news.id}/")
 
         self.assertEqual(response.status_code, 403)
 

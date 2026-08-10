@@ -1,12 +1,17 @@
+import logging
+
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-from django.contrib.auth.password_validation import validate_password   
+from django.contrib.auth.password_validation import validate_password
 
 from apps.core.serializers import AbsoluteMediaURLMixin
 
+from .invitations import find_invitation
 from .models import UserProfile
 from .selectors import (
     get_or_create_user_profile,
@@ -15,6 +20,9 @@ from .selectors import (
     get_user_units_payload,
 )
 from .validators import validate_avatar_image_file
+
+
+logger = logging.getLogger(__name__)
 
 
 def raise_drf_validation_error(error: DjangoValidationError):
@@ -248,6 +256,55 @@ class ChangePasswordSerializer(serializers.Serializer):
 
         return user
     
+class SetPasswordSerializer(serializers.Serializer):
+    token = serializers.CharField(write_only=True, trim_whitespace=False)
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
+
+    def validate(self, attrs):
+        invitation = find_invitation(attrs["token"])
+
+        if invitation is None:
+            logger.warning("user invitation rejected: reason=not_found")
+            raise serializers.ValidationError({"token": "لینک دعوت نامعتبر است."})
+
+        if invitation.used_at is not None:
+            logger.warning(
+                "user invitation rejected: reason=used invitation_id=%s", invitation.id,
+            )
+            raise serializers.ValidationError(
+                {"token": "این لینک دعوت قبلاً استفاده شده است."}
+            )
+
+        if invitation.expires_at <= timezone.now():
+            logger.warning(
+                "user invitation rejected: reason=expired invitation_id=%s", invitation.id,
+            )
+            raise serializers.ValidationError({"token": "این لینک دعوت منقضی شده است."})
+
+        try:
+            validate_password(attrs["password"], user=invitation.user)
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
+
+        self.invitation = invitation
+        return attrs
+
+    def save(self, **kwargs):
+        invitation = self.invitation
+        user = invitation.user
+
+        with transaction.atomic():
+            user.set_password(self.validated_data["password"])
+            user.save(update_fields=["password"])
+            invitation.used_at = timezone.now()
+            invitation.save(update_fields=["used_at"])
+
+        logger.info(
+            "user invitation consumed: invitation_id=%s user_id=%s", invitation.id, user.id,
+        )
+        return user
+
+
 class UserUnitSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     title = serializers.CharField()

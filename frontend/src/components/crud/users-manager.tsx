@@ -1,8 +1,10 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { CrudManager, FormActions, type Column } from "@/components/crud/crud-manager";
-import { Field, Select, TextInput } from "@/components/crud/crud-ui";
+import { Field, Modal, PrimaryButton, Select, TextInput } from "@/components/crud/crud-ui";
+import { PanelIcon } from "@/components/dashboard/panel-icons";
+import type { Repository } from "@/lib/data/repository";
 import { unitsRepository, usersRepository } from "@/lib/data/repositories";
 import type {
   AccountRole,
@@ -11,14 +13,48 @@ import type {
   WithoutSystemFields,
 } from "@/lib/data/domain-types";
 
+// Includes the legacy unit_manager value so existing accounts still render a
+// label; it is intentionally excluded from assignableRoleOptions below.
 const roleLabels: Record<AccountRole, string> = {
   general_manager: "مدیر کل",
-  unit_manager: "مدیر واحد",
+  unit_manager: "مدیر واحد (نقش قدیمی)",
   unit_media: "همکار رسانه",
   parent: "والدین",
 };
 
+const assignableRoleOptions: { value: AccountRole; label: string }[] = [
+  { value: "general_manager", label: roleLabels.general_manager },
+  { value: "unit_media", label: roleLabels.unit_media },
+  { value: "parent", label: roleLabels.parent },
+];
+
+function buildSetPasswordLink(token: string) {
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  return `${origin}/set-password?token=${token}`;
+}
+
 export function UsersManager() {
+  const [invitedUser, setInvitedUser] = useState<UserRecord | null>(null);
+
+  // CrudManager/useCollection only propagate create()'s resolved record
+  // internally (their public onSubmit contract is Promise<void>, shared by
+  // every other manager); this repository wrapper is a side channel that
+  // hands the one-time invitation token back to this component without
+  // widening that shared contract for every other entity.
+  const usersRepositoryWithInvite: Repository<UserRecord> = useMemo(
+    () => ({
+      ...usersRepository,
+      async create(data) {
+        const created = await usersRepository.create(data);
+        if (created.invitation) {
+          setInvitedUser(created);
+        }
+        return created;
+      },
+    }),
+    [],
+  );
+
   const columns: Column<UserRecord>[] = [
     { key: "name", header: "نام", render: (i) => <span className="font-black">{i.full_name}</span> },
     { key: "username", header: "نام کاربری", render: (i) => <span className="text-slate-500">{i.username}</span> },
@@ -36,17 +72,88 @@ export function UsersManager() {
   ];
 
   return (
-    <CrudManager<UserRecord>
-      title="مدیریت کاربران"
-      description="کاربران سیستم و نقش‌های آن‌ها را مدیریت کنید."
-      repository={usersRepository}
-      columns={columns}
-      emptyText="کاربری ثبت نشده است."
-      addLabel="کاربر جدید"
-      renderForm={({ initial, onSubmit, onCancel, submitting }) => (
-        <UserForm initial={initial} onSubmit={onSubmit} onCancel={onCancel} submitting={submitting} />
-      )}
-    />
+    <>
+      <CrudManager<UserRecord>
+        title="مدیریت کاربران"
+        description="کاربران سیستم و نقش‌های آن‌ها را مدیریت کنید."
+        repository={usersRepositoryWithInvite}
+        columns={columns}
+        emptyText="کاربری ثبت نشده است."
+        addLabel="کاربر جدید"
+        renderForm={({ initial, onSubmit, onCancel, submitting }) => (
+          <UserForm initial={initial} onSubmit={onSubmit} onCancel={onCancel} submitting={submitting} />
+        )}
+      />
+
+      <InviteLinkModal user={invitedUser} onClose={() => setInvitedUser(null)} />
+    </>
+  );
+}
+
+function InviteLinkModal({
+  user,
+  onClose,
+}: {
+  user: UserRecord | null;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const invitation = user?.invitation;
+
+  async function copyLink() {
+    if (!invitation) return;
+    try {
+      await navigator.clipboard.writeText(buildSetPasswordLink(invitation.token));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <Modal open={Boolean(user && invitation)} onClose={onClose} title="دعوت کاربر ارسال شد" size="md">
+      {user && invitation ? (
+        <div className="space-y-5 text-right">
+          {invitation.email_sent ? (
+            <p className="flex items-center gap-2 rounded-2xl bg-blue-50 px-4 py-3 text-sm font-black text-blue-700">
+              <PanelIcon name="mail" className="size-4 shrink-0" />
+              <span>ایمیل دعوت برای «{user.email}» ارسال شد.</span>
+            </p>
+          ) : (
+            <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-black text-amber-700">
+              ارسال خودکار ایمیل فعال نیست. لینک زیر را برای «{user.full_name || user.username}» ارسال کنید.
+            </p>
+          )}
+
+          <div>
+            <span className="mb-2 block text-sm font-black text-[#062452]">لینک تعیین رمز عبور</span>
+            <div className="flex items-center gap-2">
+              <TextInput
+                readOnly
+                dir="ltr"
+                value={buildSetPasswordLink(invitation.token)}
+                onFocus={(event) => event.currentTarget.select()}
+                className="text-left"
+              />
+              <PrimaryButton type="button" onClick={copyLink} className="shrink-0">
+                <PanelIcon name={copied ? "check" : "link"} className="size-4" />
+                <span>{copied ? "کپی شد" : "کپی لینک"}</span>
+              </PrimaryButton>
+            </div>
+            <p className="mt-2 text-xs font-bold text-slate-500">
+              این لینک فقط یک‌بار قابل استفاده است و تا ۷۲ ساعت دیگر معتبر خواهد بود.
+            </p>
+          </div>
+
+          <div className="flex justify-end border-t border-slate-100 pt-5">
+            <PrimaryButton type="button" onClick={onClose}>
+              متوجه شدم
+            </PrimaryButton>
+          </div>
+        </div>
+      ) : null}
+    </Modal>
   );
 }
 
@@ -65,7 +172,7 @@ function UserForm({
   const [username, setUsername] = useState(initial?.username ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
-  const [role, setRole] = useState<AccountRole>(initial?.role ?? "unit_manager");
+  const [role, setRole] = useState<AccountRole>(initial?.role ?? "unit_media");
   const [unitId, setUnitId] = useState(initial?.unit_id ?? "");
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
   const [units, setUnits] = useState<SchoolUnitRecord[]>([]);
@@ -106,7 +213,12 @@ function UserForm({
         </Field>
         <Field label="نقش کاربری">
           <Select value={role} onChange={(e) => setRole(e.target.value as AccountRole)}>
-            {Object.entries(roleLabels).map(([value, label]) => (
+            {initial?.role === "unit_manager" ? (
+              <option value="unit_manager" disabled>
+                {roleLabels.unit_manager} — این نقش دیگر قابل انتخاب نیست
+              </option>
+            ) : null}
+            {assignableRoleOptions.map(({ value, label }) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </Select>

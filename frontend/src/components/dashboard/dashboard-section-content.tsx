@@ -7,20 +7,17 @@ import { UnitsManager } from "@/components/crud/units-manager";
 import { UsersManager } from "@/components/crud/users-manager";
 import { GalleryManager } from "@/components/crud/gallery-manager";
 import { MessagingPanel } from "@/components/crud/messaging-panel";
-import { StaticPageEditor } from "@/components/crud/static-page-editor";
-import { StaffManager } from "@/components/crud/simple-managers";
 import { ParentProgramsView } from "@/components/crud/parent-views";
 import { PanelProfileContent } from "@/components/dashboard/panel-profile-content";
 import { EditorialWorkspace } from "@/components/dashboard/editorial-workspace";
-import { ManagementStudentsWorkspace } from "@/components/dashboard/management-students-workspace";
+import { EventsCalendar } from "@/components/dashboard/events-calendar";
 import { ParentChildrenWorkspace } from "@/components/dashboard/parent-children-workspace";
 import { RegistrationWorkspace } from "@/components/dashboard/registration-workspace";
+import { PanelEmpty } from "@/components/dashboard/panel-request-state";
+import type { AccountRole } from "@/lib/data/domain-types";
 import {
-  EventsWorkspace,
-  ManagementReportsWorkspace,
   ParentRegistrationWorkspace,
   ServicesWorkspace,
-  SettingsWorkspace,
 } from "@/components/dashboard/supplementary-workspaces";
 
 type DashboardSectionContentProps = {
@@ -46,6 +43,13 @@ export function DashboardSectionContent({
 
   const session = readBesatSession();
   const userRole = session?.role;
+  const contentAuthorRole: AccountRole =
+    userRole === "general_manager"
+    || userRole === "unit_manager"
+    || userRole === "unit_media"
+    || userRole === "parent"
+      ? userRole
+      : "unit_media";
   const scopedUnitId = searchParams.get("unit") ?? (
     userRole === "unit_manager" || userRole === "unit_media" ? unitId : null
   );
@@ -57,55 +61,49 @@ export function DashboardSectionContent({
   if (panel === "admin") {
     switch (sectionKey) {
       case "events":
-        return <EventsWorkspace />;
+        return <EventsCalendar />;
       case "announcements":
         return <EditorialWorkspace unitId={scopedUnitId} authorRole="general_manager" canPublish={canPublishContent} initialKind="announcement" />;
-      case "reports":
-        return <ManagementReportsWorkspace />;
       case "settings":
-        return <SettingsWorkspace />;
+        return (
+          <PanelEmpty title="تنظیمات مدیریتی تا زمان ارائه API نوشتنیِ تأییدشده در دسترس نیست." />
+        );
       case "units":
         return <UnitsManager />;
-      case "students":
-        return <ManagementStudentsWorkspace unitId={scopedUnitId} />;
-      case "staff":
-        return <StaffManager unitId={scopedUnitId} />;
       case "services":
         return <ServicesWorkspace />;
       case "content":
         return <EditorialWorkspace unitId={scopedUnitId} authorRole="general_manager" canPublish={canPublishContent} />;
       case "gallery":
         return <GalleryManager unitId={scopedUnitId} />;
-      case "pages":
-        return <StaticPageEditor slug="about" />;
       case "registrations":
         return <RegistrationWorkspace />;
       case "users":
         return <UsersManager />;
       default:
-        return null;
+        return <PanelEmpty title="بخش درخواستی در دسترس نیست." />;
     }
   }
 
   if (panel === "contentManager") {
     switch (sectionKey) {
       case "content":
-        return <EditorialWorkspace unitId={scopedUnitId} authorRole="unit_media" canPublish={canPublishContent} />;
+        return <EditorialWorkspace unitId={scopedUnitId} authorRole={contentAuthorRole} canPublish={canPublishContent} />;
       case "news":
-        return <EditorialWorkspace unitId={scopedUnitId} authorRole="unit_media" canPublish={canPublishContent} initialKind="news" />;
+        return <EditorialWorkspace unitId={scopedUnitId} authorRole={contentAuthorRole} canPublish={canPublishContent} initialKind="news" />;
       case "announcements":
-        return <EditorialWorkspace unitId={scopedUnitId} authorRole="unit_media" canPublish={canPublishContent} initialKind="announcement" />;
+        return <EditorialWorkspace unitId={scopedUnitId} authorRole={contentAuthorRole} canPublish={canPublishContent} initialKind="announcement" />;
       case "calendar":
-        return <EventsWorkspace />;
+        return <EventsCalendar />;
       case "media":
       case "albums":
         return <GalleryManager unitId={scopedUnitId} canPublish={false} />;
       case "review":
-        return <EditorialWorkspace unitId={scopedUnitId} authorRole="unit_media" canPublish={canPublishContent} reviewOnly />;
+        return <EditorialWorkspace unitId={scopedUnitId} authorRole={contentAuthorRole} canPublish={canPublishContent} reviewOnly />;
       case "services":
         return <ServicesWorkspace />;
       default:
-        return null;
+        return <PanelEmpty title="بخش درخواستی در دسترس نیست." />;
     }
   }
 
@@ -120,9 +118,9 @@ export function DashboardSectionContent({
       case "services":
         return <ServicesWorkspace parent />;
       default:
-        return null;
+        return <PanelEmpty title="بخش درخواستی در دسترس نیست." />;
     }
   }
 
-  return null;
+  return <PanelEmpty title="بخش درخواستی در دسترس نیست." />;
 }

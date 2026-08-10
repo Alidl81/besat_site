@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
 import {
@@ -26,10 +26,10 @@ function formatDate(value: string) {
 
 export function ParentChildrenWorkspace() {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
   const academicYear = searchParams.get("academic_year");
-  const [selectedId, setSelectedId] = useState<string | number | null>(
-    searchParams.get("child"),
-  );
+  const selectedId = searchParams.get("child");
   const childrenRequest = usePanelRequest(
     () => panelService.parentChildren(),
     [],
@@ -45,6 +45,12 @@ export function ParentChildrenWorkspace() {
   )
     ? selectedId
     : items[0]?.id ?? null;
+
+  function selectChild(id: string | number) {
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("child", String(id));
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  }
 
   useEffect(() => {
     if (effectiveSelectedId === null) return;
@@ -113,7 +119,7 @@ export function ParentChildrenWorkspace() {
           <h2 className="mb-4 text-sm font-black text-[#173652]">انتخاب فرزند</h2>
           <div className="grid gap-3 sm:grid-cols-3">
             {children.map((child) => (
-              <button key={child.id} type="button" onClick={() => setSelectedId(child.id)} className={`rounded-lg border p-4 text-center transition-colors ${String(child.id) === String(effectiveSelectedId) ? "border-[#dda34a] bg-[#fffaf2]" : "border-slate-200 hover:bg-slate-50"}`}>
+              <button key={child.id} type="button" onClick={() => selectChild(child.id)} aria-pressed={String(child.id) === String(effectiveSelectedId)} className={`rounded-lg border p-4 text-center transition-colors ${String(child.id) === String(effectiveSelectedId) ? "border-[#dda34a] bg-[#fffaf2]" : "border-slate-200 hover:bg-slate-50"}`}>
                 {child.avatar_url ? (
                   <Image src={child.avatar_url} alt="" width={56} height={56} className="mx-auto size-14 rounded-full object-cover" />
                 ) : (

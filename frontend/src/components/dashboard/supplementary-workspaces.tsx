@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
-import { Modal } from "@/components/crud/crud-ui";
 import { PanelIcon, type PanelIconName } from "@/components/dashboard/panel-icons";
 import {
   PanelEmpty,
@@ -25,16 +24,6 @@ const iconNames = new Set<PanelIconName>([
 
 function icon(value: string): PanelIconName {
   return iconNames.has(value as PanelIconName) ? value as PanelIconName : "services";
-}
-
-function formatDate(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : new Intl.DateTimeFormat("fa-IR", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(date);
 }
 
 export function ServicesWorkspace({ parent = false }: { parent?: boolean }) {
@@ -90,60 +79,6 @@ export function ManagementReportsWorkspace() {
         {request.data.units.length ? <div className="overflow-x-auto rounded-lg border border-slate-200"><table className="panel-table min-w-[48rem]"><thead><tr><th>واحد آموزشی</th><th>دانش‌آموزان</th><th>کادر</th><th>ثبت‌نام جدید</th><th>محتوای منتشرشده</th><th>وضعیت</th></tr></thead><tbody>{request.data.units.map((unit) => <tr key={unit.id}><td className="font-black text-[#172b43]">{unit.title}</td><td>{unit.students_count}</td><td>{unit.staff_count}</td><td>{unit.new_registrations_count}</td><td>{unit.published_content_count}</td><td><span className={`panel-status ${unit.is_active ? "is-success" : "is-danger"}`}>{unit.is_active ? "فعال" : "غیرفعال"}</span></td></tr>)}</tbody></table></div> : <PanelEmpty title="داده‌ای برای واحدها وجود ندارد." />}
       </section>
     </div>
-  );
-}
-
-export function EventsWorkspace() {
-  const request = usePanelRequest(() => panelService.events({ ordering: "starts_at" }), []);
-  const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function create(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    setSaving(true);
-    setError(null);
-    try {
-      await panelService.createEvent({
-        title: String(form.get("title") ?? ""),
-        description: String(form.get("description") ?? "") || null,
-        location: String(form.get("location") ?? "") || null,
-        starts_at: String(form.get("starts_at") ?? ""),
-        ends_at: String(form.get("ends_at") ?? "") || null,
-        unit_id: String(form.get("unit_id") ?? "") || null,
-      });
-      setOpen(false);
-      request.reload();
-    } catch (reason) {
-      setError(getApiErrorMessage(reason));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  if (request.loading) return <PanelLoading label="در حال دریافت رویدادها..." />;
-  if (request.error) return <PanelError message={request.error} onRetry={request.reload} />;
-
-  return (
-    <>
-      {error ? <p role="alert" className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-black text-rose-700">{error}</p> : null}
-      <section className="panel-card">
-        <header className="mb-5 flex items-center justify-between"><h2 className="text-base font-black text-[#172b43]">رویدادهای پیش رو</h2><button type="button" onClick={() => setOpen(true)} className="panel-primary-button"><PanelIcon name="plus" className="size-4" />رویداد جدید</button></header>
-        {request.data?.results.length ? <div className="space-y-3">{request.data.results.map((item) => <article key={item.id} className="flex flex-wrap items-center gap-4 rounded-lg border border-slate-200 p-4"><span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-[#fff4e3] text-[#a8660b]"><PanelIcon name="calendar" className="size-5" /></span><div className="min-w-0 flex-1"><h3 className="text-sm font-black text-[#172b43]">{item.title}</h3><p className="mt-1 text-xs font-bold text-slate-500">{[item.location, item.unit?.title].filter(Boolean).join(" · ") || "بدون مکان"}</p></div><time className="text-[11px] font-bold text-slate-500">{formatDate(item.starts_at)}</time></article>)}</div> : <PanelEmpty title="رویدادی ثبت نشده است." />}
-      </section>
-      <Modal open={open} onClose={() => setOpen(false)} title="ثبت رویداد جدید">
-        <form onSubmit={create} className="grid gap-4 md:grid-cols-2">
-          <label className="md:col-span-2"><span className="panel-field-label">عنوان</span><input name="title" required className="panel-input" /></label>
-          <label><span className="panel-field-label">شروع</span><input name="starts_at" type="datetime-local" required className="panel-input" /></label>
-          <label><span className="panel-field-label">پایان</span><input name="ends_at" type="datetime-local" className="panel-input" /></label>
-          <label><span className="panel-field-label">مکان</span><input name="location" className="panel-input" /></label>
-          <label><span className="panel-field-label">شناسه واحد (اختیاری)</span><input name="unit_id" className="panel-input" /></label>
-          <label className="md:col-span-2"><span className="panel-field-label">توضیحات</span><textarea name="description" className="panel-textarea" /></label>
-          <div className="flex justify-end gap-2 md:col-span-2"><button type="button" onClick={() => setOpen(false)} className="panel-secondary-button">انصراف</button><button disabled={saving} className="panel-primary-button">{saving ? "در حال ثبت..." : "ثبت رویداد"}</button></div>
-        </form>
-      </Modal>
-    </>
   );
 }
 
@@ -203,7 +138,7 @@ export function ParentRegistrationWorkspace() {
 
   return (
     <section className="grid gap-5 lg:grid-cols-2">
-      {request.data.map((registration) => <article key={registration.id} className="panel-card"><span className="flex size-12 items-center justify-center rounded-full bg-[#edf8ef] text-emerald-600"><PanelIcon name="registration" className="size-6" /></span><h2 className="mt-4 text-lg font-black text-[#172b43]">ثبت‌نام {registration.child.full_name}</h2><p className="mt-2 text-xs font-bold text-slate-500">{registration.academic_year.title} · {registration.status}</p><div className="mt-5 rounded-lg border border-slate-200 p-4"><div className="flex items-center justify-between text-xs font-black"><span>پیشرفت پرونده</span><span>{registration.progress_percent}%</span></div><div className="mt-3 h-2 rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${registration.progress_percent}%` }} /></div></div><ol className="mt-5 space-y-3">{registration.steps.map((step, index) => <li key={step.id} className="flex items-center gap-3 text-xs font-bold text-slate-600"><span className={`flex size-7 items-center justify-center rounded-full ${step.status === "complete" ? "bg-emerald-100 text-emerald-600" : step.status === "current" ? "bg-amber-100 text-amber-700" : "bg-slate-100"}`}>{step.status === "complete" ? <PanelIcon name="check" className="size-4" /> : index + 1}</span>{step.title}</li>)}</ol>{registration.next_action_url ? <Link href={registration.next_action_url} className="panel-primary-button mt-5">ادامه تکمیل پرونده</Link> : null}</article>)}
+      {request.data.map((registration) => <article key={registration.id} className="panel-card"><span className="flex size-12 items-center justify-center rounded-full bg-[#edf8ef] text-emerald-600"><PanelIcon name="registration" className="size-6" /></span><h2 className="mt-4 text-lg font-black text-[#172b43]">ثبت‌نام {registration.child.full_name}</h2><p className="mt-2 text-xs font-bold text-slate-500">{registration.academic_year?.title ?? "سال تحصیلی ثبت نشده است"} · {registration.status}</p><div className="mt-5 rounded-lg border border-slate-200 p-4"><div className="flex items-center justify-between text-xs font-black"><span>پیشرفت پرونده</span><span>{registration.progress_percent}%</span></div><div className="mt-3 h-2 rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${registration.progress_percent}%` }} /></div></div><ol className="mt-5 space-y-3">{registration.steps.map((step, index) => <li key={step.id} className="flex items-center gap-3 text-xs font-bold text-slate-600"><span className={`flex size-7 items-center justify-center rounded-full ${step.status === "complete" ? "bg-emerald-100 text-emerald-600" : step.status === "current" ? "bg-amber-100 text-amber-700" : "bg-slate-100"}`}>{step.status === "complete" ? <PanelIcon name="check" className="size-4" /> : index + 1}</span>{step.title}</li>)}</ol>{registration.next_action_url ? <Link href={registration.next_action_url} className="panel-primary-button mt-5">ادامه تکمیل پرونده</Link> : null}</article>)}
     </section>
   );
 }

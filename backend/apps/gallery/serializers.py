@@ -11,7 +11,7 @@ from apps.units.models import SchoolUnit
 
 from .models import GalleryItem, MediaAsset
 from .permissions import get_accessible_unit_ids, is_general_manager
-from .validators import validate_gallery_image_file
+from .validators import validate_gallery_image_file, validate_media_asset_file
 
 
 
@@ -69,13 +69,10 @@ class MediaAssetSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer):
         return self.build_absolute_media_url(obj.file)
 
     def validate_file(self, value):
-        content_type = getattr(value, "content_type", "")
-        allowed_images = {"image/jpeg", "image/png", "image/webp", "image/gif"}
-        allowed_videos = {"video/mp4", "video/webm", "video/ogg"}
-        if content_type not in allowed_images | allowed_videos:
-            raise serializers.ValidationError("نوع فایل پشتیبانی نمی‌شود.")
-        if value.size > 25 * 1024 * 1024:
-            raise serializers.ValidationError("حجم فایل نباید بیشتر از ۲۵ مگابایت باشد.")
+        try:
+            validate_media_asset_file(value)
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
         return value
 
     def create(self, validated_data):

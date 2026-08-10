@@ -145,4 +145,40 @@ describe("backend API proxy route normalization", () => {
     expect(response.status).toBe(403);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("accepts a same-origin mutation when Next normalizes the request URL host", async () => {
+    process.env.BESAT_BACKEND_API_URL = "http://backend:8000/api/";
+    const fetchMock = vi.fn(async () => Response.json({ accepted: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      new Request("http://localhost:3418/api/backend/messages/", {
+        method: "POST",
+        headers: {
+          Origin: "http://127.0.0.1:3418",
+          Host: "127.0.0.1:3418",
+          "content-type": "application/json",
+        },
+        body: "{}",
+      }),
+      { params: Promise.resolve({ path: ["messages"] }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("fails clearly instead of silently falling back to mock mode without backend configuration", async () => {
+    delete process.env.BESAT_BACKEND_API_URL;
+
+    const response = await GET(
+      new Request("http://frontend:3000/api/backend/units/"),
+      { params: Promise.resolve({ path: ["units"] }) },
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "backend_not_configured",
+    });
+  });
 });

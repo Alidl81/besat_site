@@ -31,6 +31,19 @@ export type PublicNewsItem = {
   is_published: true;
 };
 
+export type PublicContentSeoMetadata = {
+  focus_keyphrase: string | null;
+  seo_title: string | null;
+  meta_description: string | null;
+  canonical_url: string | null;
+  og_title: string | null;
+  og_description: string | null;
+  og_image_url: string | null;
+  is_indexable: boolean;
+  is_followable: boolean;
+  is_cornerstone: boolean;
+};
+
 export type PublicNewsDetail = PublicNewsItem & {
   body_html?: string | null;
   body_json?: Record<string, unknown> | null;
@@ -43,6 +56,7 @@ export type PublicNewsDetail = PublicNewsItem & {
       data: Record<string, unknown>;
     }>;
   };
+  seo?: PublicContentSeoMetadata;
 };
 
 export type PublicHomeSlide = {

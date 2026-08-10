@@ -51,6 +51,13 @@ export type DepartmentRecord = {
   updated_at: string;
 };
 
+// دعوت‌نامه تعیین رمز عبور — فقط در پاسخ ایجاد کاربر برگردانده می‌شود
+export type UserInvitationInfo = {
+  token: string;
+  email_sent: boolean;
+  expires_at: string;
+};
+
 // کاربر
 export type UserRecord = {
   id: EntityId;
@@ -63,6 +70,7 @@ export type UserRecord = {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  invitation?: UserInvitationInfo;
 };
 
 // محتوای رسانه‌ای (خبر/اطلاعیه)

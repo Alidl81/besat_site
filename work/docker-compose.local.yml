@@ -1,0 +1,10 @@
+services:
+  backend:
+    ports: !override
+      - "8001:8000"
+    command:
+      - sh
+      - -c
+      - >-
+        sed 's/\r$//' /app/entrypoint.sh > /tmp/entrypoint.sh &&
+        exec sh /tmp/entrypoint.sh

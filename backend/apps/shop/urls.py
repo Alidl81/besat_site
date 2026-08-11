@@ -9,6 +9,13 @@ from .views import (
     CartItemListCreateAPIView,
     CartMergeAPIView,
     CheckoutPreviewAPIView,
+    CMSCourseEnrollmentListAPIView,
+    CMSOrderViewSet,
+    CMSPaymentAttemptViewSet,
+    CMSProductViewSet,
+    CMSShippingMethodViewSet,
+    CMSShopCategoryViewSet,
+    CMSShopSettingsAPIView,
     MyCourseEnrollmentsAPIView,
     OrderDetailAPIView,
     OrderListCreateAPIView,
@@ -24,6 +31,11 @@ public_router = DefaultRouter()
 public_router.register("shop/products", ProductViewSet, basename="shop-product")
 
 cms_router = DefaultRouter()
+cms_router.register("cms/shop/products", CMSProductViewSet, basename="cms-shop-product")
+cms_router.register("cms/shop/categories", CMSShopCategoryViewSet, basename="cms-shop-category")
+cms_router.register("cms/shop/orders", CMSOrderViewSet, basename="cms-shop-order")
+cms_router.register("cms/shop/payments", CMSPaymentAttemptViewSet, basename="cms-shop-payment")
+cms_router.register("cms/shop/shipping-methods", CMSShippingMethodViewSet, basename="cms-shop-shipping-method")
 
 urlpatterns = [
     path("shop/categories/", ShopCategoryListAPIView.as_view(), name="shop-category-list"),
@@ -39,6 +51,8 @@ urlpatterns = [
     path("shop/addresses/", AddressListCreateAPIView.as_view(), name="shop-address-list-create"),
     path("shop/addresses/<int:pk>/", AddressDetailAPIView.as_view(), name="shop-address-detail"),
     path("shop/courses/my/", MyCourseEnrollmentsAPIView.as_view(), name="shop-my-courses"),
+    path("cms/shop/course-enrollments/", CMSCourseEnrollmentListAPIView.as_view(), name="cms-shop-course-enrollments"),
+    path("cms/shop/settings/", CMSShopSettingsAPIView.as_view(), name="cms-shop-settings"),
 ]
 
 urlpatterns += public_router.urls

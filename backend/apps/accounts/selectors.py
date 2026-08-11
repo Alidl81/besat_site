@@ -94,6 +94,22 @@ def get_user_permissions_payload(user) -> dict:
             "can_review_content": is_general_manager or is_unit_manager,
             "can_publish_content": is_general_manager,
             "can_view_dashboard": True,
+            # Shop: a deliberately simpler two-tier model than the rest of
+            # this payload (general_manager = full Admin, unit_media =
+            # content-only Media Manager) -- see apps.shop.permissions for
+            # why unit_manager gets no shop grant here.
+            "can_access_shop_admin": is_general_manager,
+            "can_manage_shop_products": is_general_manager or is_unit_media,
+            "can_manage_shop_categories": is_general_manager,
+            "can_manage_shop_inventory": is_general_manager,
+            "can_manage_shop_prices": is_general_manager,
+            "can_manage_shop_orders": is_general_manager,
+            "can_manage_shop_payments": is_general_manager,
+            "can_manage_shop_shipping": is_general_manager,
+            "can_manage_shop_settings": is_general_manager,
+            "can_review_shop_products": is_general_manager,
+            "can_publish_shop_products": is_general_manager,
+            "can_access_shop_content_panel": is_general_manager or is_unit_media,
         },
         "django_permissions": sorted(user.get_all_permissions()),
     }

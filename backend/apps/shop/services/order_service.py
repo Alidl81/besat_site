@@ -16,7 +16,15 @@ from ..models import Order, OrderEvent
 ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     Order.Status.DRAFT: {Order.Status.PENDING_PAYMENT, Order.Status.CANCELLED},
     Order.Status.PENDING_PAYMENT: {Order.Status.PAYMENT_PROCESSING, Order.Status.CANCELLED},
-    Order.Status.PAYMENT_PROCESSING: {Order.Status.PAID, Order.Status.PAYMENT_FAILED},
+    Order.Status.PAYMENT_PROCESSING: {
+        Order.Status.PAID,
+        Order.Status.PAYMENT_FAILED,
+        # An abandoned redirect (customer never returns from the gateway)
+        # leaves an order stuck here until its reservation expires -- the
+        # expiry job needs a direct path to CANCELLED rather than forcing
+        # a fake PAYMENT_FAILED detour.
+        Order.Status.CANCELLED,
+    },
     Order.Status.PAYMENT_FAILED: {Order.Status.PENDING_PAYMENT, Order.Status.CANCELLED},
     Order.Status.PAID: {
         Order.Status.PROCESSING,

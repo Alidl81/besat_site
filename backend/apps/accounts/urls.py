@@ -2,6 +2,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from .cms import CMSUserViewSet
+from .public_registration import PublicCustomerRegisterAPIView
 
 from .views import (
     LoginAPIView,
@@ -24,6 +25,7 @@ app_name = "accounts"
 
 urlpatterns = [
     path("auth/login/", LoginAPIView.as_view(), name="login"),
+    path("auth/register/", PublicCustomerRegisterAPIView.as_view(), name="public-register"),
     path("auth/refresh/", RefreshTokenAPIView.as_view(), name="refresh-token"),
     path("auth/logout/", LogoutAPIView.as_view(), name="logout"),
     path("auth/set-password/", SetPasswordAPIView.as_view(), name="set-password"),

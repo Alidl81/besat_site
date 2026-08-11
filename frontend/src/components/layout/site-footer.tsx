@@ -20,6 +20,7 @@ import type {
 } from "@/types/public-content";
 
 const quickLinks = [
+  ["فروشگاه", "/shop"],
   ["واحدهای آموزشی", "/units"],
   ["دپارتمان‌ها", "/departments"],
   ["اخبار", "/news"],

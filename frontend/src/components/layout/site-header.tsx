@@ -26,6 +26,7 @@ type DropdownProps = {
 const mainItems: HeaderItem[] = [
   { label: "صفحه نخست", href: "/" },
   { label: "معرفی بعثت", href: "/about" },
+  { label: "فروشگاه", href: "/shop" },
   { label: "اخبار", href: "/news" },
   { label: "افتخارات", href: "/achievements" },
   { label: "گالری", href: "/gallery" },

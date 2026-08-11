@@ -74,6 +74,7 @@ LOCAL_APPS = [
     "apps.about",
     "apps.home",
     "apps.events",
+    "apps.shop",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -149,6 +150,12 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="besat@localhost")
 # Used only to build the absolute set-password link embedded in invitation
 # emails (the CMS UI itself builds the link from its own browser origin).
 FRONTEND_BASE_URL = env("FRONTEND_BASE_URL", default="http://localhost:3000")
+
+# Payment-provider abstraction (apps.shop.payments): "mock" is the only
+# registered provider until a real gateway is selected -- see the shop
+# decision gate in project docs. Must not be changed to anything else
+# without a real PaymentProvider implementation registered first.
+SHOP_PAYMENT_PROVIDER = env("SHOP_PAYMENT_PROVIDER", default="mock")
 
 STATIC_URL = env("STATIC_URL", default="/static/")
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -230,6 +237,9 @@ REST_FRAMEWORK = {
         "registration": "3/hour",
         "password_change": "5/hour",
         "set_password": "10/hour",
+        "customer_registration": "5/hour",
+        "checkout": "20/hour",
+        "payment_callback": "60/hour",
     },
 
     "DEFAULT_FILTER_BACKENDS": [

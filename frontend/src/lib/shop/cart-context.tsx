@@ -143,3 +143,21 @@ export function useShopCart() {
   }
   return context;
 }
+
+/**
+ * Standalone merge-on-login, for call sites outside the /shop route
+ * segment (login-card.tsx, the registration page) that are never wrapped
+ * in ShopCartProvider. Best-effort and silent on failure -- a guest cart
+ * that fails to merge just stays a guest cart; it must never block login
+ * or registration.
+ */
+export async function mergeGuestCartAfterAuth(): Promise<void> {
+  const token = readGuestToken();
+  if (!token) return;
+  try {
+    const result = await mergeGuestCart(token);
+    if (result.clearGuestToken) writeGuestToken(null);
+  } catch {
+    writeGuestToken(null);
+  }
+}

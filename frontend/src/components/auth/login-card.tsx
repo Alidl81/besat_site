@@ -5,6 +5,7 @@ import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { performLogin } from "@/lib/auth/login-service";
 import { writeBesatSession } from "@/lib/auth/auth-session";
+import { mergeGuestCartAfterAuth } from "@/lib/shop/cart-context";
 import { BesatLogoMark } from "@/components/shared/besat-logo";
 
 function getNextPath(): string | null {
@@ -39,6 +40,7 @@ export function LoginCard() {
     }
 
     writeBesatSession(result.session);
+    await mergeGuestCartAfterAuth();
 
     const next = getNextPath();
     router.push(next ?? result.session.redirectPath);

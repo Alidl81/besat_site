@@ -6,8 +6,33 @@ from rest_framework.generics import ListAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
-from ..models import Product, ShopCategory
-from ..serializers import ProductDetailSerializer, ProductListSerializer, ShopCategoryListSerializer
+from ..models import Product, ShippingMethod, ShopCategory
+from ..serializers import (
+    ProductDetailSerializer,
+    ProductListSerializer,
+    ShippingMethodSerializer,
+    ShopCategoryListSerializer,
+)
+
+
+class ShippingMethodListAPIView(ListAPIView):
+    queryset = ShippingMethod.objects.none()
+    serializer_class = ShippingMethodSerializer
+    permission_classes = [AllowAny]
+    pagination_class = None
+
+    @extend_schema(
+        tags=["Shop"],
+        summary="List active shipping methods",
+        responses=ShippingMethodSerializer(many=True),
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return ShippingMethod.objects.none()
+        return ShippingMethod.objects.filter(is_active=True).order_by("order", "id")
 
 
 class ShopCategoryListAPIView(ListAPIView):

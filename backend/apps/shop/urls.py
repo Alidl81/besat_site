@@ -22,6 +22,7 @@ from .views import (
     PaymentCallbackAPIView,
     PaymentStartAPIView,
     ProductViewSet,
+    ShippingMethodListAPIView,
     ShopCategoryListAPIView,
 )
 
@@ -39,6 +40,7 @@ cms_router.register("cms/shop/shipping-methods", CMSShippingMethodViewSet, basen
 
 urlpatterns = [
     path("shop/categories/", ShopCategoryListAPIView.as_view(), name="shop-category-list"),
+    path("shop/shipping-methods/", ShippingMethodListAPIView.as_view(), name="shop-shipping-method-list"),
     path("shop/cart/", CartAPIView.as_view(), name="shop-cart"),
     path("shop/cart/items/", CartItemListCreateAPIView.as_view(), name="shop-cart-items"),
     path("shop/cart/items/<int:item_id>/", CartItemDetailAPIView.as_view(), name="shop-cart-item-detail"),

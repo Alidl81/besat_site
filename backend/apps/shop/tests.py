@@ -11,6 +11,7 @@ from .models import (
     OnlineCourseDetail,
     PhysicalProductDetail,
     Product,
+    ShippingMethod,
     ShopCategory,
 )
 
@@ -191,3 +192,14 @@ class ShopPublicCatalogAPITests(TestCase):
         self.assertTrue(item["is_on_sale"])
         self.assertEqual(item["price_display"], "100,000")
         self.assertEqual(item["sale_price_display"], "80,000")
+
+    def test_shipping_methods_endpoint_returns_only_active(self):
+        ShippingMethod.objects.create(title="پست پیشتاز", price_amount=300_000, is_active=True)
+        ShippingMethod.objects.create(title="روش غیرفعال", price_amount=100_000, is_active=False)
+
+        response = self.client.get("/api/shop/shipping-methods/")
+
+        self.assertEqual(response.status_code, 200)
+        titles = [item["title"] for item in response.data]
+        self.assertIn("پست پیشتاز", titles)
+        self.assertNotIn("روش غیرفعال", titles)

@@ -2,7 +2,7 @@ import { apiRequest } from "@/lib/api/client";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import { cartApiRequest, type CartTransportResult } from "@/lib/shop/cart-transport";
 import type { ApiListResponse } from "@/types/api";
-import type { Cart, CheckoutPreview, ProductDetail, ProductListItem, ShopCategory } from "@/types/shop";
+import type { Cart, CheckoutPreview, ProductDetail, ProductListItem, ShippingMethod, ShopCategory } from "@/types/shop";
 
 type Scalar = string | number | boolean | null | undefined;
 
@@ -40,6 +40,10 @@ export function getShopProduct(slug: string) {
 
 export function getShopCategories() {
   return apiRequest<ShopCategory[]>(apiEndpoints.shop.categories);
+}
+
+export function getShippingMethods() {
+  return apiRequest<ShippingMethod[]>(apiEndpoints.shop.shippingMethods);
 }
 
 // --- Cart -------------------------------------------------------------

@@ -64,6 +64,7 @@ export const apiEndpoints = {
   shop: {
     products: "shop/products/",
     categories: "shop/categories/",
+    shippingMethods: "shop/shipping-methods/",
     cart: "shop/cart/",
     cartItems: "shop/cart/items/",
     cartMerge: "shop/cart/merge/",

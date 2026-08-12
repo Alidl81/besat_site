@@ -10,7 +10,7 @@ from .cms_orders import (
 from .cms_settings import CMSShippingMethodViewSet, CMSShopSettingsAPIView
 from .orders import OrderDetailAPIView, OrderListCreateAPIView
 from .payments import PaymentCallbackAPIView, PaymentStartAPIView
-from .public import ProductViewSet, ShopCategoryListAPIView
+from .public import ProductViewSet, ShippingMethodListAPIView, ShopCategoryListAPIView
 
 __all__ = [
     "AddressDetailAPIView",
@@ -33,5 +33,6 @@ __all__ = [
     "PaymentCallbackAPIView",
     "PaymentStartAPIView",
     "ProductViewSet",
+    "ShippingMethodListAPIView",
     "ShopCategoryListAPIView",
 ]

@@ -4,6 +4,7 @@ import albums from "@iconify-icons/tabler/photo";
 import bell from "@iconify-icons/tabler/bell";
 import building from "@iconify-icons/tabler/building";
 import calendar from "@iconify-icons/tabler/calendar-event";
+import cash from "@iconify-icons/tabler/cash";
 import chart from "@iconify-icons/tabler/chart-bar";
 import check from "@iconify-icons/tabler/check";
 import chevron from "@iconify-icons/tabler/chevron-left";
@@ -18,6 +19,7 @@ import eye from "@iconify-icons/tabler/eye";
 import file from "@iconify-icons/tabler/file-text";
 import filter from "@iconify-icons/tabler/filter";
 import globe from "@iconify-icons/tabler/world";
+import graduationCap from "@iconify-icons/tabler/school";
 import heart from "@iconify-icons/tabler/heart";
 import image from "@iconify-icons/tabler/photo";
 import link from "@iconify-icons/tabler/link";
@@ -27,6 +29,7 @@ import megaphone from "@iconify-icons/tabler/speakerphone";
 import message from "@iconify-icons/tabler/message";
 import more from "@iconify-icons/tabler/dots";
 import news from "@iconify-icons/tabler/news";
+import packageBox from "@iconify-icons/tabler/package";
 import plus from "@iconify-icons/tabler/plus";
 import profile from "@iconify-icons/tabler/user-circle";
 import programs from "@iconify-icons/tabler/calendar-event";
@@ -35,9 +38,11 @@ import review from "@iconify-icons/tabler/file-check";
 import search from "@iconify-icons/tabler/search";
 import services from "@iconify-icons/tabler/apps";
 import settings from "@iconify-icons/tabler/settings";
+import shop from "@iconify-icons/tabler/shopping-bag";
 import staff from "@iconify-icons/tabler/user";
 import students from "@iconify-icons/tabler/users";
 import trash from "@iconify-icons/tabler/trash";
+import truck from "@iconify-icons/tabler/truck-delivery";
 import units from "@iconify-icons/tabler/building-community";
 import users from "@iconify-icons/tabler/users-group";
 import warning from "@iconify-icons/tabler/alert-triangle";
@@ -47,6 +52,7 @@ export type PanelIconName =
   | "bell"
   | "building"
   | "calendar"
+  | "cash"
   | "chart"
   | "check"
   | "chevron"
@@ -61,6 +67,7 @@ export type PanelIconName =
   | "file"
   | "filter"
   | "globe"
+  | "graduationCap"
   | "heart"
   | "image"
   | "link"
@@ -70,6 +77,7 @@ export type PanelIconName =
   | "message"
   | "more"
   | "news"
+  | "packageBox"
   | "plus"
   | "profile"
   | "programs"
@@ -78,9 +86,11 @@ export type PanelIconName =
   | "search"
   | "services"
   | "settings"
+  | "shop"
   | "staff"
   | "students"
   | "trash"
+  | "truck"
   | "units"
   | "users"
   | "warning";
@@ -90,6 +100,7 @@ const icons: Record<PanelIconName, IconifyIcon> = {
   bell,
   building,
   calendar,
+  cash,
   chart,
   check,
   chevron,
@@ -104,6 +115,7 @@ const icons: Record<PanelIconName, IconifyIcon> = {
   file,
   filter,
   globe,
+  graduationCap,
   heart,
   image,
   link,
@@ -113,6 +125,7 @@ const icons: Record<PanelIconName, IconifyIcon> = {
   message,
   more,
   news,
+  packageBox,
   plus,
   profile,
   programs,
@@ -121,9 +134,11 @@ const icons: Record<PanelIconName, IconifyIcon> = {
   search,
   services,
   settings,
+  shop,
   staff,
   students,
   trash,
+  truck,
   units,
   users,
   warning,

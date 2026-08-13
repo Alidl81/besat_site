@@ -168,11 +168,27 @@ export function GhostButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>
 const statusMap: Record<string, { label: string; className: string }> = {
   draft: { label: "پیش‌نویس", className: "bg-slate-100 text-slate-600" },
   waiting_review: { label: "در انتظار بررسی", className: "bg-amber-50 text-amber-700" },
+  approved: { label: "تأییدشده", className: "bg-sky-50 text-sky-700" },
   published: { label: "منتشرشده", className: "bg-blue-50 text-blue-700" },
   rejected: { label: "رد شده", className: "bg-rose-50 text-rose-700" },
+  archived: { label: "آرشیوشده", className: "bg-slate-100 text-slate-500" },
   new: { label: "جدید", className: "bg-sky-50 text-sky-700" },
   reviewing: { label: "در حال بررسی", className: "bg-amber-50 text-amber-700" },
   accepted: { label: "پذیرفته‌شده", className: "bg-blue-50 text-blue-700" },
+  // Shop order statuses
+  pending_payment: { label: "در انتظار پرداخت", className: "bg-amber-50 text-amber-700" },
+  payment_processing: { label: "در حال پردازش پرداخت", className: "bg-amber-50 text-amber-700" },
+  paid: { label: "پرداخت‌شده", className: "bg-emerald-50 text-emerald-700" },
+  processing: { label: "در حال پردازش", className: "bg-blue-50 text-blue-700" },
+  shipped: { label: "ارسال‌شده", className: "bg-blue-50 text-blue-700" },
+  completed: { label: "تکمیل‌شده", className: "bg-emerald-50 text-emerald-700" },
+  cancelled: { label: "لغوشده", className: "bg-slate-100 text-slate-500" },
+  payment_failed: { label: "پرداخت ناموفق", className: "bg-rose-50 text-rose-700" },
+  refunded: { label: "بازگشت وجه", className: "bg-slate-100 text-slate-500" },
+  partially_refunded: { label: "بازگشت جزئی وجه", className: "bg-slate-100 text-slate-500" },
+  // Shop course enrollment statuses
+  active: { label: "فعال", className: "bg-emerald-50 text-emerald-700" },
+  revoked: { label: "ابطال‌شده", className: "bg-rose-50 text-rose-700" },
 };
 
 export function StatusBadge({ status }: { status: string }) {

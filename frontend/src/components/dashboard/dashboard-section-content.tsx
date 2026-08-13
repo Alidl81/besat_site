@@ -14,6 +14,12 @@ import { EventsCalendar } from "@/components/dashboard/events-calendar";
 import { ParentChildrenWorkspace } from "@/components/dashboard/parent-children-workspace";
 import { RegistrationWorkspace } from "@/components/dashboard/registration-workspace";
 import { PanelEmpty } from "@/components/dashboard/panel-request-state";
+import { ShopCategoriesManager } from "@/components/shop/admin/shop-categories-manager";
+import { ShopEnrollmentsManager } from "@/components/shop/admin/shop-enrollments-manager";
+import { ShopOrdersManager } from "@/components/shop/admin/shop-orders-manager";
+import { ShopProductsManager } from "@/components/shop/admin/shop-products-manager";
+import { ShopSettingsManager } from "@/components/shop/admin/shop-settings-manager";
+import { ShopShippingManager } from "@/components/shop/admin/shop-shipping-manager";
 import type { AccountRole } from "@/lib/data/domain-types";
 import {
   ParentRegistrationWorkspace,
@@ -80,6 +86,18 @@ export function DashboardSectionContent({
         return <RegistrationWorkspace />;
       case "users":
         return <UsersManager />;
+      case "shopProducts":
+        return <ShopProductsManager mode="admin" />;
+      case "shopCategories":
+        return <ShopCategoriesManager />;
+      case "shopOrders":
+        return <ShopOrdersManager />;
+      case "shopShipping":
+        return <ShopShippingManager />;
+      case "shopEnrollments":
+        return <ShopEnrollmentsManager />;
+      case "shopSettings":
+        return <ShopSettingsManager />;
       default:
         return <PanelEmpty title="بخش درخواستی در دسترس نیست." />;
     }
@@ -100,6 +118,8 @@ export function DashboardSectionContent({
         return <GalleryManager unitId={scopedUnitId} canPublish={false} />;
       case "review":
         return <EditorialWorkspace unitId={scopedUnitId} authorRole={contentAuthorRole} canPublish={canPublishContent} reviewOnly />;
+      case "shopProducts":
+        return <ShopProductsManager mode="media" />;
       case "services":
         return <ServicesWorkspace />;
       default:

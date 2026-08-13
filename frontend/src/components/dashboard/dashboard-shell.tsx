@@ -35,7 +35,7 @@ function SidebarMenu({
       }
       aria-label="منوی پنل"
     >
-      {data.menu.map((item) => {
+      {data.menu.filter((item) => !item.hidden).map((item) => {
         const isActive = item.key === activeKey;
         return (
           <div key={item.key} className={`dashboard-menu-item ${item.dividerBefore ? "has-divider border-t border-white/16 pt-3" : ""}`}>

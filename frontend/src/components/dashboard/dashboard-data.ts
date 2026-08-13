@@ -21,6 +21,10 @@ export type DashboardMenuItem = {
   emptyText: string;
   dividerBefore?: boolean;
   roles?: DashboardMenuRole[];
+  /** Resolvable by key (so DashboardShell can route to it, e.g. an order
+   * detail page reached only by clicking through a list) but not shown
+   * as its own sidebar/mobile-menu entry. */
+  hidden?: boolean;
 };
 
 export type DashboardPageData = {
@@ -99,6 +103,10 @@ export const dashboardPages = {
       { key: "children", label: "فرزندان من", href: "/dashboard/parents/children", icon: "children", description: "پرونده‌های فرزندان متصل به این حساب", emptyText: emptyDetail },
       { key: "programs", label: "برنامه‌ها", href: "/dashboard/parents/programs", icon: "programs", description: "برنامه‌های قابل مشاهده برای فرزندان", emptyText: emptyDetail },
       { key: "registration", label: "ثبت‌نام", href: "/dashboard/parents/registration", icon: "registration", description: "پیگیری درخواست‌های ثبت‌نام", emptyText: emptyDetail },
+      { key: "shopOrders", label: "سفارش‌های فروشگاه", href: "/dashboard/parents/shop/orders", icon: "cash", description: "سفارش‌ها و فاکتورهای فروشگاه", emptyText: emptyDetail, dividerBefore: true },
+      { key: "shopOrderDetail", label: "جزئیات سفارش", href: "/dashboard/parents/shop/orders", icon: "cash", description: "جزئیات سفارش", emptyText: emptyDetail, hidden: true },
+      { key: "shopCourses", label: "دوره‌های من", href: "/dashboard/parents/shop/courses", icon: "graduationCap", description: "دوره‌های آنلاین و حضوری خریداری‌شده", emptyText: emptyDetail },
+      { key: "shopAddresses", label: "آدرس‌های من", href: "/dashboard/parents/shop/addresses", icon: "building", description: "آدرس‌های ذخیره‌شده برای ارسال", emptyText: emptyDetail },
       { key: "services", label: "خدمات نرم‌افزاری", href: "/dashboard/parents/services", icon: "services", description: "خدمات فعال خانواده", emptyText: emptyDetail },
       { key: "messages", label: "پیام‌ها", href: "/dashboard/parents/messages", icon: "message", description: "ارتباط با دبیران و مدرسه", emptyText: emptyDetail },
       { key: "profile", label: "پروفایل", href: "/dashboard/parents/profile", icon: "profile", description: "تنظیمات حساب کاربری", emptyText: emptyDetail },

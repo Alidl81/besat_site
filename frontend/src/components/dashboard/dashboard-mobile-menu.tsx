@@ -130,7 +130,7 @@ export function DashboardMobileMenu({
             className="grid min-h-0 flex-1 gap-1 overflow-y-auto p-3"
             aria-label="منوی پنل"
           >
-            {data.menu.map((item) => {
+            {data.menu.filter((item) => !item.hidden).map((item) => {
               const active = item.key === activeKey;
               return (
                 <Link

@@ -14,6 +14,10 @@ import { EventsCalendar } from "@/components/dashboard/events-calendar";
 import { ParentChildrenWorkspace } from "@/components/dashboard/parent-children-workspace";
 import { RegistrationWorkspace } from "@/components/dashboard/registration-workspace";
 import { PanelEmpty } from "@/components/dashboard/panel-request-state";
+import { ParentAddressesManager } from "@/components/shop/parents/parent-addresses-manager";
+import { ParentCoursesManager } from "@/components/shop/parents/parent-courses-manager";
+import { ParentOrderDetailManager } from "@/components/shop/parents/parent-order-detail-manager";
+import { ParentOrdersManager } from "@/components/shop/parents/parent-orders-manager";
 import { ShopCategoriesManager } from "@/components/shop/admin/shop-categories-manager";
 import { ShopEnrollmentsManager } from "@/components/shop/admin/shop-enrollments-manager";
 import { ShopOrdersManager } from "@/components/shop/admin/shop-orders-manager";
@@ -135,6 +139,14 @@ export function DashboardSectionContent({
         return <ParentProgramsView />;
       case "registration":
         return <ParentRegistrationWorkspace />;
+      case "shopOrders":
+        return <ParentOrdersManager />;
+      case "shopOrderDetail":
+        return <ParentOrderDetailManager />;
+      case "shopCourses":
+        return <ParentCoursesManager />;
+      case "shopAddresses":
+        return <ParentAddressesManager />;
       case "services":
         return <ServicesWorkspace parent />;
       default:

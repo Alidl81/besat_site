@@ -7,10 +7,22 @@ import { Container } from "@/components/shared/container";
 import { getApiErrorMessage } from "@/lib/api/client";
 import { submitMockPaymentOutcome } from "@/services/shop-account-service";
 
+// The gateway page always redirects here after a decision, and this value
+// arrives as an attacker-controllable query param -- restrict it to a
+// same-origin relative path so this can't become an open redirect (e.g.
+// return_url=https://evil.example or the //evil.example / \evil.example
+// protocol-relative tricks).
+function sanitizeReturnPath(value: string | null): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) {
+    return "/shop";
+  }
+  return value;
+}
+
 export function MockPaymentGateway({ attemptId }: { attemptId: number }) {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
-  const returnUrl = searchParams.get("return_url") ?? "/shop";
+  const returnUrl = sanitizeReturnPath(searchParams.get("return_url"));
   const [submitting, setSubmitting] = useState<"success" | "failure" | null>(null);
   const [error, setError] = useState<string | null>(null);
 

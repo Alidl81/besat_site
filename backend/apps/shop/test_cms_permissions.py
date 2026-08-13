@@ -205,6 +205,14 @@ class ShopCMSPermissionTests(TestCase):
             response = self.client.get("/api/cms/shop/orders/")
             self.assertEqual(response.status_code, expected, f"role={user.username}")
 
+    def test_cms_order_list_exposes_numeric_id_for_detail_lookups(self):
+        order = self._place_paid_order_setup()
+
+        self._as(self.general_manager)
+        response = self.client.get("/api/cms/shop/orders/")
+
+        self.assertEqual(response.data["results"][0]["id"], order.pk)
+
     def test_only_general_manager_can_cancel_an_order(self):
         order = self._place_paid_order_setup()
 

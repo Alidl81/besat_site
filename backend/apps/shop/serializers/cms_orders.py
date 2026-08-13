@@ -26,7 +26,7 @@ class CMSOrderListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = (
-            "order_number", "user", "user_display", "status", "total_amount",
+            "id", "order_number", "user", "user_display", "status", "total_amount",
             "total_display", "requires_shipping", "created_at", "paid_at",
         )
         read_only_fields = fields

@@ -16,6 +16,7 @@ from apps.core.models import (
 )
 from apps.core.utils import normalize_text
 
+from ..sanitize import sanitize_product_html
 from ..validators import validate_product_image_file
 
 
@@ -215,6 +216,9 @@ class Product(TimeStampedModel, ActiveModel, OrderedModel, SEOFieldsModel, Conte
             value = getattr(self, field_name)
             if isinstance(value, str):
                 setattr(self, field_name, normalize_text(value) or None)
+
+        if isinstance(self.description, str):
+            self.description = sanitize_product_html(self.description) or None
 
         errors = {}
 

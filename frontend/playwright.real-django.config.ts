@@ -75,7 +75,7 @@ const realWebServers = [
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  testMatch: "real-django.spec.ts",
+  testMatch: ["real-django.spec.ts", "shop-real-django.spec.ts"],
   fullyParallel: false,
   workers: 1,
   timeout: 45_000,

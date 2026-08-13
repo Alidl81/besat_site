@@ -130,6 +130,10 @@ try {
       env: backendEnvironment,
     },
   );
+  await run(pythonExecutable, ["manage.py", "seed_shop_e2e_demo"], {
+    cwd: backendDirectory,
+    env: backendEnvironment,
+  });
   await writeFile(typeScriptConfigPath, '{\n  "extends": "./tsconfig.json"\n}\n');
   await run(process.execPath, [nextCli, "build"], {
     cwd: frontendDirectory,
@@ -167,6 +171,10 @@ try {
   if (databaseInitialized) {
     try {
       await run(pythonExecutable, ["manage.py", "cleanup_phase2_demo"], {
+        cwd: backendDirectory,
+        env: backendEnvironment,
+      });
+      await run(pythonExecutable, ["manage.py", "cleanup_shop_e2e_demo"], {
         cwd: backendDirectory,
         env: backendEnvironment,
       });

@@ -1,14 +1,33 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import type { TourSceneConfig } from "@/lib/virtual-tour/tour-config";
+import type { TourSceneDetail } from "@/types/virtual-tour";
 
 type PanoramaViewerProps = {
-  scene: TourSceneConfig;
+  /** One or more scenes belonging to the same door (unit/department tour).
+   * A single scene uses pannellum's plain single-panorama mode (today's
+   * behavior, unchanged); 2+ scenes switch to pannellum's real multi-scene
+   * `scenes`/`hotSpots` API so in-panorama hotspots can jump between them. */
+  scenes: TourSceneDetail[];
   title: string;
+  /** Slug of the scene to open on. Defaults to the door's default scene, or
+   * the first scene if none is marked default. */
+  initialSceneSlug?: string;
 };
 
-export function PanoramaViewer({ scene, title }: PanoramaViewerProps) {
+const STRINGS = {
+  loadButtonLabel: "برای شروع بازدید کلیک کنید",
+  loadingLabel: "در حال بارگذاری نمای ۳۶۰...",
+  bylineLabel: "توسط %s",
+  noPanoramaError: "تصویر پانوراما بارگذاری نشد.",
+  fileAccessError: "فایل پانوراما در دسترس نیست.",
+  malformedURLError: "آدرس تصویر پانوراما معتبر نیست.",
+  genericWebGLError: "مرورگر امکان نمایش WebGL را ندارد.",
+  textureSizeError: "ابعاد تصویر برای این دستگاه بیش از حد بزرگ است.",
+  unknownError: "نمای ۳۶۰ قابل بارگذاری نیست.",
+};
+
+export function PanoramaViewer({ scenes, title, initialSceneSlug }: PanoramaViewerProps) {
   const rawId = useId();
   const viewerId = `besat-panorama-${rawId.replaceAll(":", "")}`;
   const viewerRef = useRef<PannellumViewer | null>(null);
@@ -18,37 +37,68 @@ export function PanoramaViewer({ scene, title }: PanoramaViewerProps) {
     let disposed = false;
 
     const initialize = async () => {
+      if (scenes.length === 0) {
+        setStatus("error");
+        return;
+      }
+
       try {
         await import("pannellum");
         if (disposed || !window.pannellum) return;
 
-        const viewer = window.pannellum.viewer(viewerId, {
-          type: "equirectangular",
-          panorama: scene.panorama,
-          autoLoad: true,
-          showControls: true,
-          compass: true,
-          friction: 0.18,
-          yaw: scene.initialYaw ?? 0,
-          pitch: scene.initialPitch ?? 0,
-          hfov: scene.initialHfov ?? 105,
-          title,
-          author: "مجتمع آموزشی بعثت",
-          strings: {
-            loadButtonLabel: "برای شروع بازدید کلیک کنید",
-            loadingLabel: "در حال بارگذاری نمای ۳۶۰...",
-            bylineLabel: "توسط %s",
-            noPanoramaError: "تصویر پانوراما بارگذاری نشد.",
-            fileAccessError: "فایل پانوراما در دسترس نیست.",
-            malformedURLError: "آدرس تصویر پانوراما معتبر نیست.",
-            genericWebGLError: "مرورگر امکان نمایش WebGL را ندارد.",
-            textureSizeError: "ابعاد تصویر برای این دستگاه بیش از حد بزرگ است.",
-            unknownError: "نمای ۳۶۰ قابل بارگذاری نیست.",
-          },
-        });
+        const viewer =
+          scenes.length === 1
+            ? window.pannellum.viewer(viewerId, {
+                type: "equirectangular",
+                panorama: scenes[0].panorama ?? "",
+                autoLoad: true,
+                showControls: true,
+                compass: true,
+                friction: 0.18,
+                yaw: scenes[0].initial_yaw ?? 0,
+                pitch: scenes[0].initial_pitch ?? 0,
+                hfov: scenes[0].initial_hfov ?? 105,
+                title,
+                author: "مجتمع آموزشی بعثت",
+                strings: STRINGS,
+              })
+            : window.pannellum.viewer(viewerId, {
+                default: {
+                  firstScene:
+                    initialSceneSlug ?? scenes.find((s) => s.is_default)?.slug ?? scenes[0].slug,
+                  sceneFadeDuration: 900,
+                  autoLoad: true,
+                  showControls: true,
+                  compass: true,
+                  friction: 0.18,
+                  author: "مجتمع آموزشی بعثت",
+                  strings: STRINGS,
+                },
+                scenes: Object.fromEntries(
+                  scenes.map((scene) => [
+                    scene.slug,
+                    {
+                      type: "equirectangular" as const,
+                      panorama: scene.panorama ?? "",
+                      title: scene.title,
+                      yaw: scene.initial_yaw ?? 0,
+                      pitch: scene.initial_pitch ?? 0,
+                      hfov: scene.initial_hfov ?? 105,
+                      hotSpots: scene.hotspots.map((hotspot) => ({
+                        pitch: hotspot.pitch,
+                        yaw: hotspot.yaw,
+                        type: "scene" as const,
+                        text: hotspot.label || undefined,
+                        sceneId: scenes.find((target) => target.id === hotspot.target_scene)?.slug ?? "",
+                      })),
+                    },
+                  ]),
+                ),
+              });
 
         viewerRef.current = viewer;
         viewer.on("load", () => setStatus("ready"));
+        viewer.on("scenechange", () => setStatus("ready"));
         viewer.on("error", () => setStatus("error"));
       } catch {
         if (!disposed) setStatus("error");
@@ -61,7 +111,7 @@ export function PanoramaViewer({ scene, title }: PanoramaViewerProps) {
       viewerRef.current?.destroy();
       viewerRef.current = null;
     };
-  }, [scene, title, viewerId]);
+  }, [scenes, title, viewerId, initialSceneSlug]);
 
   return (
     <div className="relative h-full min-h-[520px] w-full overflow-hidden bg-[#06182d]">

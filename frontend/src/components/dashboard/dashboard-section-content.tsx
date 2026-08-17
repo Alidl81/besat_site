@@ -6,6 +6,7 @@ import { readBesatSession } from "@/lib/auth/auth-session";
 import { UnitsManager } from "@/components/crud/units-manager";
 import { UsersManager } from "@/components/crud/users-manager";
 import { GalleryManager } from "@/components/crud/gallery-manager";
+import { VirtualTourManager } from "@/components/virtual-tour/virtual-tour-manager";
 import { MessagingPanel } from "@/components/crud/messaging-panel";
 import { ParentProgramsView } from "@/components/crud/parent-views";
 import { PanelProfileContent } from "@/components/dashboard/panel-profile-content";
@@ -64,6 +65,8 @@ export function DashboardSectionContent({
     userRole === "unit_manager" || userRole === "unit_media" ? unitId : null
   );
   const canPublishContent = userRole === "general_manager";
+  const tourManagerRole: "general_manager" | "unit_manager" | "unit_media" =
+    userRole === "general_manager" || userRole === "unit_manager" ? userRole : "unit_media";
 
   if (sectionKey === "profile") return <PanelProfileContent roleTitle={roleTitle} />;
   if (sectionKey === "messages") return <MessagingPanel />;
@@ -86,6 +89,8 @@ export function DashboardSectionContent({
         return <EditorialWorkspace unitId={scopedUnitId} authorRole="general_manager" canPublish={canPublishContent} />;
       case "gallery":
         return <GalleryManager unitId={scopedUnitId} />;
+      case "virtualTour":
+        return <VirtualTourManager unitId={scopedUnitId} role={tourManagerRole} />;
       case "registrations":
         return <RegistrationWorkspace />;
       case "users":
@@ -120,6 +125,8 @@ export function DashboardSectionContent({
       case "media":
       case "albums":
         return <GalleryManager unitId={scopedUnitId} canPublish={false} />;
+      case "virtualTour":
+        return <VirtualTourManager unitId={scopedUnitId} role={tourManagerRole} />;
       case "review":
         return <EditorialWorkspace unitId={scopedUnitId} authorRole={contentAuthorRole} canPublish={canPublishContent} reviewOnly />;
       case "shopProducts":

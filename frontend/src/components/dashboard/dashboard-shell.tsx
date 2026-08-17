@@ -58,7 +58,7 @@ function SidebarMenu({
 
 function Sidebar({ data, activeKey }: { data: DashboardPageData; activeKey: string }) {
   return (
-    <aside className="hidden xl:block">
+    <aside className="hidden lg:block">
       <div className="besat-dashboard-sidebar sticky top-0 flex h-dvh min-h-0 flex-col overflow-hidden text-white">
         <Link href="/" className="besat-dashboard-brand mx-3 mb-2 mt-3 flex shrink-0 items-center gap-2 border-b border-white/18 pb-3 text-right">
           <BesatLogoMark size="sm" tone="light" className="!h-11 !w-11" />
@@ -104,7 +104,7 @@ export function DashboardShell({ data, activeKey = "overview", panel }: Dashboar
       <a href="#dashboard-content" className="sr-only z-50 rounded-md bg-white px-4 py-3 text-sm font-black text-[#102b4a] focus:not-sr-only focus:fixed focus:right-4 focus:top-4">
         رفتن به محتوای اصلی
       </a>
-      <div className="grid min-h-screen xl:grid-cols-[17rem_minmax(0,1fr)]">
+      <div className="grid min-h-screen lg:grid-cols-[17rem_minmax(0,1fr)]">
         <Sidebar data={visibleData} activeKey={isUnavailable ? "" : displayedItem.key} />
 
         <section className="min-w-0">

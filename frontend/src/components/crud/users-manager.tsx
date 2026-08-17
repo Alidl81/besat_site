@@ -2,7 +2,7 @@
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { CrudManager, FormActions, type Column } from "@/components/crud/crud-manager";
-import { Field, Modal, PrimaryButton, Select, TextInput } from "@/components/crud/crud-ui";
+import { Field, Modal, PrimaryButton, Select, StatusBadge, TextInput } from "@/components/crud/crud-ui";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
 import type { Repository } from "@/lib/data/repository";
 import { unitsRepository, usersRepository } from "@/lib/data/repositories";
@@ -63,11 +63,7 @@ export function UsersManager() {
     {
       key: "active",
       header: "وضعیت",
-      render: (i) => (
-        <span className={`rounded-xl px-3 py-1 text-xs font-black ${i.is_active ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
-          {i.is_active ? "فعال" : "غیرفعال"}
-        </span>
-      ),
+      render: (i) => <StatusBadge status={i.is_active ? "active" : "inactive"} />,
     },
   ];
 

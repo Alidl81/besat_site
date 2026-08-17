@@ -30,6 +30,7 @@ urlpatterns = [
     path("api/", include("apps.events.urls")),
     path("api/", include("apps.staff.urls")),
     path("api/", include("apps.shop.urls")),
+    path("api/", include("apps.virtual_tour.urls")),
 ]
 
 

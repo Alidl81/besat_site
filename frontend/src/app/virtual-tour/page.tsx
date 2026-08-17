@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { VirtualTourLobby } from "@/components/virtual-tour/virtual-tour-lobby";
+import { PublicPageLayout } from "@/components/layout/public-page-layout";
 
 export const metadata: Metadata = {
   title: "تور مجازی | مجتمع آموزشی بعثت",
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function VirtualTourPage() {
-  return <VirtualTourLobby />;
+  return (
+    <PublicPageLayout>
+      <VirtualTourLobby />
+    </PublicPageLayout>
+  );
 }

@@ -127,6 +127,11 @@ export function DashboardTopbar({
     searchParams.get("unit") ?? context?.selected_unit_id ?? "",
   );
   const hasAcademicYearFilters = Boolean(context?.academic_years.length);
+  // The academic-year filter has no real data yet for any non-parent panel,
+  // so its slot is left out entirely (rather than permanently showing a
+  // "not supported" message) until hasAcademicYearFilters actually has
+  // something to show.
+  const showAcademicYearZone = panel !== "parents" && hasAcademicYearFilters;
   const messagesHref =
     panel === "parents"
       ? "/dashboard/parents/messages"
@@ -138,7 +143,7 @@ export function DashboardTopbar({
   return (
     <header className="sticky top-0 z-30 border-b border-[#e7e9ec] bg-white/95 backdrop-blur-xl">
       <div className="flex min-h-[5.35rem] items-center gap-3 px-4 sm:px-6 lg:px-7">
-        <div className="xl:hidden">{mobileMenu}</div>
+        <div className="lg:hidden">{mobileMenu}</div>
 
         <div className="hidden min-w-0 flex-1 items-center justify-end md:flex">
           {panel === "parents" ? (
@@ -160,23 +165,19 @@ export function DashboardTopbar({
           )}
         </div>
 
-        <div className="hidden flex-1 items-center justify-center lg:flex">
-          {panel === "parents" ? (
-            context ? (
+        {panel === "parents" ? (
+          <div className="hidden flex-1 items-center justify-center lg:flex">
+            {context ? (
               <ContextUnavailable icon="students">انتخاب فرزند از بخش «فرزندان من» انجام می‌شود.</ContextUnavailable>
             ) : (
               <ContextUnavailable icon="students">در حال دریافت محدوده حساب…</ContextUnavailable>
-            )
-          ) : context ? (
-            hasAcademicYearFilters ? (
-              <ContextUnavailable icon="calendar">فیلتر سال تحصیلی هنوز برای این پنل پشتیبانی نمی‌شود.</ContextUnavailable>
-            ) : (
-              <ContextUnavailable icon="calendar">سال تحصیلی قابل انتخابی ثبت نشده است.</ContextUnavailable>
-            )
-          ) : (
-            <ContextUnavailable icon="calendar">در حال دریافت محدوده پنل…</ContextUnavailable>
-          )}
-        </div>
+            )}
+          </div>
+        ) : showAcademicYearZone ? (
+          <div className="hidden flex-1 items-center justify-center lg:flex">
+            <ContextUnavailable icon="calendar">فیلتر سال تحصیلی هنوز برای این پنل پشتیبانی نمی‌شود.</ContextUnavailable>
+          </div>
+        ) : null}
 
         <div className="mr-auto flex items-center gap-1 sm:gap-2">
           <Link
@@ -196,7 +197,6 @@ export function DashboardTopbar({
 
           <Link
             href={profileHref}
-            title={error ?? undefined}
             className="flex min-w-0 items-center gap-2 rounded-xl p-1.5 text-right transition-colors hover:bg-[#f8f3eb] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c77f14]"
           >
             {context?.user.avatar_url ? (
@@ -224,12 +224,14 @@ export function DashboardTopbar({
         </div>
       </div>
 
+      {error ? (
+        <p role="status" className="border-t border-rose-100 bg-rose-50 px-4 py-2 text-xs font-bold leading-5 text-rose-700 sm:px-6">
+          دریافت محدوده پنل ناموفق بود: {error}
+        </p>
+      ) : null}
+
       <div className="border-t border-slate-100 px-4 py-2 md:hidden sm:px-6">
-        {error ? (
-          <p role="status" className="text-xs font-bold leading-5 text-rose-700">
-            دریافت محدوده پنل ناموفق بود: {error}
-          </p>
-        ) : panel === "parents" ? (
+        {panel === "parents" ? (
           <ContextUnavailable icon="students">
             {parentFiltersUnavailable
               ? "سال تحصیلی تا زمان پشتیبانی API در دسترس نیست؛ انتخاب فرزند در بخش «فرزندان من» انجام می‌شود."

@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { getApiErrorMessage } from "@/lib/api/client";
 import { addCartItem, getCart, mergeGuestCart, removeCartItem, updateCartItem } from "@/services/shop-service";
 import type { CartTransportResult } from "@/lib/shop/cart-transport";
@@ -53,10 +54,12 @@ type ShopCartContextValue = {
 const ShopCartContext = createContext<ShopCartContextValue | null>(null);
 
 export function ShopCartProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [cart, setCart] = useState<Cart | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
+  const fetchedRef = useRef(false);
 
   const applyResult = useCallback((result: CartTransportResult<Cart>) => {
     if (result.clearGuestToken) writeGuestToken(null);
@@ -78,10 +81,14 @@ export function ShopCartProvider({ children }: { children: ReactNode }) {
   }, [applyResult]);
 
   useEffect(() => {
+    // The provider now wraps the whole app (so the header can show cart
+    // state), but most pages never touch the cart -- fetch lazily, exactly
+    // once, the first time a shop route is actually visited (whether that's
+    // the initial load or a client-side navigation into /shop later).
+    if (!pathname.startsWith("/shop") || fetchedRef.current) return;
+    fetchedRef.current = true;
     Promise.resolve().then(() => refresh());
-    // Intentionally run once on mount only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pathname, refresh]);
 
   const addItem = useCallback(
     async (productId: number, quantity = 1, variantId: number | null = null) => {

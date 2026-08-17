@@ -8,6 +8,7 @@ import {
   filterRecords,
   isResponse,
   jsonResponse,
+  namedRecord,
   paginatedResponse,
   requestPayload,
   requireAccount,
@@ -930,6 +931,678 @@ function parentRegistration(record: MockRecord, database: MockDatabase) {
   };
 }
 
+// --- Shop -------------------------------------------------------------
+// Deliberately simplified relative to the real Django shop API: no
+// stock-reservation locking, no real payment-gateway round trip
+// (payments/start marks the order paid immediately and redirects
+// straight to the order confirmation page), no partial refunds. This
+// exists purely so the redesigned shop UI is fully clickable with
+// `BESAT_BACKEND_API_URL=mock://local` and no Django server running.
+
+function shopCategoryBrief(record: MockRecord | null) {
+  if (!record) return null;
+  return { id: record.id, title: record.title, slug: record.slug };
+}
+
+function shopPhysicalDetailPublic(record: MockRecord) {
+  const detail = record.physical_detail as Record<string, unknown> | null;
+  if (!detail) return null;
+  return {
+    availability: detail.availability ?? "in_stock",
+    weight_grams: detail.weight_grams ?? null,
+    requires_shipping: detail.requires_shipping ?? true,
+    max_purchase_quantity: detail.max_purchase_quantity ?? null,
+  };
+}
+
+function shopCourseDetailPublic(record: MockRecord, database: MockDatabase) {
+  const detail = record.course_detail as Record<string, unknown> | null;
+  if (!detail) return null;
+  const capacity = detail.capacity != null ? Number(detail.capacity) : null;
+  const enrolled = Number(detail.enrolled_count ?? 0);
+  const base = {
+    instructor_name: detail.instructor_name ?? null,
+    course_type: detail.course_type ?? null,
+    duration_minutes: detail.duration_minutes ?? null,
+    capacity,
+    seats_left: capacity !== null ? Math.max(0, capacity - enrolled) : null,
+    start_date: detail.start_date ?? null,
+    prerequisites: detail.prerequisites ?? null,
+    level: detail.level ?? null,
+    enrollment_status: detail.enrollment_status ?? "open",
+  };
+  if (record.product_type === "online_course") {
+    return { ...base, access_duration_days: detail.access_duration_days ?? null };
+  }
+  return {
+    ...base,
+    unit: detail.unit_id ? namedRecord(database.units, detail.unit_id) : null,
+    location_detail: detail.location_detail ?? null,
+    schedule_text: detail.schedule_text ?? null,
+    end_date: detail.end_date ?? null,
+    registration_deadline: detail.registration_deadline ?? null,
+  };
+}
+
+function shopProductListItem(record: MockRecord, database: MockDatabase) {
+  const priceAmount = Number(record.price_amount ?? 0);
+  const saleAmount = record.sale_price_amount != null ? Number(record.sale_price_amount) : null;
+  return {
+    id: record.id,
+    product_type: record.product_type,
+    title: record.title,
+    slug: record.slug,
+    short_description: record.short_description ?? null,
+    featured_image: record.featured_image ?? null,
+    category: shopCategoryBrief(
+      record.category_id ? recordById(database.shop_categories, String(record.category_id)) : null,
+    ),
+    tags: record.tags ?? [],
+    price_amount: priceAmount,
+    sale_price_amount: saleAmount,
+    price_display: null,
+    sale_price_display: null,
+    is_on_sale: saleAmount !== null && saleAmount < priceAmount,
+    is_featured: Boolean(record.is_featured),
+    is_important: Boolean(record.is_important),
+    status: record.status,
+    is_published: record.status === "published",
+    physical_detail: shopPhysicalDetailPublic(record),
+    course_detail: shopCourseDetailPublic(record, database),
+  };
+}
+
+function shopProductDetail(record: MockRecord, database: MockDatabase) {
+  return {
+    ...shopProductListItem(record, database),
+    description: record.description ?? null,
+    gallery_images: record.gallery_images ?? [],
+    variants: record.variants ?? [],
+    seo: {
+      focus_keyphrase: null,
+      seo_title: null,
+      meta_description: null,
+      canonical_url: null,
+      og_title: null,
+      og_description: null,
+      og_image_url: null,
+      is_indexable: true,
+      is_followable: true,
+      is_cornerstone: false,
+    },
+  };
+}
+
+function cmsShopProduct(record: MockRecord, database: MockDatabase) {
+  return {
+    ...shopProductDetail(record, database),
+    physical_detail: record.physical_detail ?? null,
+    course_detail: record.course_detail ?? null,
+    created_by: null,
+    updated_by: null,
+    published_by: null,
+    created_at: record.created_at ?? new Date().toISOString(),
+  };
+}
+
+function guestCartToken(request: Request) {
+  return request.headers.get("x-guest-cart-token");
+}
+
+function findOrCreateShopCart(
+  database: MockDatabase,
+  account: MockAccount | null,
+  token: string | null,
+): { cart: MockRecord; isNew: boolean; newToken: string | null } {
+  const existing = database.shop_carts.find((cart) =>
+    account ? cart.owner_account_id === account.id : cart.guest_token === token,
+  );
+  if (existing) return { cart: existing, isNew: false, newToken: null };
+
+  const newToken = account ? null : `guest-cart-${crypto.randomUUID()}`;
+  const created: MockRecord = {
+    id: `cart-${crypto.randomUUID()}`,
+    owner_account_id: account?.id ?? null,
+    guest_token: account ? null : newToken,
+    items: [],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  database.shop_carts.push(created);
+  return { cart: created, isNew: true, newToken };
+}
+
+function shopCartResponse(cart: MockRecord, database: MockDatabase) {
+  type CartLine = { id: string; product_id: unknown; variant_id: unknown; quantity: number };
+  const lines = (cart.items as CartLine[] | undefined) ?? [];
+  let subtotal = 0;
+  let hasBlockingIssue = false;
+  let requiresShipping = false;
+
+  const items = lines.map((line) => {
+    const product = recordById(database.shop_products, String(line.product_id));
+    const unitPrice = product ? Number(product.sale_price_amount ?? product.price_amount ?? 0) : 0;
+    const lineTotal = unitPrice * line.quantity;
+    subtotal += lineTotal;
+    const issue = !product || product.status !== "published" ? "unavailable" : null;
+    if (issue) hasBlockingIssue = true;
+    if (product?.product_type === "physical") requiresShipping = true;
+    return {
+      id: line.id,
+      product: product
+        ? {
+            id: product.id,
+            title: product.title,
+            slug: product.slug,
+            product_type: product.product_type,
+            featured_image: product.featured_image ?? null,
+          }
+        : { id: line.product_id, title: "محصول حذف‌شده", slug: "", product_type: "physical", featured_image: null },
+      variant: line.variant_id ?? null,
+      variant_title: null,
+      quantity: line.quantity,
+      unit_price_amount: unitPrice,
+      unit_price_display: null,
+      line_total_amount: lineTotal,
+      line_total_display: null,
+      issue,
+    };
+  });
+
+  return {
+    id: cart.id,
+    items,
+    item_count: items.reduce((sum, item) => sum + item.quantity, 0),
+    subtotal_amount: subtotal,
+    subtotal_display: null,
+    requires_shipping: requiresShipping,
+    has_blocking_issue: hasBlockingIssue,
+  };
+}
+
+async function handleShopRoute(
+  request: Request,
+  path: string[],
+  database: MockDatabase,
+  account: MockAccount | null,
+  url: URL,
+): Promise<Response | null> {
+  const sub = path.slice(1).join("/");
+
+  if (sub === "categories" && request.method === "GET") {
+    const active = database.shop_categories.filter((category) => category.is_active !== false);
+    return jsonResponse(
+      active.map((category) => ({
+        id: category.id,
+        title: category.title,
+        slug: category.slug,
+        description: category.description ?? null,
+        cover_image: category.cover_image ?? null,
+      })),
+    );
+  }
+
+  if (sub === "shipping-methods" && request.method === "GET") {
+    const active = database.shop_shipping_methods.filter((method) => method.is_active !== false);
+    return jsonResponse(
+      active.map((method) => ({
+        id: method.id,
+        title: method.title,
+        description: method.description ?? null,
+        price_amount: Number(method.price_amount ?? 0),
+        price_display: null,
+        is_default: Boolean(method.is_default),
+      })),
+    );
+  }
+
+  if (sub === "products" && request.method === "GET") {
+    let records = database.shop_products.filter((product) => product.status === "published");
+    const productType = url.searchParams.get("product_type");
+    if (productType) records = records.filter((product) => product.product_type === productType);
+    const category = url.searchParams.get("category");
+    if (category) records = records.filter((product) => String(product.category_id) === category);
+    const featured = url.searchParams.get("featured");
+    if (featured) records = records.filter((product) => Boolean(product.is_featured) === (featured === "true"));
+    const search = url.searchParams.get("search")?.trim().toLocaleLowerCase("fa");
+    if (search) records = records.filter((product) => String(product.title).toLocaleLowerCase("fa").includes(search));
+    const minPrice = url.searchParams.get("min_price");
+    if (minPrice) records = records.filter((product) => Number(product.price_amount ?? 0) >= Number(minPrice));
+    const maxPrice = url.searchParams.get("max_price");
+    if (maxPrice) records = records.filter((product) => Number(product.price_amount ?? 0) <= Number(maxPrice));
+    const ordering = url.searchParams.get("ordering") ?? "-published_at";
+    const field = ordering.replace(/^-/, "");
+    const descending = ordering.startsWith("-");
+    if (field === "price_amount") {
+      records = [...records].sort((left, right) => {
+        const diff = Number(left.price_amount ?? 0) - Number(right.price_amount ?? 0);
+        return descending ? -diff : diff;
+      });
+    } else if (field === "title") {
+      records = [...records].sort((left, right) => String(left.title).localeCompare(String(right.title), "fa"));
+    }
+    return jsonResponse(paginatedResponse(records, url, (record) => shopProductListItem(record, database)));
+  }
+
+  if (sub.startsWith("products/") && request.method === "GET") {
+    const slug = sub.slice("products/".length);
+    const product = database.shop_products.find((item) => item.slug === slug && item.status === "published");
+    if (!product) return apiError("محصول پیدا نشد.", 404, "not_found");
+    return jsonResponse(shopProductDetail(product, database));
+  }
+
+  if (sub === "cart" && request.method === "GET") {
+    const token = guestCartToken(request);
+    const { cart, newToken } = findOrCreateShopCart(database, account, token);
+    const headers: HeadersInit = newToken ? { "x-guest-cart-token": newToken } : {};
+    return jsonResponse(shopCartResponse(cart, database), 200, headers);
+  }
+
+  if (sub === "cart/items" && request.method === "POST") {
+    const token = guestCartToken(request);
+    const payload = await requestPayload(request);
+    return updateMockDatabase((current) => {
+      const { cart, newToken } = findOrCreateShopCart(current, account, token);
+      const lines = (cart.items as { id: string; product_id: unknown; variant_id: unknown; quantity: number }[]);
+      const productId = payload.product_id;
+      const existingLine = lines.find((line) => String(line.product_id) === String(productId));
+      if (existingLine) {
+        existingLine.quantity += Number(payload.quantity ?? 1);
+      } else {
+        lines.push({
+          id: `cart-item-${crypto.randomUUID()}`,
+          product_id: productId,
+          variant_id: (payload.variant_id as unknown) ?? null,
+          quantity: Number(payload.quantity ?? 1),
+        });
+      }
+      cart.updated_at = new Date().toISOString();
+      const headers: HeadersInit = newToken ? { "x-guest-cart-token": newToken } : {};
+      return jsonResponse(shopCartResponse(cart, current), 200, headers);
+    });
+  }
+
+  if (sub.startsWith("cart/items/") && (request.method === "PATCH" || request.method === "DELETE")) {
+    const itemId = sub.slice("cart/items/".length);
+    const token = guestCartToken(request);
+    const payload = request.method === "PATCH" ? await requestPayload(request) : null;
+    return updateMockDatabase((current) => {
+      const { cart } = findOrCreateShopCart(current, account, token);
+      const lines = cart.items as { id: string; quantity: number }[];
+      const index = lines.findIndex((line) => String(line.id) === itemId);
+      if (index < 0) return apiError("آیتم سبد خرید پیدا نشد.", 404, "not_found");
+      if (request.method === "DELETE") {
+        lines.splice(index, 1);
+      } else if (payload) {
+        lines[index].quantity = Number(payload.quantity ?? lines[index].quantity);
+      }
+      cart.updated_at = new Date().toISOString();
+      return jsonResponse(shopCartResponse(cart, current));
+    });
+  }
+
+  if (sub === "cart/merge" && request.method === "POST" && account) {
+    const payload = await requestPayload(request);
+    const guestToken = String(payload.guest_cart_token ?? "");
+    return updateMockDatabase((current) => {
+      const { cart: accountCart } = findOrCreateShopCart(current, account, null);
+      const guestCart = current.shop_carts.find((cart) => cart.guest_token === guestToken);
+      if (guestCart) {
+        const guestLines = guestCart.items as { product_id: unknown; variant_id: unknown; quantity: number }[];
+        const accountLines = accountCart.items as { id: string; product_id: unknown; variant_id: unknown; quantity: number }[];
+        for (const line of guestLines) {
+          const existingLine = accountLines.find((item) => String(item.product_id) === String(line.product_id));
+          if (existingLine) existingLine.quantity += line.quantity;
+          else accountLines.push({ id: `cart-item-${crypto.randomUUID()}`, ...line });
+        }
+        current.shop_carts = current.shop_carts.filter((cart) => cart.id !== guestCart.id);
+      }
+      return jsonResponse(shopCartResponse(accountCart, current), 200, { "x-guest-cart-token-clear": "1" });
+    });
+  }
+
+  if (sub === "checkout/preview" && request.method === "POST") {
+    const token = guestCartToken(request);
+    const { cart } = findOrCreateShopCart(database, account, token);
+    const cartData = shopCartResponse(cart, database);
+    const shippingMethodId = (await requestPayload(request)).shipping_method_id;
+    const shippingMethod = shippingMethodId
+      ? database.shop_shipping_methods.find((method) => String(method.id) === String(shippingMethodId))
+      : database.shop_shipping_methods.find((method) => method.is_default);
+    const shippingAmount = cartData.requires_shipping ? Number(shippingMethod?.price_amount ?? 0) : 0;
+    return jsonResponse({
+      items: cartData.items.map((item) => ({
+        cart_item_id: item.id,
+        product_id: item.product.id,
+        title: item.product.title,
+        quantity: item.quantity,
+        unit_price_amount: item.unit_price_amount,
+        line_total_amount: item.line_total_amount,
+        issue: item.issue,
+      })),
+      subtotal_amount: cartData.subtotal_amount,
+      shipping_amount: shippingAmount,
+      discount_amount: 0,
+      tax_amount: 0,
+      total_amount: cartData.subtotal_amount + shippingAmount,
+      requires_shipping: cartData.requires_shipping,
+      can_checkout: cartData.items.length > 0 && !cartData.has_blocking_issue,
+    });
+  }
+
+  if (sub === "orders" && request.method === "POST" && account) {
+    const token = guestCartToken(request);
+    const payload = await requestPayload(request);
+    return updateMockDatabase((current) => {
+      const { cart } = findOrCreateShopCart(current, account, token);
+      const cartData = shopCartResponse(cart, current);
+      if (cartData.items.length === 0) return apiError("سبد خرید خالی است.", 400, "empty_cart");
+      const orderNumber = `MOCK-${Date.now().toString(36).toUpperCase()}`;
+      const order: MockRecord = {
+        id: `order-${crypto.randomUUID()}`,
+        order_number: orderNumber,
+        owner_account_id: account.id,
+        status: "paid",
+        status_display: "پرداخت‌شده",
+        total_amount: cartData.subtotal_amount,
+        requires_shipping: cartData.requires_shipping,
+        item_count: cartData.item_count,
+        can_retry_payment: false,
+        paid_at: new Date().toISOString(),
+        subtotal_amount: cartData.subtotal_amount,
+        shipping_amount: 0,
+        discount_amount: 0,
+        tax_amount: 0,
+        shipping_recipient_name: null,
+        shipping_phone: null,
+        shipping_province: null,
+        shipping_city: null,
+        shipping_address_line1: null,
+        shipping_address_line2: null,
+        shipping_postal_code: null,
+        customer_note: (payload.customer_note as string | null) ?? null,
+        items: cartData.items.map((item, index) => ({
+          id: index + 1,
+          product: item.product.id,
+          product_slug: item.product.slug,
+          product_type_snapshot: item.product.product_type,
+          title_snapshot: item.product.title,
+          sku_snapshot: null,
+          unit_price_amount_snapshot: item.unit_price_amount,
+          unit_price_display: null,
+          quantity: item.quantity,
+          line_total_amount: item.line_total_amount,
+          line_total_display: null,
+        })),
+        latest_payment_attempt: null,
+      };
+      current.shop_orders.push(order);
+
+      // Course enrollments granted immediately since this mock flow marks
+      // the order paid synchronously (no real payment-gateway round trip).
+      for (const item of cartData.items) {
+        const product = recordById(current.shop_products, String(item.product.id));
+        if (product && product.product_type !== "physical") {
+          const courseDetail = product.course_detail as Record<string, unknown> | null;
+          current.shop_course_enrollments.push({
+            id: `enrollment-${crypto.randomUUID()}`,
+            owner_account_id: account.id,
+            product_title: product.title,
+            product_slug: product.slug,
+            product_type: product.product_type,
+            status: "active",
+            is_confirmed: true,
+            access_url: courseDetail?.access_destination_value ?? null,
+            access_notes: null,
+            access_expires_at: null,
+            granted_at: new Date().toISOString(),
+          });
+        }
+      }
+
+      cart.items = [];
+      cart.updated_at = new Date().toISOString();
+      return jsonResponse({ ...order, order_number: orderNumber }, 201);
+    });
+  }
+
+  if (sub === "orders" && request.method === "GET" && account) {
+    const orders = database.shop_orders.filter((order) => order.owner_account_id === account.id);
+    return jsonResponse(paginatedResponse(orders, url));
+  }
+
+  if (sub.startsWith("orders/") && request.method === "GET" && account) {
+    const orderNumber = sub.slice("orders/".length);
+    const order = database.shop_orders.find(
+      (item) => item.order_number === orderNumber && item.owner_account_id === account.id,
+    );
+    if (!order) return apiError("سفارش پیدا نشد.", 404, "not_found");
+    return jsonResponse(order);
+  }
+
+  if (sub === "payments/start" && request.method === "POST" && account) {
+    const payload = await requestPayload(request);
+    const orderNumber = String(payload.order_number ?? "");
+    const order = database.shop_orders.find(
+      (item) => item.order_number === orderNumber && item.owner_account_id === account.id,
+    );
+    if (!order) return apiError("سفارش پیدا نشد.", 404, "not_found");
+    // Real flow redirects to the mock payment gateway page; this mock
+    // transport skips that interactive step and goes straight to the
+    // (already-paid) order confirmation.
+    return jsonResponse({
+      attempt_id: 1,
+      provider: "mock",
+      redirect_url: `/shop/orders/${orderNumber}`,
+    });
+  }
+
+  if (sub === "courses/my" && request.method === "GET" && account) {
+    const enrollments = database.shop_course_enrollments.filter(
+      (enrollment) => enrollment.owner_account_id === account.id,
+    );
+    return jsonResponse(enrollments);
+  }
+
+  if (sub === "addresses" && request.method === "GET" && account) {
+    return jsonResponse(
+      (database.shop_addresses ?? []).filter((address) => address.owner_account_id === account.id),
+    );
+  }
+
+  if (sub === "addresses" && request.method === "POST" && account) {
+    const payload = await requestPayload(request);
+    return updateMockDatabase((current) => {
+      current.shop_addresses = current.shop_addresses ?? [];
+      const created = createRecord("shop_addresses", {
+        ...payload,
+        owner_account_id: account.id,
+      });
+      current.shop_addresses.push(created);
+      return jsonResponse(created, 201);
+    });
+  }
+
+  if (sub.startsWith("addresses/") && (request.method === "PATCH" || request.method === "DELETE")) {
+    const id = sub.slice("addresses/".length);
+    const payload = request.method === "PATCH" ? await requestPayload(request) : null;
+    return updateMockDatabase((current) => {
+      current.shop_addresses = current.shop_addresses ?? [];
+      const index = current.shop_addresses.findIndex((address) => String(address.id) === id);
+      if (index < 0) return apiError("آدرس پیدا نشد.", 404, "not_found");
+      if (request.method === "DELETE") {
+        current.shop_addresses.splice(index, 1);
+        return new Response(null, { status: 204 });
+      }
+      Object.assign(current.shop_addresses[index], payload, { updated_at: new Date().toISOString() });
+      return jsonResponse(current.shop_addresses[index]);
+    });
+  }
+
+  return null;
+}
+
+async function handleShopCmsRoute(
+  request: Request,
+  path: string[],
+  database: MockDatabase,
+  account: MockAccount,
+): Promise<Response | null> {
+  // path is ["cms", "shop", ...]
+  const resource = path[2];
+  const rest = path.slice(3);
+
+  if (resource === "categories" && rest.length === 0) {
+    if (request.method === "GET") {
+      return jsonResponse(paginatedResponse(database.shop_categories, new URL(request.url)));
+    }
+    if (request.method === "POST") {
+      const payload = await requestPayload(request);
+      return updateMockDatabase((current) => {
+        const created = createRecord("shop_categories", { is_active: true, order: current.shop_categories.length + 1, ...payload });
+        current.shop_categories.push(created);
+        return jsonResponse(created, 201);
+      });
+    }
+  }
+
+  if (resource === "categories" && rest.length === 1) {
+    const id = rest[0];
+    if (request.method === "PATCH" || request.method === "PUT") {
+      const payload = await requestPayload(request);
+      return updateMockDatabase((current) => {
+        const category = current.shop_categories.find((item) => String(item.id) === id);
+        if (!category) return apiError("دسته‌بندی پیدا نشد.", 404, "not_found");
+        Object.assign(category, payload, { updated_at: new Date().toISOString() });
+        return jsonResponse(category);
+      });
+    }
+    if (request.method === "DELETE") {
+      return updateMockDatabase((current) => {
+        current.shop_categories = current.shop_categories.filter((item) => String(item.id) !== id);
+        return new Response(null, { status: 204 });
+      });
+    }
+  }
+
+  if (resource === "products" && rest.length === 0) {
+    if (request.method === "GET") {
+      const url = new URL(request.url);
+      let records = database.shop_products;
+      const status = url.searchParams.get("status");
+      if (status) records = records.filter((product) => product.status === status);
+      return jsonResponse(
+        paginatedResponse(records, url, (record) => cmsShopProduct(record, database)),
+      );
+    }
+    if (request.method === "POST") {
+      const payload = await requestPayload(request);
+      return updateMockDatabase((current) => {
+        const created = createRecord("shop_products", {
+          status: "draft",
+          slug: `product-${Date.now()}`,
+          gallery_images: [],
+          ...payload,
+        });
+        current.shop_products.unshift(created);
+        return jsonResponse(cmsShopProduct(created, current), 201);
+      });
+    }
+  }
+
+  if (resource === "products" && rest.length === 1) {
+    const id = rest[0];
+    if (request.method === "GET") {
+      const product = recordById(database.shop_products, id);
+      if (!product) return apiError("محصول پیدا نشد.", 404, "not_found");
+      return jsonResponse(cmsShopProduct(product, database));
+    }
+    if (request.method === "PATCH" || request.method === "PUT") {
+      const payload = await requestPayload(request);
+      return updateMockDatabase((current) => {
+        const product = recordById(current.shop_products, id);
+        if (!product) return apiError("محصول پیدا نشد.", 404, "not_found");
+        Object.assign(product, payload, { updated_at: new Date().toISOString() });
+        return jsonResponse(cmsShopProduct(product, current));
+      });
+    }
+    if (request.method === "DELETE") {
+      if (account.role !== "general_manager") {
+        return apiError("فقط مدیر کل اجازه حذف محصول را دارد.", 403, "permission_denied");
+      }
+      return updateMockDatabase((current) => {
+        current.shop_products = current.shop_products.filter((item) => String(item.id) !== id);
+        return new Response(null, { status: 204 });
+      });
+    }
+  }
+
+  if (resource === "products" && rest.length === 2) {
+    const [id, action] = rest;
+    const statusMap: Record<string, string> = {
+      "submit-review": "waiting_review",
+      approve: "approved",
+      reject: "rejected",
+      publish: "published",
+      archive: "archived",
+      restore: "draft",
+    };
+    if (statusMap[action] && request.method === "POST") {
+      return updateMockDatabase((current) => {
+        const product = recordById(current.shop_products, id);
+        if (!product) return apiError("محصول پیدا نشد.", 404, "not_found");
+        product.status = statusMap[action];
+        product.updated_at = new Date().toISOString();
+        return jsonResponse(cmsShopProduct(product, current));
+      });
+    }
+    if (action === "upload-image" && request.method === "POST") {
+      const form = await request.formData();
+      const file = form.get("image");
+      if (!(file instanceof File)) return apiError("فایل تصویر ارسال نشده است.", 400, "missing_file");
+      const dataUrl = `data:${file.type || "image/png"};base64,${Buffer.from(await file.arrayBuffer()).toString("base64")}`;
+      return updateMockDatabase((current) => {
+        const product = recordById(current.shop_products, id);
+        if (!product) return apiError("محصول پیدا نشد.", 404, "not_found");
+        const image = {
+          id: Date.now(),
+          image: dataUrl,
+          image_url: null,
+          alt_text: String(form.get("alt_text") ?? ""),
+          caption: String(form.get("caption") ?? ""),
+          order: (product.gallery_images as unknown[] | undefined)?.length ?? 0,
+        };
+        product.gallery_images = [...((product.gallery_images as unknown[]) ?? []), image];
+        return jsonResponse(image, 201);
+      });
+    }
+  }
+
+  if (resource === "orders" && rest.length === 0 && request.method === "GET") {
+    return jsonResponse(paginatedResponse(database.shop_orders, new URL(request.url)));
+  }
+
+  if (resource === "orders" && rest.length === 1 && request.method === "GET") {
+    const order = recordById(database.shop_orders, rest[0]);
+    if (!order) return apiError("سفارش پیدا نشد.", 404, "not_found");
+    return jsonResponse(order);
+  }
+
+  if (resource === "course-enrollments" && rest.length === 0 && request.method === "GET") {
+    return jsonResponse(paginatedResponse(database.shop_course_enrollments, new URL(request.url)));
+  }
+
+  if (resource === "shipping-methods" && rest.length === 0 && request.method === "GET") {
+    return jsonResponse(paginatedResponse(database.shop_shipping_methods, new URL(request.url)));
+  }
+
+  if (resource === "settings" && rest.length === 0 && request.method === "GET") {
+    return jsonResponse({ display_currency: "IRT", rial_per_toman: 10 });
+  }
+
+  return null;
+}
+
 export async function handleMockApiRequest(
   request: Request,
   path: string[],
@@ -1005,6 +1678,46 @@ export async function handleMockApiRequest(
 
   if (route === "auth/logout" && request.method === "POST") {
     return new Response(null, { status: 204 });
+  }
+
+  if (route === "auth/register" && request.method === "POST") {
+    const payload = await requestPayload(request);
+    const email = String(payload.email ?? "").trim();
+    if (database.accounts.some((candidate) => candidate.email === email)) {
+      return apiError("این ایمیل قبلاً ثبت شده است.", 400, "email_taken");
+    }
+    return updateMockDatabase((current) => {
+      const created: MockAccount = {
+        id: `account-${crypto.randomUUID()}`,
+        username: email,
+        password: String(payload.password ?? ""),
+        full_name: String(payload.full_name ?? ""),
+        email,
+        phone: (payload.phone as string | null) ?? null,
+        role: "parent",
+        role_display: "والد",
+        unit_id: null,
+        redirect_path: "/dashboard/parents",
+        avatar: null,
+        is_active: true,
+      };
+      current.accounts.push(created);
+      return jsonResponse(
+        {
+          access: `mock-access:${created.id}`,
+          refresh: `mock-refresh:${created.id}`,
+          user: accountUser(created),
+          redirect_path: created.redirect_path,
+        },
+        201,
+      );
+    });
+  }
+
+  if (path[0] === "shop") {
+    const shopAccount = accountFromRequest(request, database);
+    const response = await handleShopRoute(request, path, database, shopAccount, url);
+    if (response) return response;
   }
 
   const protectedRoute =
@@ -1578,6 +2291,11 @@ export async function handleMockApiRequest(
   }
   if (route === "staff" && request.method === "GET") {
     return jsonResponse(paginatedResponse(database.staff, url));
+  }
+
+  if (path[0] === "cms" && path[1] === "shop" && account) {
+    const response = await handleShopCmsRoute(request, path, database, account);
+    if (response) return response;
   }
 
   if (path[0] === "cms" && account) {

@@ -9,7 +9,8 @@ export type PublishStatus =
   | "approved"
   | "scheduled"
   | "published"
-  | "rejected";
+  | "rejected"
+  | "archived";
 
 export type ContentScope = "school" | "unit";
 
@@ -98,8 +99,15 @@ export type ContentRecord = {
 export type GalleryItemRecord = {
   id: EntityId;
   title: string;
+  summary: string | null;
   image: string;
   album: string | null;
+  alt_text: string | null;
+  caption: string | null;
+  event_date: string | null;
+  is_featured: boolean;
+  is_active: boolean;
+  order: number;
   scope: ContentScope;
   unit_id: EntityId | null;
   status: PublishStatus;

@@ -75,7 +75,7 @@ export function DashboardMobileMenu({
   }, [open]);
 
   return (
-    <div className="xl:hidden">
+    <div className="lg:hidden">
       <button
         ref={triggerRef}
         type="button"
@@ -85,7 +85,7 @@ export function DashboardMobileMenu({
         aria-controls="panel-mobile-menu"
         aria-label="باز کردن منو"
       >
-        <PanelIcon name="dashboard" />
+        <PanelIcon name="menu" />
       </button>
 
       <div

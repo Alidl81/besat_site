@@ -57,4 +57,11 @@ export type MockDatabase = {
   static_pages: MockRecord[];
   parent_children: MockRecord[];
   parent_registrations: MockRecord[];
+  shop_products: MockRecord[];
+  shop_categories: MockRecord[];
+  shop_shipping_methods: MockRecord[];
+  shop_carts: MockRecord[];
+  shop_orders: MockRecord[];
+  shop_course_enrollments: MockRecord[];
+  shop_addresses: MockRecord[];
 };

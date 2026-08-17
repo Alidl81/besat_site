@@ -76,15 +76,17 @@ function SnippetPreview({
   description,
   slug,
   siteOrigin,
+  urlPrefix,
 }: {
   title: string;
   description: string;
   slug: string;
   siteOrigin: string;
+  urlPrefix: string;
 }) {
   return (
     <div className="besat-seo-snippet" dir="ltr">
-      <p className="besat-seo-snippet-url">{siteOrigin}/news/{slug || "…"}</p>
+      <p className="besat-seo-snippet-url">{siteOrigin}{urlPrefix}/{slug || "…"}</p>
       <p className="besat-seo-snippet-title">{title || "عنوان سئو نمایش داده می‌شود"}</p>
       <p className="besat-seo-snippet-description">
         {description || "توضیحات متا در این قسمت نمایش داده می‌شود تا کاربران پیش از ورود، محتوای صفحه را ببینند."}
@@ -103,6 +105,7 @@ export function SeoPanel({
   wordCount,
   fieldErrors,
   siteOrigin = "besat.example.com",
+  urlPrefix = "/news",
 }: {
   draft: SeoDraft;
   onChange: <K extends keyof SeoDraft>(key: K, value: SeoDraft[K]) => void;
@@ -113,6 +116,8 @@ export function SeoPanel({
   wordCount: number;
   fieldErrors: ApiFieldErrors;
   siteOrigin?: string;
+  /** Public URL path prefix for the snippet preview, e.g. "/shop" for products. */
+  urlPrefix?: string;
 }) {
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
 
@@ -152,6 +157,7 @@ export function SeoPanel({
           description={draft.metaDescription}
           slug={slug}
           siteOrigin={siteOrigin}
+          urlPrefix={urlPrefix}
         />
 
         <label>

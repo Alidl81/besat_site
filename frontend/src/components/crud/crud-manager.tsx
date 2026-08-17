@@ -42,7 +42,13 @@ export type CrudManagerProps<T extends BaseRecord> = {
   canEdit?: boolean;
   canDelete?: boolean;
   /** اکشن‌های اضافی روی هر ردیف */
-  rowActions?: (item: T, helpers: { update: (id: string, data: Partial<WithoutSystemFields<T>>) => Promise<void> }) => ReactNode;
+  rowActions?: (
+    item: T,
+    helpers: {
+      update: (id: string, data: Partial<WithoutSystemFields<T>>) => Promise<void>;
+      reload: () => Promise<void>;
+    },
+  ) => ReactNode;
 };
 
 export function CrudManager<T extends BaseRecord>({
@@ -59,7 +65,7 @@ export function CrudManager<T extends BaseRecord>({
   canDelete = true,
   rowActions,
 }: CrudManagerProps<T>) {
-  const { items, loading, error, create, update, remove } = useCollection<T>(
+  const { items, loading, error, create, update, remove, reload } = useCollection<T>(
     repository,
     filter,
   );
@@ -99,6 +105,32 @@ export function CrudManager<T extends BaseRecord>({
     setDeleteTarget(null);
   }
 
+  function rowActionButtons(item: T) {
+    return (
+      <>
+        {rowActions ? rowActions(item, { update, reload }) : null}
+        {canEdit ? (
+          <button
+            type="button"
+            onClick={() => openEdit(item)}
+            className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-black text-[#062452] transition hover:bg-blue-50 hover:text-blue-700"
+          >
+            ویرایش
+          </button>
+        ) : null}
+        {canDelete ? (
+          <button
+            type="button"
+            onClick={() => setDeleteTarget(item)}
+            className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-black text-rose-600 transition hover:bg-rose-50"
+          >
+            حذف
+          </button>
+        ) : null}
+      </>
+    );
+  }
+
   return (
     <CrudSection
       title={title}
@@ -125,59 +157,63 @@ export function CrudManager<T extends BaseRecord>({
       ) : items.length === 0 ? (
         <EmptyState text={emptyText} />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="panel-table min-w-[40rem]">
-            <thead>
-              <tr>
-                {columns.map((col) => (
-                  <th
-                    key={col.key}
-                  >
-                    {col.header}
-                  </th>
-                ))}
-                <th>عملیات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr
-                  key={item.id}
-                  className="transition"
-                >
+        <>
+          {/* Below md: a stacked card per row instead of a horizontally
+              scrolling table with no visible affordance that it scrolls. */}
+          <div className="grid gap-3 md:hidden">
+            {items.map((item) => (
+              <article key={item.id} className="rounded-lg border border-slate-200 bg-white p-4">
+                <dl className="space-y-2">
                   {columns.map((col) => (
-                    <td key={col.key}>
-                      {col.render(item)}
-                    </td>
-                  ))}
-                  <td>
-                    <div className="flex items-center justify-end gap-2">
-                      {rowActions ? rowActions(item, { update }) : null}
-                      {canEdit ? (
-                        <button
-                          type="button"
-                          onClick={() => openEdit(item)}
-                          className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-black text-[#062452] transition hover:bg-blue-50 hover:text-blue-700"
-                        >
-                          ویرایش
-                        </button>
-                      ) : null}
-                      {canDelete ? (
-                        <button
-                          type="button"
-                          onClick={() => setDeleteTarget(item)}
-                          className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-black text-rose-600 transition hover:bg-rose-50"
-                        >
-                          حذف
-                        </button>
-                      ) : null}
+                    <div key={col.key} className="flex items-start justify-between gap-3 text-sm">
+                      <dt className="shrink-0 font-bold text-slate-500">{col.header}</dt>
+                      <dd className="min-w-0 text-left font-black text-[#062452]">{col.render(item)}</dd>
                     </div>
-                  </td>
+                  ))}
+                </dl>
+                <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                  {rowActionButtons(item)}
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-lg border border-slate-200 md:block">
+            <table className="panel-table min-w-[40rem]">
+              <thead>
+                <tr>
+                  {columns.map((col) => (
+                    <th
+                      key={col.key}
+                    >
+                      {col.header}
+                    </th>
+                  ))}
+                  <th>عملیات</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr
+                    key={item.id}
+                    className="transition"
+                  >
+                    {columns.map((col) => (
+                      <td key={col.key}>
+                        {col.render(item)}
+                      </td>
+                    ))}
+                    <td>
+                      <div className="flex items-center justify-end gap-2">
+                        {rowActionButtons(item)}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <Modal

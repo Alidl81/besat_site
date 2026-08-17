@@ -142,6 +142,8 @@ async function forwardToBackend(
       ? null
       : readCookie(request.headers.get("cookie"), sessionCookieNames.refresh);
 
+    const inboundHost = request.headers.get("host");
+
     let upstreamResponse = await requestBackend({
       requestUrl: request.url,
       path,
@@ -150,6 +152,7 @@ async function forwardToBackend(
       body,
       requestId,
       accessToken: access,
+      inboundHost,
     });
     let refreshedTokens: { access: string; refresh: string } | null = null;
     let clearCookies = false;
@@ -162,6 +165,7 @@ async function forwardToBackend(
         headers: { accept: "application/json", "content-type": "application/json" },
         body: JSON.stringify({ refresh }),
         requestId,
+        inboundHost,
       });
       refreshedTokens = await readRefreshPayload(refreshResponse);
 
@@ -174,6 +178,7 @@ async function forwardToBackend(
           body,
           requestId,
           accessToken: refreshedTokens.access,
+          inboundHost,
         });
       } else {
         clearCookies = true;

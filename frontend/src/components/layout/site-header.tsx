@@ -9,9 +9,9 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { SiteAuthActions } from "@/components/auth/site-auth-actions";
 import { BesatLogoMark } from "@/components/shared/besat-logo";
-import { getPublicSiteSettings } from "@/services/public-content-service";
-import type { PublicSiteSettings } from "@/types/public-content";
+import { CartWidget } from "@/components/shop/cart-drawer";
 
 type HeaderItem = { label: string; href: string; description?: string };
 type DropdownProps = {
@@ -54,32 +54,6 @@ function Chevron({ open = false }: { open?: boolean }) {
   return (
     <svg viewBox="0 0 24 24" className={`size-3.5 transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
       <path d="m6 9 6 6 6-6" />
-    </svg>
-  );
-}
-
-function PhoneIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
-      <path d="M22 16.9v3a2 2 0 0 1-2.2 2A19.8 19.8 0 0 1 3.1 5.2 2 2 0 0 1 5.1 3h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L9 10.7a16 16 0 0 0 4.3 4.3l1.3-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2Z" />
-    </svg>
-  );
-}
-
-function MailIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
-      <rect x="3" y="5" width="18" height="14" rx="2" />
-      <path d="m3 7 9 6 9-6" />
-    </svg>
-  );
-}
-
-function PinIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
-      <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
-      <circle cx="12" cy="10" r="2.6" />
     </svg>
   );
 }
@@ -146,11 +120,11 @@ function MenuIcon({ open }: { open: boolean }) {
 function Logo({ compact = false }: { compact?: boolean }) {
   return <Link href="/" className="group flex shrink-0 items-center gap-3" aria-label="صفحه نخست مجتمع بعثت">
     <span className="transition-transform duration-500 group-hover:rotate-[-4deg] group-hover:scale-105">
-      <BesatLogoMark size="sm" tone="light" className={compact ? "!h-14 !w-14" : "!h-16 !w-16"} />
+      <BesatLogoMark size="sm" tone="light" className={compact ? "!h-11 !w-11" : "!h-14 !w-14"} />
     </span>
     <span className="text-right text-white">
-      <span className={`block whitespace-nowrap font-black leading-none ${compact ? "text-base" : "text-[19px]"}`}>مجتمع آموزشی بعثت</span>
-      <span className="mt-2 block whitespace-nowrap text-[10px] font-bold text-white/68">پیوند آموزش و بصیرت دینی</span>
+      <span className={`block whitespace-nowrap font-black leading-none ${compact ? "text-base" : "text-[17px]"}`}>مجتمع آموزشی بعثت</span>
+      <span className="mt-1.5 block whitespace-nowrap text-[10px] font-bold text-white/68">پیوند آموزش و بصیرت دینی</span>
     </span>
   </Link>;
 }
@@ -185,14 +159,12 @@ function MobileAccordion({
 export function SiteHeader() {
   const pathname = usePathname();
   const isHome = pathname === "/";
+  const isShopRoute = pathname.startsWith("/shop");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const [settings, setSettings] = useState<PublicSiteSettings | null>(null);
+  const [scrolled, setScrolled] = useState(false);
   const mobileTriggerRef = useRef<HTMLButtonElement>(null);
   const mobileDrawerRef = useRef<HTMLElement>(null);
-  const primaryPhone = settings?.phone_primary ?? (
-    settings as (PublicSiteSettings & { phone?: string | null }) | null
-  )?.phone;
 
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
@@ -238,66 +210,45 @@ export function SiteHeader() {
   }, [pathname]);
 
   useEffect(() => {
-    let active = true;
-    getPublicSiteSettings()
-      .then((value) => {
-        if (active) setSettings(value);
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
+    function onScroll() {
+      setScrolled(window.scrollY > 16);
+    }
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  const transparentHero = isHome && !scrolled;
 
   return <>
     <header
       dir="rtl"
-      className={`besat-site-header z-50 w-full text-white ${
-        isHome
-          ? "sticky top-0 border-b border-white/10 bg-[#081d35]/95 shadow-lg backdrop-blur-xl xl:absolute xl:inset-x-0 xl:top-0 xl:border-b-0 xl:bg-gradient-to-b xl:from-[#06172c]/95 xl:via-[#06172c]/55 xl:to-transparent xl:shadow-none xl:backdrop-blur-none"
-          : "sticky top-0 border-b border-white/10 bg-[#081d35]/95 shadow-lg backdrop-blur-xl"
+      className={`besat-site-header sticky top-0 z-50 w-full text-white transition-[background-color,box-shadow,backdrop-filter] duration-300 ${
+        transparentHero
+          ? "border-b border-transparent bg-transparent xl:bg-gradient-to-b xl:from-[#06172c]/90 xl:via-[#06172c]/45 xl:to-transparent"
+          : "border-b border-white/10 bg-[#081d35]/97 shadow-lg backdrop-blur-xl"
       }`}
     >
-      <div className="mx-auto hidden w-full max-w-[1840px] px-6 xl:block 2xl:px-10">
-        <div className="flex h-8 items-center justify-between border-b border-white/12 px-1 text-[11px] font-bold text-white/78 2xl:text-[12px]">
-          <span className="whitespace-nowrap text-white/82">مجتمع آموزشی، تربیتی و فرهنگی بعثت</span>
-          <div className="flex items-center gap-2.5" dir="ltr">
-            {primaryPhone ? (
-              <a href={`tel:${primaryPhone}`} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition hover:bg-white/10 hover:text-[#f2c77c]">
-                <PhoneIcon />
-                <span>{primaryPhone}</span>
-              </a>
-            ) : null}
-            {settings?.email ? (
-              <a href={`mailto:${settings.email}`} className="hidden items-center gap-1.5 rounded-full px-2.5 py-1 transition hover:bg-white/10 hover:text-[#f2c77c] 2xl:inline-flex">
-                <MailIcon />
-                <span>{settings.email}</span>
-              </a>
-            ) : null}
-            {settings?.address ? (
-              <span dir="rtl" className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-white/82">
-                <PinIcon />
-                {settings.address}
-              </span>
-            ) : null}
-          </div>
-        </div>
-        <div className="grid h-[72px] grid-cols-[minmax(180px,1fr)_auto_minmax(180px,1fr)] items-center gap-3 2xl:grid-cols-[minmax(235px,1fr)_auto_minmax(235px,1fr)] 2xl:gap-5">
-          <div className="flex min-w-0 justify-start"><Logo /></div>
-          <nav className="flex min-w-0 items-center justify-center gap-0.5 rounded-xl border border-white/16 bg-white/[.075] px-2.5 py-1.5 shadow-[0_10px_35px_rgba(2,12,27,.2)] backdrop-blur-xl 2xl:gap-1 2xl:px-3">
+      <div className="mx-auto hidden h-20 w-full max-w-[1840px] items-center justify-between gap-4 px-6 xl:flex 2xl:px-10">
+        <div className="flex min-w-0 shrink-0 items-center gap-8 2xl:gap-10">
+          <Logo />
+          <nav className="flex min-w-0 items-center gap-0.5 2xl:gap-1">
             <Link href="/" className={`rounded-lg px-2.5 py-2 text-[13px] font-black transition-all duration-300 2xl:px-3 2xl:text-[14px] ${pathname === "/" ? "bg-white/14 text-white" : "text-white/90 hover:bg-white/10"}`}>صفحه نخست</Link>
             {menus.map((menu) => <DesktopDropdown key={menu.key} menuKey={menu.key} label={menu.label} items={menu.items} pathname={pathname} openMenu={openMenu} setOpenMenu={setOpenMenu} />)}
             {mainItems.slice(1).map((item) => <Link key={item.href} href={item.href} className={`rounded-lg px-2.5 py-2 text-[13px] font-black transition-all duration-300 2xl:px-3 2xl:text-[14px] ${activePath(pathname, item.href) ? "bg-white/14 text-white" : "text-white/90 hover:bg-white/10 hover:text-white"}`}>{item.label}</Link>)}
           </nav>
-          <div className="flex justify-end">
-            <Link href="/registration" className="inline-flex h-11 min-w-[142px] items-center justify-center rounded-xl bg-[#e2ae5b] px-5 text-[13px] font-black text-[#0b213c] shadow-[0_10px_22px_rgba(226,174,91,.24)] transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.03] hover:bg-[#edc57f] 2xl:text-[14px]">ثبت‌نام آنلاین</Link>
-          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2.5 2xl:gap-3">
+          {isShopRoute ? <CartWidget /> : null}
+          <SiteAuthActions />
+          <Link href="/registration" className="inline-flex h-11 min-w-[132px] items-center justify-center rounded-xl bg-[#e2ae5b] px-5 text-[13px] font-black text-[#0b213c] shadow-[0_10px_22px_rgba(226,174,91,.24)] transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.03] hover:bg-[#edc57f] 2xl:text-[14px]">ثبت‌نام آنلاین</Link>
         </div>
       </div>
 
       <div className="mx-auto flex h-[calc(62px+env(safe-area-inset-top))] max-w-7xl items-center justify-between px-4 pt-[env(safe-area-inset-top)] sm:px-6 xl:hidden">
         <button ref={mobileTriggerRef} type="button" onClick={() => setMobileOpen((value) => !value)} className="flex size-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 transition hover:bg-white/20" aria-expanded={mobileOpen} aria-controls="site-mobile-menu" aria-label={mobileOpen ? "بستن منو" : "باز کردن منو"}><MenuIcon open={mobileOpen} /></button>
         <Logo compact />
+        {isShopRoute ? <CartWidget /> : <span className="size-10" aria-hidden="true" />}
       </div>
     </header>
 
@@ -310,7 +261,10 @@ export function SiteHeader() {
           {menus.map((menu) => <MobileAccordion key={menu.key} label={menu.label} items={menu.items} pathname={pathname} onNavigate={() => setMobileOpen(false)} />)}
           {mainItems.slice(1).map((item) => <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className="rounded-xl bg-white/[.035] px-4 py-3 text-sm font-black text-white/82 transition hover:bg-white/10">{item.label}</Link>)}
         </nav>
-        <div className="mt-auto border-t border-white/10 pt-4"><Link href="/registration" onClick={() => setMobileOpen(false)} className="block rounded-xl bg-[#e2ae5b] px-4 py-3 text-center text-sm font-black text-[#0b213c]">پیش‌ثبت‌نام آنلاین</Link></div>
+        <div className="mt-auto grid gap-3 border-t border-white/10 pt-4">
+          <SiteAuthActions />
+          <Link href="/registration" onClick={() => setMobileOpen(false)} className="block rounded-xl bg-[#e2ae5b] px-4 py-3 text-center text-sm font-black text-[#0b213c]">پیش‌ثبت‌نام آنلاین</Link>
+        </div>
       </aside>
     </div>
   </>;

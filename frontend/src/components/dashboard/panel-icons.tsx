@@ -26,6 +26,7 @@ import link from "@iconify-icons/tabler/link";
 import mail from "@iconify-icons/tabler/mail";
 import media from "@iconify-icons/tabler/video";
 import megaphone from "@iconify-icons/tabler/speakerphone";
+import menu from "@iconify-icons/tabler/menu-2";
 import message from "@iconify-icons/tabler/message";
 import more from "@iconify-icons/tabler/dots";
 import news from "@iconify-icons/tabler/news";
@@ -45,6 +46,7 @@ import trash from "@iconify-icons/tabler/trash";
 import truck from "@iconify-icons/tabler/truck-delivery";
 import units from "@iconify-icons/tabler/building-community";
 import users from "@iconify-icons/tabler/users-group";
+import view360 from "@iconify-icons/tabler/view-360";
 import warning from "@iconify-icons/tabler/alert-triangle";
 
 export type PanelIconName =
@@ -74,6 +76,7 @@ export type PanelIconName =
   | "mail"
   | "media"
   | "megaphone"
+  | "menu"
   | "message"
   | "more"
   | "news"
@@ -93,6 +96,7 @@ export type PanelIconName =
   | "truck"
   | "units"
   | "users"
+  | "virtualTour"
   | "warning";
 
 const icons: Record<PanelIconName, IconifyIcon> = {
@@ -122,6 +126,7 @@ const icons: Record<PanelIconName, IconifyIcon> = {
   mail,
   media,
   megaphone,
+  menu,
   message,
   more,
   news,
@@ -141,6 +146,7 @@ const icons: Record<PanelIconName, IconifyIcon> = {
   truck,
   units,
   users,
+  virtualTour: view360,
   warning,
 };
 

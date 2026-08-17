@@ -1,6 +1,10 @@
 ﻿# Local backups
 _backups/
 
+# Scratch/reference workspace (venv, npm cache, stale snapshots) --
+# never meant to be version-controlled; was tracked by accident.
+work/
+
 # Node dependency trees (each app has its own; this guards against an
 # accidental root-level install, e.g. from running a tool in the wrong dir)
 node_modules/
@@ -29,6 +33,8 @@ backend/.env.*
 .env
 .env.*
 !.env.example
+docker.env
+!docker.env.example
 
 # Local agent orchestration scaffolding (worktrees for parallel sub-agents)
 .claude/
@@ -63,3 +69,6 @@ Thumbs.db
 frontend/.env.local
 frontend/.env*.local
 
+
+# Local agent skills
+.agents/

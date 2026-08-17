@@ -1,11 +1,16 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
+import type { JSONContent } from "@tiptap/core";
 import { CrudSection, EmptyState, Field, GhostButton, Modal, PrimaryButton, Select, StatusBadge, TextArea, TextInput } from "@/components/crud/crud-ui";
+import { MediaPickerDialog } from "@/components/cms/media-picker-dialog";
+import { emptySeoDraft, seoDraftFrom, seoDraftToPayload, SeoPanel, type SeoDraft } from "@/components/cms/seo-panel";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
+import { RichEditor, type EditorDocumentStats, type EditorOutlineItem } from "@/components/editor/rich-editor";
 import { usePanelRequest } from "@/hooks/use-panel-request";
 import { getApiErrorMessage } from "@/lib/api/client";
 import { formatPrice, toDisplayAmount } from "@/lib/shop/money";
+import { panelService } from "@/services/panel-service";
 import {
   cmsCreateProduct,
   cmsDeleteProduct,
@@ -14,9 +19,10 @@ import {
   cmsGetProducts,
   cmsRunProductWorkflowAction,
   cmsUpdateProduct,
+  cmsUploadProductGalleryImage,
   type ProductWorkflowAction,
 } from "@/services/shop-cms-service";
-import type { CMSProductDetail, CMSProductListItem, ProductType } from "@/types/shop";
+import type { CMSProductDetail, CMSProductListItem, ProductImage, ProductType } from "@/types/shop";
 
 const TYPE_LABELS: Record<ProductType, string> = {
   physical: "کالای فیزیکی",
@@ -223,6 +229,16 @@ function ProductForm({
   const [scheduleText, setScheduleText] = useState("");
   const [locationDetail, setLocationDetail] = useState("");
 
+  const [descriptionJson, setDescriptionJson] = useState<JSONContent | null>(null);
+  const [outline, setOutline] = useState<EditorOutlineItem[]>([]);
+  const [stats, setStats] = useState<EditorDocumentStats>({ blocks: 0, characters: 0, words: 0, readingMinutes: 0 });
+  const [seoDraft, setSeoDraft] = useState<SeoDraft>(emptySeoDraft);
+  const [featuredImageUrl, setFeaturedImageUrl] = useState("");
+  const [featuredImagePickerOpen, setFeaturedImagePickerOpen] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<ProductImage[]>([]);
+  const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
   const [hydrated, setHydrated] = useState(!productId);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -249,6 +265,9 @@ function ProductForm({
       setScheduleText(existing.course_detail.schedule_text ?? "");
       setLocationDetail(existing.course_detail.location_detail ?? "");
     }
+    setSeoDraft(seoDraftFrom(existing.seo));
+    setFeaturedImageUrl(existing.featured_image ?? "");
+    setGalleryImages(existing.gallery_images ?? []);
     setHydrated(true);
   }
 
@@ -265,7 +284,9 @@ function ProductForm({
         category: categoryId ? Number(categoryId) : null,
         short_description: shortDescription || null,
         description: description || null,
+        featured_image_url: featuredImageUrl || undefined,
         is_featured: isFeatured,
+        ...seoDraftToPayload(seoDraft),
       };
 
       const financialPayload =
@@ -345,9 +366,97 @@ function ProductForm({
         <TextArea value={shortDescription} onChange={(event) => setShortDescription(event.target.value)} rows={2} />
       </Field>
 
-      <Field label="توضیحات کامل (HTML مجاز است)">
-        <TextArea value={description} onChange={(event) => setDescription(event.target.value)} rows={5} />
+      <Field label="توضیحات کامل">
+        <div className="besat-editor-shell rounded-2xl border border-slate-200">
+          <RichEditor
+            value={description}
+            onChange={setDescription}
+            onJsonChange={setDescriptionJson}
+            mode="simple"
+            onOutlineChange={setOutline}
+            onStatsChange={setStats}
+            onUploadMedia={(file) => panelService.uploadMedia(file, { altText: file.name })}
+            placeholder="توضیحات کامل محصول را اینجا بنویسید..."
+          />
+        </div>
       </Field>
+
+      <Field label="تصویر شاخص">
+        <div className="flex items-center gap-3">
+          {featuredImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={featuredImageUrl} alt="پیش‌نمایش تصویر شاخص" className="size-16 shrink-0 rounded-xl object-cover" />
+          ) : (
+            <div className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs font-bold text-slate-400">
+              بدون تصویر
+            </div>
+          )}
+          <GhostButton type="button" onClick={() => setFeaturedImagePickerOpen(true)}>
+            {featuredImageUrl ? "جایگزینی تصویر" : "انتخاب تصویر"}
+          </GhostButton>
+        </div>
+        <MediaPickerDialog
+          open={featuredImagePickerOpen}
+          value={featuredImageUrl}
+          onSelect={(url) => {
+            setFeaturedImageUrl(url);
+            setFeaturedImagePickerOpen(false);
+          }}
+          onClose={() => setFeaturedImagePickerOpen(false)}
+        />
+      </Field>
+
+      <Field label="گالری تصاویر">
+        {productId ? (
+          <div className="grid gap-3">
+            {galleryImages.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {galleryImages.map((image) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={image.id} src={image.image ?? ""} alt={image.alt_text ?? ""} className="size-16 rounded-xl object-cover" />
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs font-bold text-slate-400">هنوز تصویری در گالری ثبت نشده است.</p>
+            )}
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                setUploadingGalleryImage(true);
+                cmsUploadProductGalleryImage(productId, file, { altText: title })
+                  .then((image) => setGalleryImages((current) => [...current, image]))
+                  .catch((reason) => setError(getApiErrorMessage(reason)))
+                  .finally(() => {
+                    setUploadingGalleryImage(false);
+                    if (galleryInputRef.current) galleryInputRef.current.value = "";
+                  });
+              }}
+            />
+            <GhostButton type="button" disabled={uploadingGalleryImage} onClick={() => galleryInputRef.current?.click()}>
+              {uploadingGalleryImage ? "در حال بارگذاری…" : "افزودن تصویر به گالری"}
+            </GhostButton>
+          </div>
+        ) : (
+          <p className="text-xs font-bold text-slate-400">برای افزودن تصویر به گالری، ابتدا محصول را ذخیره کنید.</p>
+        )}
+      </Field>
+
+      <SeoPanel
+        draft={seoDraft}
+        onChange={(key, value) => setSeoDraft((current) => ({ ...current, [key]: value }))}
+        title={title}
+        slug={existing?.slug ?? ""}
+        bodyJson={descriptionJson}
+        outline={outline}
+        wordCount={stats.words}
+        fieldErrors={{}}
+        urlPrefix="/shop"
+      />
 
       <label className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
         <span className="text-sm font-black text-[#062452]">محصول ویژه</span>

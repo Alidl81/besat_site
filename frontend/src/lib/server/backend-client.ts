@@ -50,6 +50,16 @@ export type BackendRequest = {
   body?: ArrayBuffer | string | null;
   requestId: string;
   accessToken?: string | null;
+  /** The inbound Next.js request's real Host header
+   * (request.headers.get('host')), forwarded to the backend as
+   * X-Forwarded-Host. request.url's own host cannot be used as a fallback
+   * source of truth here: it reflects the Node server's bind address (e.g.
+   * "0.0.0.0:3000" when the dev server listens on all interfaces inside a
+   * container), not the browser's real origin. Every caller must pass this
+   * explicitly rather than relying on `headers` being forwarded verbatim,
+   * since some callers (login, registration) intentionally send a minimal
+   * header set upstream. */
+  inboundHost?: string | null;
 };
 
 export function getConfiguredBackendApiUrl() {
@@ -105,7 +115,8 @@ function createUpstreamHeaders({
   requestId,
   headers: sourceHeaders,
   accessToken,
-}: Pick<BackendRequest, 'requestUrl' | 'requestId' | 'headers' | 'accessToken'>) {
+  inboundHost,
+}: Pick<BackendRequest, 'requestUrl' | 'requestId' | 'headers' | 'accessToken' | 'inboundHost'>) {
   const headers = new Headers(sourceHeaders);
   const inboundForwardedFor = TRUST_FORWARDED_FOR
     ? headers.get('x-forwarded-for')
@@ -118,7 +129,7 @@ function createUpstreamHeaders({
   const frontendUrl = new URL(requestUrl);
   headers.set('accept-encoding', 'identity');
   headers.set('x-request-id', requestId);
-  headers.set('x-forwarded-host', frontendUrl.host);
+  headers.set('x-forwarded-host', inboundHost || frontendUrl.host);
   headers.set('x-forwarded-proto', frontendUrl.protocol.replace(':', ''));
   if (inboundForwardedFor) {
     headers.set('x-forwarded-for', inboundForwardedFor);
@@ -137,6 +148,7 @@ export async function requestBackend({
   body = null,
   requestId,
   accessToken,
+  inboundHost,
 }: BackendRequest) {
   let configuredBackendUrl: string;
   try {
@@ -152,6 +164,7 @@ export async function requestBackend({
     requestId,
     headers,
     accessToken,
+    inboundHost,
   });
 
   if (configuredBackendUrl === MOCK_BACKEND_API_URL) {

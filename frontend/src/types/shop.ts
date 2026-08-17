@@ -1,3 +1,5 @@
+import type { ContentSeoMetadata } from "@/types/panel-api";
+
 export type ProductType = "physical" | "online_course" | "in_person_course";
 export type ProductStatus =
   | "draft"
@@ -342,7 +344,7 @@ export type CMSProductDetail = CMSProductListItem & {
   updated_by: string | null;
   published_by: string | null;
   created_at: string;
-  seo: Record<string, unknown>;
+  seo: ContentSeoMetadata;
 };
 
 export type CMSProductWritePayload = {
@@ -360,6 +362,16 @@ export type CMSProductWritePayload = {
   sale_price_amount?: number | null;
   physical_detail?: Partial<CMSPhysicalDetail>;
   course_detail?: Partial<CMSCourseDetail>;
+  focus_keyphrase?: string | null;
+  seo_title?: string | null;
+  meta_description?: string | null;
+  canonical_url?: string | null;
+  og_title?: string | null;
+  og_description?: string | null;
+  og_image_url?: string | null;
+  is_indexable?: boolean;
+  is_followable?: boolean;
+  is_cornerstone?: boolean;
 };
 
 export type CMSShopCategory = {

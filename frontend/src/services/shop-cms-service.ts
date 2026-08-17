@@ -12,6 +12,7 @@ import type {
   CMSProductWritePayload,
   CMSShopCategory,
   CMSShopSettings,
+  ProductImage,
   ShippingMethod,
 } from "@/types/shop";
 
@@ -67,6 +68,21 @@ export function cmsRunProductWorkflowAction(id: number, action: ProductWorkflowA
     method: "POST",
     body: JSON.stringify(reason ? { reason } : {}),
   });
+}
+
+export function cmsUploadProductGalleryImage(
+  productId: number,
+  file: File,
+  options: { altText?: string; caption?: string } = {},
+) {
+  const form = new FormData();
+  form.set("image", file);
+  if (options.altText) form.set("alt_text", options.altText);
+  if (options.caption) form.set("caption", options.caption);
+  return apiRequest<ProductImage>(
+    `${apiEndpoints.cmsShop.products}${productId}/upload-image/`,
+    { method: "POST", body: form },
+  );
 }
 
 // --- Categories -----------------------------------------------------------

@@ -60,6 +60,7 @@ export async function POST(request: Request) {
         password_confirm: passwordConfirm,
       }),
       requestId: request.headers.get("x-request-id") ?? crypto.randomUUID(),
+      inboundHost: request.headers.get("host"),
     });
     const body = await responseJson(upstream);
 

@@ -16,6 +16,7 @@
     "mock:reset": "node scripts/reset-mock-db.mjs"
   },
   "dependencies": {
+    "@gsap/react": "^2.1.2",
     "@iconify-icons/tabler": "^1.2.95",
     "@iconify/react": "^6.0.2",
     "@tiptap/extension-character-count": "3.27.1",
@@ -30,6 +31,7 @@
     "@tiptap/pm": "^3.27.1",
     "@tiptap/react": "^3.27.1",
     "@tiptap/starter-kit": "^3.27.1",
+    "gsap": "^3.15.0",
     "isomorphic-dompurify": "^3.20.0",
     "jalaali-js": "2.0.1",
     "lucide-react": "^1.27.0",

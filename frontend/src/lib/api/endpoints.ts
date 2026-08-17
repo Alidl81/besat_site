@@ -16,6 +16,7 @@ export const apiEndpoints = {
   contact: "contact/",
   registration: "registration/",
   content: "content/",
+  virtualTourScenes: "virtual-tour/scenes/",
   messages: "messages/",
   registrationRequests: "registration-requests/",
   dashboard: {
@@ -84,5 +85,9 @@ export const apiEndpoints = {
     shippingMethods: "cms/shop/shipping-methods/",
     settings: "cms/shop/settings/",
     courseEnrollments: "cms/shop/course-enrollments/",
+  },
+  cmsVirtualTour: {
+    scenes: "cms/virtual-tour/scenes/",
+    hotspots: "cms/virtual-tour/hotspots/",
   },
 } as const;

@@ -12,6 +12,7 @@ import {
   useState,
 } from "react";
 import { ContentBlockInserter } from "@/components/cms/content-block-inserter";
+import { StatusBadge } from "@/components/crud/crud-ui";
 import {
   emptySeoDraft,
   SeoPanel,
@@ -116,29 +117,26 @@ const statusLabels: Record<ContentWorkflowStatus, string> = Object.fromEntries(
   statusOptions.map((option) => [option.value, option.label]),
 ) as Record<ContentWorkflowStatus, string>;
 
-const statusClasses: Record<ContentWorkflowStatus, string> = {
-  draft: "",
-  in_review: "is-warning",
-  changes_requested: "is-danger",
-  approved: "is-info",
-  scheduled: "is-info",
-  published: "is-success",
-  unpublished: "is-warning",
-  archived: "",
-  trash: "is-danger",
-};
-
-const queueCards: Array<{
+type QueueCard = {
   key: keyof ContentSummary;
   status: ContentWorkflowStatus;
   icon: "document" | "review" | "calendar" | "check";
-}> = [
+};
+
+// Split so the statuses that drive daily action (someone needs to write,
+// review, or fix something today) stay visually prominent, while
+// end-of-lifecycle statuses (scheduled/unpublished/archived/trash) -- true
+// but checked far less often -- don't compete with them for attention.
+const primaryQueueCards: QueueCard[] = [
   { key: "draft", status: "draft", icon: "document" },
   { key: "in_review", status: "in_review", icon: "review" },
   { key: "changes_requested", status: "changes_requested", icon: "review" },
   { key: "approved", status: "approved", icon: "check" },
-  { key: "scheduled", status: "scheduled", icon: "calendar" },
   { key: "published", status: "published", icon: "check" },
+];
+
+const secondaryQueueCards: QueueCard[] = [
+  { key: "scheduled", status: "scheduled", icon: "calendar" },
   { key: "unpublished", status: "unpublished", icon: "document" },
   { key: "archived", status: "archived", icon: "document" },
   { key: "trash", status: "trash", icon: "document" },
@@ -291,7 +289,7 @@ function FieldErrors({ errors, field }: { errors: ApiFieldErrors; field: string 
 }
 
 function ContentStatus({ status }: { status: ContentWorkflowStatus }) {
-  return <span className={"panel-status " + statusClasses[status]}>{statusLabels[status]}</span>;
+  return <StatusBadge status={status} />;
 }
 
 function EditorialEditor({
@@ -961,7 +959,7 @@ function EditorialEditor({
       </div>
 
       <footer className="besat-editor-actionbar">
-        <div><span className={"panel-status " + (currentItem ? statusClasses[currentItem.status] : "")}>{currentItem ? statusLabels[currentItem.status] : "محتوای جدید"}</span><small>میان‌بر ذخیره: Ctrl/⌘ + S</small></div>
+        <div>{currentItem ? <StatusBadge status={currentItem.status} /> : <span className="panel-status">محتوای جدید</span>}<small>میان‌بر ذخیره: Ctrl/⌘ + S</small></div>
         <div>
           <button disabled={saving} type="submit" className="panel-secondary-button"><PanelIcon name="document" className="size-4" />ذخیره</button>
           {!currentItem || currentItem.status === "draft" || currentItem.status === "changes_requested" ? <button disabled={saving} type="button" onClick={() => void workflow("submit-review")} className="panel-primary-button"><PanelIcon name="review" className="size-4" />ارسال برای بررسی</button> : null}
@@ -1087,7 +1085,6 @@ export function EditorialWorkspace({
   const [selectedId, setSelectedId] = useState<string | number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Array<string | number>>([]);
   const [editor, setEditor] = useState<{ mode: EditorMode; item: ContentItem | null } | null>(null);
-  const [modeMenu, setModeMenu] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [bulkPending, setBulkPending] = useState(false);
   const [filtersReady, setFiltersReady] = useState(false);
@@ -1238,10 +1235,57 @@ export function EditorialWorkspace({
     <div className="space-y-5">
       {actionError ? <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-black text-rose-700">{actionError}</p> : null}
       {request.error ? <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-black text-amber-900">به‌روزرسانی فهرست انجام نشد. <button type="button" onClick={request.reload} className="underline">تلاش مجدد</button></p> : null}
-      {request.data?.summary ? <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{queueCards.map((card) => <button key={card.key} type="button" onClick={() => { setStatus(card.status); setPage(1); }} className={"panel-card text-right transition hover:border-blue-300 " + (status === card.status ? "ring-2 ring-blue-200" : "")}><PanelIcon name={card.icon} className="size-5 text-[#0b599b]" /><p className="mt-2 text-xs font-black text-slate-500">{statusLabels[card.status]}</p><b className="mt-1 block text-2xl text-[#172b43]">{request.data?.summary?.[card.key] ?? 0}</b></button>)}</section> : null}
+      {request.data?.summary ? (
+        <section className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-5">
+            {primaryQueueCards.map((card) => (
+              <button
+                key={card.key}
+                type="button"
+                onClick={() => { setStatus(card.status); setPage(1); }}
+                className={"panel-card text-right transition hover:border-blue-300 " + (status === card.status ? "ring-2 ring-blue-200" : "")}
+              >
+                <PanelIcon name={card.icon} className="size-5 text-[#0b599b]" />
+                <p className="mt-2 text-xs font-black text-slate-500">{statusLabels[card.status]}</p>
+                <b className="mt-1 block text-2xl text-[#172b43]">{request.data?.summary?.[card.key] ?? 0}</b>
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {secondaryQueueCards.map((card) => (
+              <button
+                key={card.key}
+                type="button"
+                onClick={() => { setStatus(card.status); setPage(1); }}
+                className={"flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition hover:border-blue-300 hover:bg-blue-50 " + (status === card.status ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500")}
+              >
+                <span>{statusLabels[card.status]}</span>
+                <b className="text-[#172b43]">{request.data?.summary?.[card.key] ?? 0}</b>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex rounded-lg border border-slate-200 bg-white p-1">{([["all", "همه محتواها"], ["news", "اخبار"], ["announcement", "اطلاعیه‌ها"]] as const).map(([value, label]) => <button key={value} type="button" onClick={() => { setKind(value); setPage(1); }} className={"rounded-md px-4 py-2 text-xs font-black " + (kind === value ? "bg-[#fff3de] text-[#a8660b]" : "text-slate-500 hover:bg-slate-50")}>{label}</button>)}</div>
-        <div className="relative"><button type="button" onClick={() => setModeMenu((isOpen) => !isOpen)} className="panel-primary-button"><PanelIcon name="plus" className="size-5" />محتوای جدید<PanelIcon name="chevron" className="size-3 rotate-90" /></button>{modeMenu ? <div className="absolute left-0 top-12 z-20 w-56 rounded-lg border border-slate-200 bg-white p-2 shadow-xl"><button type="button" onClick={() => { setEditor({ mode: "simple", item: null }); setModeMenu(false); }} className="flex w-full items-center gap-3 rounded-md p-3 text-right text-xs font-black text-[#173652] hover:bg-[#fff8ec]"><PanelIcon name="edit" className="size-5 text-[#d98a12]" />ادیتور ساده</button><button type="button" onClick={() => { setEditor({ mode: "advanced", item: null }); setModeMenu(false); }} className="flex w-full items-center gap-3 rounded-md p-3 text-right text-xs font-black text-[#173652] hover:bg-[#fff8ec]"><PanelIcon name="services" className="size-5 text-[#0b599b]" />ادیتور پیشرفته</button></div> : null}</div>
+        <div className="flex overflow-hidden rounded-lg border border-slate-200">
+          <button
+            type="button"
+            onClick={() => setEditor({ mode: "simple", item: null })}
+            className="flex items-center gap-2 border-l border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-[#173652] transition hover:bg-[#fff8ec]"
+          >
+            <PanelIcon name="edit" className="size-4 text-[#d98a12]" />
+            محتوای جدید · ساده
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditor({ mode: "advanced", item: null })}
+            className="flex items-center gap-2 bg-[#12395b] px-4 py-2.5 text-xs font-black text-white transition hover:bg-[#0d2f4d]"
+          >
+            <PanelIcon name="services" className="size-4" />
+            محتوای جدید · پیشرفته
+          </button>
+        </div>
       </div>
 
       <section className="panel-split-layout grid gap-5 2xl:grid-cols-[19rem_minmax(0,1fr)]">
@@ -1260,7 +1304,58 @@ export function EditorialWorkspace({
           </div>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><p className="text-xs font-bold text-slate-500">فیلترها در همین مرورگر حفظ می‌شوند؛ «کارهای من» از فیلتر امن author=me استفاده می‌کند.</p><button type="button" onClick={resetFilters} className="panel-secondary-button"><PanelIcon name="filter" className="size-4" />پاک‌کردن فیلترها</button></div>
           {selectedIds.length ? <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-[#173652]"><span>{selectedIds.length.toLocaleString("fa-IR")} مورد انتخاب شده</span><button disabled={bulkPending} type="button" onClick={() => void moveSelected("archive")} className="panel-secondary-button">بایگانی گروهی</button><button disabled={bulkPending} type="button" onClick={() => void moveSelected("trash")} className="panel-secondary-button !border-rose-200 !text-rose-700">انتقال گروهی به زباله‌دان</button></div> : null}
-          {items.length ? <><div className="overflow-x-auto rounded-lg border border-slate-200"><table className="panel-table min-w-[62rem]"><thead><tr><th><input type="checkbox" checked={allPageSelected} onChange={togglePageSelection} aria-label="انتخاب همه موارد صفحه" /></th><th>عنوان</th><th>نوع</th><th>دسته‌بندی</th><th>واحد آموزشی</th><th>وضعیت</th><th>نویسنده</th><th>تاریخ انتشار</th><th>عملیات</th></tr></thead><tbody>{items.map((entry) => <tr key={entry.id} onClick={() => setSelectedId(entry.id)} className={String(effectiveSelectedId) === String(entry.id) ? "is-selected" : ""}><td><input type="checkbox" checked={selectedIds.some((id) => String(id) === String(entry.id))} onClick={(event) => event.stopPropagation()} onChange={() => toggleSelected(entry.id)} aria-label={"انتخاب " + entry.title} /></td><td className="max-w-64 whitespace-normal font-black leading-6 text-[#172b43]">{entry.title}</td><td>{entry.kind === "news" ? "خبر" : "اطلاعیه"}</td><td>{entry.category?.title ?? "—"}</td><td>{entry.scope === "school" ? "کل مدرسه" : entry.unit?.title ?? "—"}</td><td><ContentStatus status={entry.status} /></td><td>{entry.author?.full_name ?? "—"}</td><td>{formatDate(entry.published_at ?? entry.scheduled_at ?? entry.created_at)}</td><td><button type="button" onClick={(event) => { event.stopPropagation(); setEditor({ mode: "advanced", item: entry }); }} className="panel-icon-button !size-8" aria-label={"ویرایش " + entry.title}><PanelIcon name="more" className="size-4" /></button></td></tr>)}</tbody></table></div><footer className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-slate-500"><span>صفحه {page.toLocaleString("fa-IR")} — مجموع {(request.data?.count ?? 0).toLocaleString("fa-IR")} مورد</span><div className="flex gap-2"><button disabled={!request.data?.previous} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button" className="panel-secondary-button">صفحه قبل</button><button disabled={!request.data?.next} onClick={() => setPage((value) => value + 1)} type="button" className="panel-secondary-button">صفحه بعد</button></div></footer></> : <PanelEmpty title="محتوایی با این فیلترها پیدا نشد." />}
+          {items.length ? (
+            <>
+              {/* Below md: a stacked card per row -- 8 columns of horizontal
+                  scroll with no visible affordance was the exact pattern
+                  flagged for a deliberate mobile layout instead. */}
+              <div className="grid gap-3 md:hidden">
+                {items.map((entry) => (
+                  <article
+                    key={entry.id}
+                    onClick={() => setSelectedId(entry.id)}
+                    className={`rounded-lg border p-4 ${String(effectiveSelectedId) === String(entry.id) ? "border-blue-300 bg-blue-50/40" : "border-slate-200 bg-white"}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.some((id) => String(id) === String(entry.id))}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={() => toggleSelected(entry.id)}
+                        aria-label={"انتخاب " + entry.title}
+                        className="mt-1 shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-black leading-6 text-[#172b43]">{entry.title}</h3>
+                          <ContentStatus status={entry.status} />
+                        </div>
+                        <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs font-bold text-slate-500">
+                          <div><dt className="inline">نوع: </dt><dd className="inline">{entry.kind === "news" ? "خبر" : "اطلاعیه"}</dd></div>
+                          <div><dt className="inline">دسته‌بندی: </dt><dd className="inline">{entry.category?.title ?? "—"}</dd></div>
+                          <div><dt className="inline">واحد: </dt><dd className="inline">{entry.scope === "school" ? "کل مدرسه" : entry.unit?.title ?? "—"}</dd></div>
+                          <div><dt className="inline">نویسنده: </dt><dd className="inline">{entry.author?.full_name ?? "—"}</dd></div>
+                          <div className="col-span-2"><dt className="inline">تاریخ انتشار: </dt><dd className="inline">{formatDate(entry.published_at ?? entry.scheduled_at ?? entry.created_at)}</dd></div>
+                        </dl>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(event) => { event.stopPropagation(); setEditor({ mode: "advanced", item: entry }); }}
+                        className="panel-icon-button !size-8 shrink-0"
+                        aria-label={"ویرایش " + entry.title}
+                      >
+                        <PanelIcon name="edit" className="size-4" />
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div className="hidden overflow-x-auto rounded-lg border border-slate-200 md:block"><table className="panel-table min-w-[62rem]"><thead><tr><th><input type="checkbox" checked={allPageSelected} onChange={togglePageSelection} aria-label="انتخاب همه موارد صفحه" /></th><th>عنوان</th><th>نوع</th><th>دسته‌بندی</th><th>واحد آموزشی</th><th>وضعیت</th><th>نویسنده</th><th>تاریخ انتشار</th><th>عملیات</th></tr></thead><tbody>{items.map((entry) => <tr key={entry.id} onClick={() => setSelectedId(entry.id)} className={String(effectiveSelectedId) === String(entry.id) ? "is-selected" : ""}><td><input type="checkbox" checked={selectedIds.some((id) => String(id) === String(entry.id))} onClick={(event) => event.stopPropagation()} onChange={() => toggleSelected(entry.id)} aria-label={"انتخاب " + entry.title} /></td><td className="max-w-64 whitespace-normal font-black leading-6 text-[#172b43]">{entry.title}</td><td>{entry.kind === "news" ? "خبر" : "اطلاعیه"}</td><td>{entry.category?.title ?? "—"}</td><td>{entry.scope === "school" ? "کل مدرسه" : entry.unit?.title ?? "—"}</td><td><ContentStatus status={entry.status} /></td><td>{entry.author?.full_name ?? "—"}</td><td>{formatDate(entry.published_at ?? entry.scheduled_at ?? entry.created_at)}</td><td><button type="button" onClick={(event) => { event.stopPropagation(); setEditor({ mode: "advanced", item: entry }); }} className="panel-icon-button !size-8" aria-label={"ویرایش " + entry.title}><PanelIcon name="edit" className="size-4" /></button></td></tr>)}</tbody></table></div>
+
+              <footer className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-slate-500"><span>صفحه {page.toLocaleString("fa-IR")} — مجموع {(request.data?.count ?? 0).toLocaleString("fa-IR")} مورد</span><div className="flex gap-2"><button disabled={!request.data?.previous} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button" className="panel-secondary-button">صفحه قبل</button><button disabled={!request.data?.next} onClick={() => setPage((value) => value + 1)} type="button" className="panel-secondary-button">صفحه بعد</button></div></footer>
+            </>
+          ) : <PanelEmpty title="محتوایی با این فیلترها پیدا نشد." />}
         </section>
       </section>
     </div>

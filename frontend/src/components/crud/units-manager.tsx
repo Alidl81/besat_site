@@ -2,7 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import { CrudManager, FormActions, type Column } from "@/components/crud/crud-manager";
-import { Field, Select, TextArea, TextInput } from "@/components/crud/crud-ui";
+import { Field, Select, StatusBadge, TextArea, TextInput } from "@/components/crud/crud-ui";
 import { unitsRepository } from "@/lib/data/repositories";
 import type {
   SchoolUnitRecord,
@@ -36,11 +36,7 @@ export function UnitsManager() {
     {
       key: "active",
       header: "وضعیت",
-      render: (i) => (
-        <span className={`rounded-xl px-3 py-1 text-xs font-black ${i.is_active ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
-          {i.is_active ? "فعال" : "غیرفعال"}
-        </span>
-      ),
+      render: (i) => <StatusBadge status={i.is_active ? "active" : "inactive"} />,
     },
   ];
 

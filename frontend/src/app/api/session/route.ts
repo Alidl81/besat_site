@@ -48,6 +48,7 @@ export async function POST(request: Request) {
       headers: { 'content-type': 'application/json', accept: 'application/json' },
       body: JSON.stringify({ username, password }),
       requestId: request.headers.get('x-request-id') ?? crypto.randomUUID(),
+      inboundHost: request.headers.get('host'),
     });
     const body = await responseJson(upstream);
 
@@ -100,6 +101,7 @@ export async function GET(request: Request) {
       headers: { accept: 'application/json' },
       accessToken: access,
       requestId: request.headers.get('x-request-id') ?? crypto.randomUUID(),
+      inboundHost: request.headers.get('host'),
     });
     const body = await responseJson(upstream);
     return Response.json(body ?? { detail: 'دریافت نشست انجام نشد.' }, {
@@ -125,6 +127,7 @@ export async function DELETE(request: Request) {
         body: JSON.stringify({ refresh }),
         accessToken: access,
         requestId: request.headers.get('x-request-id') ?? crypto.randomUUID(),
+        inboundHost: request.headers.get('host'),
       });
     } catch {
       // Local cookie removal must still complete when the upstream is unavailable.

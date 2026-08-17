@@ -2,6 +2,7 @@
 
 import { Award, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
+import { EmptyState } from "@/components/page/empty-state";
 import { getApiErrorMessage } from "@/lib/api/client";
 import { safePublicMediaUrl } from "@/lib/media/safe-url";
 import { getPublicAchievement } from "@/services/public-content-service";
@@ -16,7 +17,14 @@ export function AchievementDetail({ slug }: { slug: string }) {
     getPublicAchievement(slug).then((response) => { if (!cancelled) setItem(response); }).catch((reason) => { if (!cancelled) setError(getApiErrorMessage(reason)); });
     return () => { cancelled = true; };
   }, [slug, version]);
-  if (error) return <div role="alert" className="rounded-lg border border-rose-200 bg-white p-8 text-center"><p className="text-rose-700">{error}</p><button type="button" onClick={() => setVersion((value) => value + 1)} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#12395b] px-5 text-sm font-black text-white"><RefreshCw aria-hidden="true" className="size-4" />تلاش دوباره</button></div>;
+  if (error) return (
+    <div role="alert" className="mx-auto max-w-xl text-center">
+      <EmptyState title="دریافت افتخار با خطا روبه‌رو شد." description={error} />
+      <button type="button" onClick={() => setVersion((value) => value + 1)} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#12395b] px-5 text-sm font-black text-white">
+        <RefreshCw aria-hidden="true" className="size-4" />تلاش دوباره
+      </button>
+    </div>
+  );
   if (!item) return <div aria-busy="true" className="h-96 animate-pulse rounded-lg bg-slate-200 motion-reduce:animate-none" />;
   const image = safePublicMediaUrl(item.cover_image ?? item.image);
   return (

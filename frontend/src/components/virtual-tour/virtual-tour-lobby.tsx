@@ -8,11 +8,12 @@ import {
   getPublicDepartments,
   getPublicUnits,
 } from "@/services/public-content-service";
+import { getPublicTourDoorScenes } from "@/services/virtual-tour-service";
 import type {
   PublicDepartment,
   PublicSchoolUnit,
 } from "@/types/public-content";
-import { getTourScene, type TourSceneConfig } from "@/lib/virtual-tour/tour-config";
+import type { TourSceneDetail } from "@/types/virtual-tour";
 
 type Wing = "lobby" | "units" | "departments";
 
@@ -23,7 +24,6 @@ type Destination = {
   slug: string;
   description: string;
   preview: string;
-  panorama: TourSceneConfig | null;
 };
 
 function ArrowIcon() {
@@ -104,6 +104,8 @@ export function VirtualTourLobby() {
   const [departments, setDepartments] = useState<PublicDepartment[]>([]);
   const [wing, setWing] = useState<Wing>("lobby");
   const [selected, setSelected] = useState<Destination | null>(null);
+  const [selectedScenes, setSelectedScenes] = useState<TourSceneDetail[] | null>(null);
+  const [loadingScenes, setLoadingScenes] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -117,6 +119,26 @@ export function VirtualTourLobby() {
     return () => { mounted = false; };
   }, []);
 
+  useEffect(() => {
+    if (!selected) return;
+    let mounted = true;
+    Promise.resolve()
+      .then(() => {
+        if (mounted) setLoadingScenes(true);
+        return getPublicTourDoorScenes(selected.type, selected.slug);
+      })
+      .then((scenes) => {
+        if (mounted) setSelectedScenes(scenes);
+      })
+      .catch(() => {
+        if (mounted) setSelectedScenes([]);
+      })
+      .finally(() => {
+        if (mounted) setLoadingScenes(false);
+      });
+    return () => { mounted = false; };
+  }, [selected]);
+
   const unitDestinations = useMemo<Destination[]>(() => units.filter((unit) => unit.cover_image).map((unit) => ({
     id: String(unit.id),
     type: "unit",
@@ -124,7 +146,6 @@ export function VirtualTourLobby() {
     slug: unit.slug,
     description: unit.description ?? "",
     preview: unit.cover_image as string,
-    panorama: getTourScene("unit", unit.slug),
   })), [units]);
 
   const departmentDestinations = useMemo<Destination[]>(() => departments.filter((department) => department.cover_image).map((department) => ({
@@ -134,7 +155,6 @@ export function VirtualTourLobby() {
     slug: department.slug,
     description: department.description ?? "",
     preview: department.cover_image as string,
-    panorama: getTourScene("department", department.slug),
   })), [departments]);
 
   const destinations = wing === "units" ? unitDestinations : departmentDestinations;
@@ -143,8 +163,12 @@ export function VirtualTourLobby() {
     return (
       <main dir="rtl" className="min-h-dvh bg-[#06182d] text-white">
         <div className="relative min-h-dvh">
-          {selected.panorama ? (
-            <PanoramaViewer scene={selected.panorama} title={selected.title} />
+          {loadingScenes ? (
+            <div className="flex min-h-dvh items-center justify-center bg-[#06182d] text-white">
+              <span className="mx-auto block size-11 animate-spin rounded-full border-2 border-white/20 border-t-[#e2ae5b]" />
+            </div>
+          ) : selectedScenes && selectedScenes.length > 0 ? (
+            <PanoramaViewer scenes={selectedScenes} title={selected.title} />
           ) : (
             <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-5 py-24 text-center">
               <img src={selected.preview} alt={selected.title} className="besat-tour-preview-drift absolute inset-0 h-full w-full object-cover" draggable={false} />

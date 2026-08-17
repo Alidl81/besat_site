@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { EventFormModal } from "@/components/dashboard/event-form-modal";
+import { StatusBadge } from "@/components/crud/crud-ui";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
 import {
   PanelEmpty,
@@ -30,24 +31,6 @@ import { panelService } from "@/services/panel-service";
 import type { CalendarEventItem } from "@/types/panel-api";
 import type { QueryValue } from "@/lib/api/query";
 
-const EVENT_STATUS_LABELS: Record<string, string> = {
-  draft: "پیش‌نویس",
-  waiting_review: "در انتظار بررسی",
-  approved: "تأیید شده",
-  published: "منتشر شده",
-  rejected: "رد شده",
-  archived: "آرشیو شده",
-};
-
-const EVENT_STATUS_CLASSES: Record<string, string> = {
-  draft: "",
-  waiting_review: "is-warning",
-  approved: "is-info",
-  published: "is-success",
-  rejected: "is-danger",
-  archived: "",
-};
-
 type EventAction = "submit-review" | "approve" | "reject" | "publish" | "archive" | "restore";
 
 const ACTION_LABELS: Record<EventAction, string> = {
@@ -67,14 +50,6 @@ const ACTION_SUCCESS_MESSAGES: Record<EventAction, string> = {
   archive: "رویداد آرشیو شد.",
   restore: "رویداد بازگردانی شد.",
 };
-
-function EventStatusBadge({ status }: { status: string }) {
-  return (
-    <span className={`panel-status ${EVENT_STATUS_CLASSES[status] ?? ""}`}>
-      {EVENT_STATUS_LABELS[status] ?? status}
-    </span>
-  );
-}
 
 function availableActions(
   event: CalendarEventItem,
@@ -171,7 +146,7 @@ function EventAgendaRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-black text-[#172b43]">{event.title}</h3>
-            <EventStatusBadge status={event.status} />
+            <StatusBadge status={event.status} />
             {event.is_featured ? <span className="panel-status is-warning">ویژه</span> : null}
           </div>
           <p className="mt-1 text-xs font-bold text-slate-500">

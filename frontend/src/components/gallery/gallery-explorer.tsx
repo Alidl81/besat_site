@@ -1,5 +1,9 @@
 "use client";
 
+import { useGSAP } from "@gsap/react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import Image from "next/image";
 import {
   CalendarRange,
   FilterX,
@@ -7,9 +11,10 @@ import {
   RefreshCw,
   Search,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getApiErrorMessage } from "@/lib/api/client";
-import { safePublicMediaUrl } from "@/lib/media/safe-url";
+import { isExternalMediaUrl, safePublicMediaUrl } from "@/lib/media/safe-url";
+import { GalleryLightbox, type LightboxItem } from "@/components/gallery/gallery-lightbox";
 import {
   getPublicGallery,
   getPublicUnits,
@@ -18,6 +23,11 @@ import type {
   PublicGalleryItem,
   PublicSchoolUnit,
 } from "@/types/public-content";
+
+// Registered lazily inside useGSAP (not at module scope) so importing this
+// module for its pure helpers (e.g. in unit tests, which run under jsdom
+// without a full window.matchMedia implementation) never touches GSAP.
+let scrollTriggerRegistered = false;
 
 type GalleryFilters = {
   search: string;
@@ -36,6 +46,11 @@ const initialFilters: GalleryFilters = {
   dateTo: "",
   page: 1,
 };
+
+// A small deterministic cycle of aspect ratios gives the grid an
+// asymmetric, editorial feel without needing real image dimensions from
+// the backend (GalleryItem doesn't store intrinsic width/height).
+const CARD_ASPECT_CLASSES = ["aspect-[3/4]", "aspect-square", "aspect-[4/5]", "aspect-[4/3]"];
 
 export function buildGalleryQuery(
   filters: GalleryFilters,
@@ -79,25 +94,46 @@ function syncUrl(filters: GalleryFilters) {
   window.history.replaceState(null, "", query ? `/gallery?${query}` : "/gallery");
 }
 
-function GalleryCard({ item }: { item: PublicGalleryItem }) {
+function GalleryCard({
+  item,
+  index,
+  onOpen,
+}: {
+  item: PublicGalleryItem;
+  index: number;
+  onOpen: () => void;
+}) {
   const image = safePublicMediaUrl(item.image);
+  const external = isExternalMediaUrl(item.image);
+  const aspect = CARD_ASPECT_CLASSES[index % CARD_ASPECT_CLASSES.length];
+
   return (
-    <article className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div className="aspect-[4/3] overflow-hidden bg-slate-100">
+    <button
+      type="button"
+      onClick={onOpen}
+      className="gallery-card group mb-5 block w-full break-inside-avoid overflow-hidden rounded-lg border border-slate-200 bg-white text-right shadow-sm transition hover:shadow-md"
+    >
+      <div className={`relative ${aspect} overflow-hidden bg-slate-100`}>
         {image ? (
-          <img
+          <Image
             src={image}
             alt={item.alt_text || item.title}
-            loading="lazy"
-            className="size-full object-cover transition duration-300 motion-reduce:transition-none"
+            fill
+            unoptimized={external}
+            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            className="object-cover transition duration-500 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           />
         ) : (
           <div className="flex size-full items-center justify-center text-slate-400">
             <ImageIcon aria-hidden="true" className="size-10" />
           </div>
         )}
+        {item.is_featured ? (
+          <span className="absolute right-3 top-3 rounded-full bg-[#e2ae5b] px-2.5 py-1 text-[10px] font-black text-[#062452] shadow">ویژه</span>
+        ) : null}
+        <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,24,45,0)_55%,rgba(6,24,45,.75))] opacity-0 transition duration-300 group-hover:opacity-100" />
       </div>
-      <div className="p-5 text-right">
+      <div className="p-5">
         <div className="flex flex-wrap gap-2 text-xs font-bold text-slate-500">
           {item.unit ? <span>{item.unit.title}</span> : <span>مجتمع بعثت</span>}
           {item.album ? <span>• {item.album}</span> : null}
@@ -121,7 +157,7 @@ function GalleryCard({ item }: { item: PublicGalleryItem }) {
           </p>
         ) : null}
       </div>
-    </article>
+    </button>
   );
 }
 
@@ -136,6 +172,8 @@ export function GalleryExplorer() {
   const [previous, setPrevious] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [requestVersion, setRequestVersion] = useState(0);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -215,6 +253,45 @@ export function GalleryExplorer() {
     requestVersion,
   ]);
 
+  // The one signature interaction: as cards enter the viewport, reveal them
+  // in scroll-batched staggered groups (not a per-item fade-spam). Skipped
+  // entirely under prefers-reduced-motion -- cards just render at their
+  // final, fully visible state with no JS-driven motion.
+  useGSAP(
+    () => {
+      if (!items || items.length === 0) return;
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+      if (!scrollTriggerRegistered) {
+        gsap.registerPlugin(ScrollTrigger);
+        scrollTriggerRegistered = true;
+      }
+
+      const cards = gridRef.current?.querySelectorAll(".gallery-card");
+      if (!cards || cards.length === 0) return;
+
+      gsap.set(cards, { opacity: 0, y: 28 });
+      const triggers = ScrollTrigger.batch(cards, {
+        start: "top 88%",
+        once: true,
+        onEnter: (batch) =>
+          gsap.to(batch, {
+            opacity: 1,
+            y: 0,
+            duration: 0.6,
+            stagger: 0.08,
+            ease: "power2.out",
+            overwrite: true,
+          }),
+      });
+
+      return () => {
+        triggers.forEach((trigger) => trigger.kill());
+      };
+    },
+    { scope: gridRef, dependencies: [items], revertOnUpdate: true },
+  );
+
   const hasFilters = useMemo(
     () =>
       Boolean(
@@ -242,6 +319,13 @@ export function GalleryExplorer() {
     setFilters(initialFilters);
     setDebouncedSearch("");
   }
+
+  const lightboxItems: LightboxItem[] = (items ?? []).map((item) => ({
+    id: item.id,
+    src: safePublicMediaUrl(item.image) ?? "",
+    title: item.title,
+    caption: item.caption ?? item.summary,
+  }));
 
   return (
     <div className="space-y-7">
@@ -354,16 +438,16 @@ export function GalleryExplorer() {
           </button>
         </div>
       ) : items === null ? (
-        <div role="status" aria-busy="true" aria-live="polite" aria-label="در حال دریافت گالری" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div role="status" aria-busy="true" aria-live="polite" aria-label="در حال دریافت گالری" className="columns-1 gap-5 sm:columns-2 lg:columns-3">
           {Array.from({ length: 6 }, (_, index) => (
-            <div key={index} className="aspect-[4/3] animate-pulse rounded-lg bg-slate-200 motion-reduce:animate-none" />
+            <div key={index} className={`mb-5 ${CARD_ASPECT_CLASSES[index % CARD_ASPECT_CLASSES.length]} animate-pulse break-inside-avoid rounded-lg bg-slate-200 motion-reduce:animate-none`} />
           ))}
         </div>
       ) : items.length ? (
         <>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((item) => (
-              <GalleryCard key={item.id} item={item} />
+          <div ref={gridRef} className="columns-1 gap-5 sm:columns-2 lg:columns-3">
+            {items.map((item, index) => (
+              <GalleryCard key={item.id} item={item} index={index} onOpen={() => setLightboxIndex(index)} />
             ))}
           </div>
           <nav aria-label="صفحه‌بندی گالری" className="flex items-center justify-center gap-3">
@@ -405,6 +489,15 @@ export function GalleryExplorer() {
           ) : null}
         </div>
       )}
+
+      {lightboxIndex !== null ? (
+        <GalleryLightbox
+          items={lightboxItems}
+          index={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          onNavigate={setLightboxIndex}
+        />
+      ) : null}
     </div>
   );
 }

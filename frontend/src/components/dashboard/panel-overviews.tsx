@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { PanelIcon, type PanelIconName } from "@/components/dashboard/panel-icons";
+import { StatusBadge } from "@/components/crud/crud-ui";
 import {
   PanelEmpty,
   PanelError,
@@ -133,9 +134,35 @@ function Feed({
   );
 }
 
+const adminQuickActions: { href: string; label: string; icon: PanelIconName }[] = [
+  { href: "/dashboard/admin/content", label: "مدیریت محتوا", icon: "file" },
+  { href: "/dashboard/admin/gallery", label: "رسانه و گالری", icon: "albums" },
+  { href: "/dashboard/admin/virtual-tour", label: "تور مجازی", icon: "virtualTour" },
+  { href: "/dashboard/admin/registrations", label: "ثبت‌نام‌ها", icon: "registration" },
+  { href: "/dashboard/admin/users", label: "کاربران", icon: "users" },
+];
+
+function QuickActions({ actions }: { actions: { href: string; label: string; icon: PanelIconName }[] }) {
+  return (
+    <section aria-label="دسترسی سریع" className="flex flex-wrap gap-2">
+      {actions.map((action) => (
+        <Link
+          key={action.href}
+          href={action.href}
+          className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-[#102b4a] transition hover:border-blue-300 hover:bg-blue-50"
+        >
+          <PanelIcon name={action.icon} className="size-4 text-[#0b599b]" />
+          {action.label}
+        </Link>
+      ))}
+    </section>
+  );
+}
+
 function AdminOverview({ payload }: { payload: AdminDashboard }) {
   return (
     <div className="space-y-5">
+      <QuickActions actions={adminQuickActions} />
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {payload.metrics.map((metric) => <StatCard key={metric.key} metric={metric} />)}
       </section>
@@ -158,8 +185,8 @@ function AdminOverview({ payload }: { payload: AdminDashboard }) {
                   <div><dt>دانش‌آموز</dt><dd className="mt-1 text-lg text-[#102b4a]">{unit.students_count}</dd></div>
                   <div><dt>کادر</dt><dd className="mt-1 text-lg text-[#102b4a]">{unit.staff_count}</dd></div>
                 </dl>
-                <span className={`panel-status mt-4 ${unit.is_active ? "is-success" : "is-danger"}`}>
-                  {unit.is_active ? "فعال" : "غیرفعال"}
+                <span className="mt-4 inline-block">
+                  <StatusBadge status={unit.is_active ? "active" : "inactive"} />
                 </span>
               </article>
             ))}

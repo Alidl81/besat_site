@@ -5,13 +5,15 @@ import type { ProductListItem } from "@/types/shop";
 
 function TypeBadge({ type }: { type: ProductListItem["product_type"] }) {
   const config = {
-    physical: { label: "کتاب و کالا", icon: BookOpen },
-    online_course: { label: "دوره آنلاین", icon: GraduationCap },
-    in_person_course: { label: "دوره حضوری", icon: MapPin },
+    physical: { label: "کتاب و کالا", icon: BookOpen, tone: "border-[#c98c3d] text-[#8a5c1f]" },
+    online_course: { label: "دوره آنلاین", icon: GraduationCap, tone: "border-[#0a2848] text-[#0a2848]" },
+    in_person_course: { label: "دوره حضوری", icon: MapPin, tone: "border-[#0a2848] text-[#0a2848]" },
   }[type];
   const Icon = config.icon;
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1 text-[11px] font-black text-[#0a2848] shadow-sm">
+    <span
+      className={`inline-flex -rotate-1 items-center gap-1.5 rounded-full border-[1.5px] bg-white/95 px-3 py-1 text-[11px] font-black shadow-[0_1px_2px_rgba(15,37,58,.12)] ${config.tone}`}
+    >
       <Icon aria-hidden="true" className="size-3.5" />
       {config.label}
     </span>
@@ -107,11 +109,11 @@ export function ProductCard({ product }: { product: ProductListItem }) {
         <div className="mt-auto flex items-end justify-between gap-2 pt-2">
           <div className="flex flex-col">
             {product.is_on_sale ? (
-              <span className="text-xs font-bold text-[#0a2848]/45 line-through">
+              <span className="text-xs font-bold tabular-nums text-[#0a2848]/45 line-through">
                 {formatPrice(product.price_amount)}
               </span>
             ) : null}
-            <span className="text-base font-black text-[#0a2848]">
+            <span className="text-base font-black tabular-nums text-[#0a2848]">
               {formatPrice(product.is_on_sale ? product.sale_price_amount : product.price_amount)}
             </span>
           </div>

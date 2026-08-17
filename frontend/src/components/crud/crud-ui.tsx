@@ -165,36 +165,63 @@ export function GhostButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>
 }
 
 // ---------- StatusBadge ----------
-const statusMap: Record<string, { label: string; className: string }> = {
-  draft: { label: "پیش‌نویس", className: "bg-slate-100 text-slate-600" },
-  waiting_review: { label: "در انتظار بررسی", className: "bg-amber-50 text-amber-700" },
-  approved: { label: "تأییدشده", className: "bg-sky-50 text-sky-700" },
-  published: { label: "منتشرشده", className: "bg-blue-50 text-blue-700" },
-  rejected: { label: "رد شده", className: "bg-rose-50 text-rose-700" },
-  archived: { label: "آرشیوشده", className: "bg-slate-100 text-slate-500" },
-  new: { label: "جدید", className: "bg-sky-50 text-sky-700" },
-  reviewing: { label: "در حال بررسی", className: "bg-amber-50 text-amber-700" },
-  accepted: { label: "پذیرفته‌شده", className: "bg-blue-50 text-blue-700" },
+// A stamp/seal treatment (ring border + light tint + slight rotation)
+// rather than a flat filled pill -- this is the school-registrar visual
+// language established for shop (order status, enrollment status) and
+// applied here since this one component is shared by every workflow
+// status badge across the whole CMS (News/Announcements review states,
+// shop orders, course enrollments).
+type StatusTone = "neutral" | "pending" | "info" | "positive" | "negative";
+
+const toneClassName: Record<StatusTone, string> = {
+  neutral: "border-slate-400 bg-slate-50 text-slate-600",
+  pending: "border-amber-500 bg-amber-50 text-amber-700",
+  info: "border-sky-500 bg-sky-50 text-sky-700",
+  positive: "border-emerald-500 bg-emerald-50 text-emerald-700",
+  negative: "border-rose-500 bg-rose-50 text-rose-700",
+};
+
+const statusMap: Record<string, { label: string; tone: StatusTone }> = {
+  draft: { label: "پیش‌نویس", tone: "neutral" },
+  waiting_review: { label: "در انتظار بررسی", tone: "pending" },
+  approved: { label: "تأییدشده", tone: "info" },
+  published: { label: "منتشرشده", tone: "positive" },
+  rejected: { label: "رد شده", tone: "negative" },
+  archived: { label: "آرشیوشده", tone: "neutral" },
+  // Content (news/announcements) workflow statuses -- a longer state
+  // machine than Gallery/Virtual Tour/Events, which only use the six
+  // keys above.
+  in_review: { label: "در صف بررسی", tone: "pending" },
+  changes_requested: { label: "نیازمند اصلاح", tone: "negative" },
+  scheduled: { label: "زمان‌بندی‌شده", tone: "info" },
+  unpublished: { label: "لغو انتشار", tone: "pending" },
+  trash: { label: "زباله‌دان", tone: "negative" },
+  new: { label: "جدید", tone: "info" },
+  reviewing: { label: "در حال بررسی", tone: "pending" },
+  accepted: { label: "پذیرفته‌شده", tone: "info" },
   // Shop order statuses
-  pending_payment: { label: "در انتظار پرداخت", className: "bg-amber-50 text-amber-700" },
-  payment_processing: { label: "در حال پردازش پرداخت", className: "bg-amber-50 text-amber-700" },
-  paid: { label: "پرداخت‌شده", className: "bg-emerald-50 text-emerald-700" },
-  processing: { label: "در حال پردازش", className: "bg-blue-50 text-blue-700" },
-  shipped: { label: "ارسال‌شده", className: "bg-blue-50 text-blue-700" },
-  completed: { label: "تکمیل‌شده", className: "bg-emerald-50 text-emerald-700" },
-  cancelled: { label: "لغوشده", className: "bg-slate-100 text-slate-500" },
-  payment_failed: { label: "پرداخت ناموفق", className: "bg-rose-50 text-rose-700" },
-  refunded: { label: "بازگشت وجه", className: "bg-slate-100 text-slate-500" },
-  partially_refunded: { label: "بازگشت جزئی وجه", className: "bg-slate-100 text-slate-500" },
+  pending_payment: { label: "در انتظار پرداخت", tone: "pending" },
+  payment_processing: { label: "در حال پردازش پرداخت", tone: "pending" },
+  paid: { label: "پرداخت‌شده", tone: "positive" },
+  processing: { label: "در حال پردازش", tone: "info" },
+  shipped: { label: "ارسال‌شده", tone: "info" },
+  completed: { label: "تکمیل‌شده", tone: "positive" },
+  cancelled: { label: "لغوشده", tone: "neutral" },
+  payment_failed: { label: "پرداخت ناموفق", tone: "negative" },
+  refunded: { label: "بازگشت وجه", tone: "neutral" },
+  partially_refunded: { label: "بازگشت جزئی وجه", tone: "neutral" },
   // Shop course enrollment statuses
-  active: { label: "فعال", className: "bg-emerald-50 text-emerald-700" },
-  revoked: { label: "ابطال‌شده", className: "bg-rose-50 text-rose-700" },
+  active: { label: "فعال", tone: "positive" },
+  revoked: { label: "ابطال‌شده", tone: "negative" },
+  inactive: { label: "غیرفعال", tone: "neutral" },
 };
 
 export function StatusBadge({ status }: { status: string }) {
-  const item = statusMap[status] ?? { label: status, className: "bg-slate-100 text-slate-600" };
+  const item = statusMap[status] ?? { label: status, tone: "neutral" as const };
   return (
-    <span className={`inline-block rounded-xl px-3 py-1 text-xs font-black ${item.className}`}>
+    <span
+      className={`inline-flex -rotate-1 items-center rounded-full border-[1.5px] px-3 py-0.5 text-xs font-black ${toneClassName[item.tone]}`}
+    >
       {item.label}
     </span>
   );

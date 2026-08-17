@@ -74,7 +74,64 @@
       }
     ]
   },
-  "accounts": [],
+  "accounts": [
+    {
+      "id": "account-admin-demo",
+      "username": "admin_demo",
+      "password": "demo1234",
+      "full_name": "مدیر آزمایشی",
+      "email": "admin-demo@example.invalid",
+      "phone": null,
+      "role": "general_manager",
+      "role_display": "مدیر کل",
+      "unit_id": null,
+      "redirect_path": "/dashboard/admin",
+      "avatar": null,
+      "is_active": true
+    },
+    {
+      "id": "account-unit-manager-demo",
+      "username": "unit_manager_demo",
+      "password": "demo1234",
+      "full_name": "مسئول واحد آزمایشی",
+      "email": "unit-manager-demo@example.invalid",
+      "phone": null,
+      "role": "unit_manager",
+      "role_display": "مسئول واحد",
+      "unit_id": "unit-01-02",
+      "redirect_path": "/dashboard/admin",
+      "avatar": null,
+      "is_active": true
+    },
+    {
+      "id": "account-media-demo",
+      "username": "media_demo",
+      "password": "demo1234",
+      "full_name": "مسئول رسانه آزمایشی",
+      "email": "media-demo@example.invalid",
+      "phone": null,
+      "role": "unit_media",
+      "role_display": "مسئول رسانه",
+      "unit_id": "unit-01-02",
+      "redirect_path": "/dashboard/content-manager",
+      "avatar": null,
+      "is_active": true
+    },
+    {
+      "id": "account-parent-demo",
+      "username": "parent_demo",
+      "password": "demo1234",
+      "full_name": "والد آزمایشی",
+      "email": "parent-demo@example.invalid",
+      "phone": null,
+      "role": "parent",
+      "role_display": "والد",
+      "unit_id": null,
+      "redirect_path": "/dashboard/parents",
+      "avatar": null,
+      "is_active": true
+    }
+  ],
   "units": [
     {
       "id": "unit-01-02",
@@ -655,5 +712,143 @@
     }
   ],
   "parent_children": [],
-  "parent_registrations": []
+  "parent_registrations": [],
+  "shop_categories": [
+    {
+      "id": 1,
+      "title": "کتاب‌های کمک‌درسی",
+      "slug": "help-books",
+      "description": "کتاب‌های کمک‌درسی مصوب مجتمع بعثت.",
+      "cover_image": null,
+      "is_active": true,
+      "order": 1
+    },
+    {
+      "id": 2,
+      "title": "دوره‌های آموزشی",
+      "slug": "courses",
+      "description": "دوره‌های آنلاین و حضوری مجتمع بعثت.",
+      "cover_image": null,
+      "is_active": true,
+      "order": 2
+    }
+  ],
+  "shop_products": [
+    {
+      "id": 1,
+      "product_type": "physical",
+      "title": "اصول و مبانی ریاضی پایه هفتم",
+      "slug": "math-grade7-book",
+      "short_description": "کتاب کمک‌درسی ریاضی پایه هفتم با تمرین‌های تکمیلی.",
+      "description": "<p>این کتاب شامل خلاصه مباحث و تمرین‌های تکمیلی درس ریاضی پایه هفتم است.</p>",
+      "featured_image": null,
+      "gallery_images": [],
+      "category_id": 1,
+      "tags": [
+        "ریاضی",
+        "پایه هفتم"
+      ],
+      "price_amount": 2500000,
+      "sale_price_amount": null,
+      "is_featured": true,
+      "is_important": false,
+      "status": "published",
+      "physical_detail": {
+        "availability": "in_stock",
+        "weight_grams": 400,
+        "requires_shipping": true,
+        "max_purchase_quantity": 5,
+        "sku": "BOOK-MATH7",
+        "inventory_qty": 25
+      },
+      "course_detail": null
+    },
+    {
+      "id": 2,
+      "product_type": "online_course",
+      "title": "دوره آنلاین آمادگی کنکور",
+      "slug": "online-exam-prep",
+      "short_description": "دوره آنلاین آمادگی برای آزمون‌های ورودی.",
+      "description": "<p>دوره آنلاین شامل ویدیوهای آموزشی و آزمون‌های تمرینی است.</p>",
+      "featured_image": null,
+      "gallery_images": [],
+      "category_id": 2,
+      "tags": [
+        "کنکور",
+        "آنلاین"
+      ],
+      "price_amount": 4000000,
+      "sale_price_amount": 3500000,
+      "is_featured": true,
+      "is_important": false,
+      "status": "published",
+      "physical_detail": null,
+      "course_detail": {
+        "instructor_name": "استاد آزمایشی",
+        "course_type": "online",
+        "duration_minutes": 600,
+        "capacity": 30,
+        "enrolled_count": 22,
+        "start_date": "2026-09-01",
+        "prerequisites": null,
+        "level": "intermediate",
+        "enrollment_status": "open",
+        "access_duration_days": 90,
+        "access_destination_type": "external_link",
+        "access_destination_value": "https://class.example.invalid/demo-room"
+      }
+    },
+    {
+      "id": 3,
+      "product_type": "in_person_course",
+      "title": "کارگاه حضوری مهارت‌های مطالعه",
+      "slug": "study-skills-workshop",
+      "short_description": "کارگاه حضوری آموزش روش‌های صحیح مطالعه.",
+      "description": "<p>کارگاهی برای آشنایی با روش‌های نوین مطالعه و مدیریت زمان.</p>",
+      "featured_image": null,
+      "gallery_images": [],
+      "category_id": 2,
+      "tags": [
+        "کارگاه",
+        "حضوری"
+      ],
+      "price_amount": 1800000,
+      "sale_price_amount": null,
+      "is_featured": false,
+      "is_important": false,
+      "status": "published",
+      "physical_detail": null,
+      "course_detail": {
+        "instructor_name": "استاد آزمایشی دوم",
+        "course_type": "in_person",
+        "duration_minutes": 180,
+        "capacity": 20,
+        "enrolled_count": 5,
+        "start_date": "2026-09-10",
+        "prerequisites": null,
+        "level": "beginner",
+        "enrollment_status": "open",
+        "unit_id": "unit-01-02",
+        "location_detail": "سالن اجتماعات مجتمع بعثت",
+        "schedule_text": "پنجشنبه‌ها ساعت ۱۶",
+        "end_date": "2026-09-10",
+        "registration_deadline": "2026-09-05",
+        "requires_enrollment_confirmation": false
+      }
+    }
+  ],
+  "shop_shipping_methods": [
+    {
+      "id": 1,
+      "title": "پست پیشتاز",
+      "description": "ارسال از طریق پست پیشتاز، ۲ تا ۴ روز کاری.",
+      "price_amount": 300000,
+      "is_default": true,
+      "is_active": true
+    }
+  ],
+  "shop_carts": [],
+  "shop_orders": [],
+  "shop_course_enrollments": [],
+  "shop_addresses": []
 }

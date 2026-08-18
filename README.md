@@ -1,5 +1,9 @@
 # Besat Site
 
+Full-stack rebuild of Besat School's public website and internal admin platform — a Next.js/TypeScript/Tailwind CSS frontend backed by a Django REST Framework + PostgreSQL API. See the Persian sections below for the project's full contribution rules and content-integrity policy; the tech stack, structure, and API contract sections apply regardless of language.
+
+---
+
 وب‌سایت جدید مدرسه بعثت
 
 این پروژه با هدف بازطراحی و پیاده‌سازی نسخه جدید وب‌سایت مدرسه بعثت ساخته می‌شود.
@@ -245,7 +249,9 @@ docs/
 ## Current Status
 
 ```txt
-Project structure is being prepared.
-Frontend project has not been created yet.
-Backend project has not been created yet.
+In active development. Both frontend and backend projects are created and building
+out real functionality (the backend now spans apps beyond the original list below,
+including a shop module with e2e-tested checkout flows). Not yet confirmed as
+deployed to production - treat specific page/feature completeness as in progress
+rather than finished.
 ```

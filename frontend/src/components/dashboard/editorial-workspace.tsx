@@ -7,6 +7,8 @@ import {
   type FormEvent,
   useCallback,
   useEffect,
+  useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -29,8 +31,10 @@ import {
 } from "@/components/dashboard/panel-request-state";
 import { EditorDocumentOutline } from "@/components/editor/editor-document-outline";
 import { EditorIcon } from "@/components/editor/editor-icons";
+import { BlockInspector } from "@/components/editor/block-inspector";
 import {
   RichEditor,
+  type ActiveBlockContext,
   type EditorDocumentStats,
   type EditorOutlineItem,
   type RichEditorHandle,
@@ -42,6 +46,7 @@ import {
   type ApiFieldErrors,
 } from "@/lib/api/client";
 import type { AccountRole } from "@/lib/data/domain-types";
+import { handleSelectableRowKeyDown } from "@/lib/dashboard/selectable-table-row";
 import {
   createSerialSaveQueue,
   type SerialSaveQueue,
@@ -85,6 +90,7 @@ type Draft = {
   seo: SeoDraft;
   audience: "all" | "students" | "parents" | "staff";
   isFeatured: boolean;
+  isImportant: boolean;
 };
 
 type PreviewContent = {
@@ -108,9 +114,7 @@ const statusOptions: Array<{ value: ContentWorkflowStatus; label: string }> = [
   { value: "approved", label: "تأییدشده" },
   { value: "scheduled", label: "زمان‌بندی‌شده" },
   { value: "published", label: "منتشرشده" },
-  { value: "unpublished", label: "لغو انتشار" },
-  { value: "archived", label: "بایگانی‌شده" },
-  { value: "trash", label: "زباله‌دان" },
+  { value: "archived", label: "آرشیوشده" },
 ];
 
 const statusLabels: Record<ContentWorkflowStatus, string> = Object.fromEntries(
@@ -125,8 +129,8 @@ type QueueCard = {
 
 // Split so the statuses that drive daily action (someone needs to write,
 // review, or fix something today) stay visually prominent, while
-// end-of-lifecycle statuses (scheduled/unpublished/archived/trash) -- true
-// but checked far less often -- don't compete with them for attention.
+// end-of-lifecycle statuses (scheduled/archived) -- true but checked far
+// less often -- don't compete with them for attention.
 const primaryQueueCards: QueueCard[] = [
   { key: "draft", status: "draft", icon: "document" },
   { key: "in_review", status: "in_review", icon: "review" },
@@ -137,9 +141,7 @@ const primaryQueueCards: QueueCard[] = [
 
 const secondaryQueueCards: QueueCard[] = [
   { key: "scheduled", status: "scheduled", icon: "calendar" },
-  { key: "unpublished", status: "unpublished", icon: "document" },
   { key: "archived", status: "archived", icon: "document" },
-  { key: "trash", status: "trash", icon: "document" },
 ];
 
 const orderingOptions = [
@@ -150,6 +152,34 @@ const orderingOptions = [
   { value: "published_at", label: "قدیمی‌ترین انتشار" },
   { value: "-published_at", label: "آخرین انتشار" },
 ] as const;
+
+// Identifies *which* table is active, not just that a table is active, so
+// switching between two different tables can be told apart from staying
+// inside the same one.
+function activeTableBlockIndex(
+  activeBlock: Pick<ActiveBlockContext, "kind" | "index"> | null,
+): number | null {
+  return activeBlock?.kind === "table" ? activeBlock.index : null;
+}
+
+// Decides whether the table Inspector's "explicitly opened" flag should be
+// reset for the current render. Exported standalone (pure, no React) so the
+// Table A -> Table B inspector-state-leak regression can be covered by a
+// plain unit test without mounting this whole component: tracking only
+// block "kind" (as an earlier version of this logic did) can't tell two
+// different tables apart, so switching straight from Table A to Table B
+// never triggered a reset and Table B silently inherited Table A's
+// explicit-open state.
+export function nextTableInspectorState(
+  activeBlock: Pick<ActiveBlockContext, "kind" | "index"> | null,
+  lastActiveTableIndex: number | null,
+): { lastActiveTableIndex: number | null; shouldReset: boolean } {
+  const currentTableIndex = activeTableBlockIndex(activeBlock);
+  return {
+    lastActiveTableIndex: currentTableIndex,
+    shouldReset: currentTableIndex !== lastActiveTableIndex,
+  };
+}
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
@@ -197,6 +227,7 @@ function draftFrom(
     seo: item?.seo ? seoDraftFrom(item.seo) : emptySeoDraft,
     audience: item?.audience ?? "all",
     isFeatured: item?.is_featured ?? false,
+    isImportant: item?.is_important ?? false,
   };
 }
 
@@ -282,10 +313,10 @@ function fieldMessages(fieldErrors: ApiFieldErrors, field: string) {
   return fieldErrors[field] ?? [];
 }
 
-function FieldErrors({ errors, field }: { errors: ApiFieldErrors; field: string }) {
+function FieldErrors({ errors, field, id }: { errors: ApiFieldErrors; field: string; id?: string }) {
   const messages = fieldMessages(errors, field);
   if (!messages.length) return null;
-  return <small role="alert" className="mt-1 block text-xs font-bold text-rose-600">{messages.join(" ")}</small>;
+  return <small id={id} role="alert" className="mt-1 block text-xs font-bold text-rose-600">{messages.join(" ")}</small>;
 }
 
 function ContentStatus({ status }: { status: ContentWorkflowStatus }) {
@@ -318,6 +349,15 @@ function EditorialEditor({
   const [categories, setCategories] = useState<NamedOption[]>([]);
   const [categoriesError, setCategoriesError] = useState("");
   const [detailLoading, setDetailLoading] = useState(Boolean(item?.id));
+  // FE-CMS-EDITOR-DETAIL-ERROR-RECOVERY-001: a failed detail fetch left
+  // `currentItem`/`draft` at whatever the list-summary `item` prop already
+  // was (incomplete -- no body_html, etc.) with no signal that Save would
+  // submit that stale/incomplete draft rather than the real content. The
+  // generic `errorText` banner (reused by every other action in this
+  // component) gets cleared by the next unrelated action, and the status
+  // text fell through to "autosave active" once `detailLoading` settled,
+  // implying everything was fine.
+  const [detailError, setDetailError] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -325,6 +365,25 @@ function EditorialEditor({
   const [fieldErrors, setFieldErrors] = useState<ApiFieldErrors>({});
   const [conflict, setConflict] = useState<ConflictState>(null);
   const [workflowComment, setWorkflowComment] = useState("");
+  // FE-CMS-REVIEW-REJECT-NOTE-FOCUS-001: the "بازخورد گردش کار" <details>
+  // group defaults to collapsed and had no way to open programmatically --
+  // a blank-reject validation error rendered inside it, but the reviewer
+  // never saw the group open or the field gain focus, leaving the mandatory
+  // control hidden. workflowFeedbackOpen makes the group's `open` state
+  // controllable so a blank reject can reveal it.
+  const [workflowFeedbackOpen, setWorkflowFeedbackOpen] = useState(false);
+  const workflowCommentRef = useRef<HTMLTextAreaElement>(null);
+  const workflowCommentErrorId = useId();
+  // FE-CMS-REVIEW-REJECT-NOTE-FOCUS-001 (residual): calling .focus() in the
+  // very same synchronous handler that also calls setWorkflowFeedbackOpen(true)
+  // is a no-op -- the browser still sees a collapsed <details> (React hasn't
+  // committed the `open` attribute change yet), and focusing an element
+  // inside a still-collapsed <details> silently fails. Deferring the actual
+  // focus() call to an effect keyed on this counter guarantees it only runs
+  // after the group has actually re-rendered open in the DOM. A counter
+  // (not a boolean) so a second blank-reject attempt in a row still
+  // re-triggers the effect even though the previous value was already true.
+  const [pendingCommentFocus, setPendingCommentFocus] = useState(0);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewSource, setPreviewSource] = useState<PreviewSource>("local");
@@ -333,14 +392,76 @@ function EditorialEditor({
   const [revisionComparison, setRevisionComparison] = useState<ContentRevisionComparison | null>(null);
   const [revisionComparisonLoading, setRevisionComparisonLoading] = useState(false);
   const [revisionComparisonError, setRevisionComparisonError] = useState("");
+  // FE-CMS-EDITOR-REVISION-COMPARISON-RACE-001: openRevisionComparison()
+  // set revisionComparison unconditionally once its request resolved, with
+  // no fence against a NEWER comparison (or a close/switch-to-preview)
+  // having since superseded it -- comparing revision A, closing, then
+  // comparing revision B, could have B's diff silently replaced by A's
+  // once A's slower response finally landed. A plain monotonic counter,
+  // bumped at the start of every action that changes what's currently
+  // being viewed (a new comparison request, closing the dialog, or
+  // switching to the local/server preview), captured at call time and
+  // compared at completion time, lets a superseded response recognize
+  // itself and discard its own result instead of overwriting whatever is
+  // now on screen.
+  const revisionComparisonSeqRef = useRef(0);
   const [outline, setOutline] = useState<EditorOutlineItem[]>([]);
+  const [activeBlock, setActiveBlock] = useState<ActiveBlockContext | null>(null);
+  // Table is the one complex block whose Inspector does NOT open just from
+  // selection -- it only opens once the user explicitly clicks the small
+  // settings trigger RichEditor renders over the selected table (see
+  // onTableSettingsClick below). This flag tracks that explicit request and
+  // is cleared as soon as the selection leaves THIS table (moving to a
+  // different block, or to a *different* table -- switching straight from
+  // Table A to Table B must NOT let Table B inherit Table A's open
+  // inspector), so re-entering requires clicking the trigger again rather
+  // than the inspector popping open on its own.
+  const [tableInspectorRequested, setTableInspectorRequested] = useState(false);
+  // Resets tableInspectorRequested the moment the active table identity
+  // changes -- done during render (React's documented pattern for
+  // "adjusting state when a prop/derived value changes") rather than in a
+  // useEffect, since a synchronous setState inside an effect body causes an
+  // extra cascading render for no benefit here.
+  const [lastActiveTableIndex, setLastActiveTableIndex] = useState<number | null>(null);
+  const tableInspectorTransition = nextTableInspectorState(activeBlock, lastActiveTableIndex);
+  if (tableInspectorTransition.shouldReset) {
+    setLastActiveTableIndex(tableInspectorTransition.lastActiveTableIndex);
+    setTableInspectorRequested(false);
+  }
   const [stats, setStats] = useState<EditorDocumentStats>({
     blocks: 0,
     characters: 0,
     words: 0,
     readingMinutes: 1,
   });
+  // FE-CMS-EDITOR-UPLOAD-SAVE-RACE-001: two separate signals, deliberately
+  // not merged into one. `uploading` (state) is cosmetic only -- it drives
+  // the status label and the buttons' `disabled` attribute, and is fed
+  // directly by each child's own onUploadState(active) callback exactly as
+  // before. RichEditor's own onUploadState fires true/false around each of
+  // its independent upload call sites, so two overlapping RichEditor
+  // uploads (a multi-file paste/drop, or a paste racing a replace-image
+  // action) can report a premature `false` while a *different* upload it
+  // started is still in flight -- that signal is good enough for a status
+  // label, but not trustworthy enough to gate an actual save. The real
+  // gate is `pendingUploadCountRef`, a plain counter incremented/decremented
+  // only by work this component itself directly awaits: uploadEditorMedia's
+  // own try/finally (the real RichEditor upload calls), and
+  // ContentBlockInserter's onUploadState (safe to also treat as
+  // authoritative there -- its own handleFiles() emits exactly one true
+  // before, and one false strictly after, its whole sequential upload
+  // batch, with a reentrancy guard preventing any overlap). save(),
+  // workflow(), and openPreview() read the ref directly, synchronously, at
+  // call time, instead of trusting the possibly-stale `uploading` state.
   const [uploading, setUploading] = useState(false);
+  const pendingUploadCountRef = useRef(0);
+  function trackAuthoritativeUpload(active: boolean) {
+    if (active) {
+      pendingUploadCountRef.current += 1;
+    } else {
+      pendingUploadCountRef.current = Math.max(0, pendingUploadCountRef.current - 1);
+    }
+  }
   const [revisionCache, setRevisions] = useState<ContentRevision[]>([]);
   const [revisionsContentId, setRevisionsContentId] = useState<string | null>(null);
   const [revisionsLoading, setRevisionsLoading] = useState(false);
@@ -350,9 +471,29 @@ function EditorialEditor({
   const editVersion = useRef(0);
   const currentItemRef = useRef<ContentItem | null>(item);
   const saveQueue = useRef<SerialSaveQueue<ContentItem>>(createSerialSaveQueue<ContentItem>());
+  // FE-CMS-EDITOR-SAVE-DOUBLE-SUBMIT-001: `saving` is state-backed, so two
+  // same-tick save()/workflow() calls both read it as `false` before either
+  // update commits. The serial queue below is deliberate -- it still needs
+  // to sequence a background autosave against a later manual save/workflow
+  // action -- so this guard only collapses literal duplicate re-entrant
+  // calls into save()/workflow() themselves; it does not touch persist()
+  // or the queue.
+  const savingRef = useRef(false);
   const previewDialogRef = useRef<HTMLElement>(null);
   const previewCloseRef = useRef<HTMLButtonElement>(null);
   const previewOpenerRef = useRef<HTMLElement | null>(null);
+  const editorHeadingRef = useRef<HTMLHeadingElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // This editor replaces the content list in place (not a real navigation),
+  // so nothing moves the document scroll position or focus to match --
+  // whatever scrollY the list happened to be at carries over onto a much
+  // shorter form, and the browser leaves focus on <body>. Moving focus to
+  // the editor's own heading on mount both scrolls it into view natively
+  // and gives keyboard/AT users a deliberate starting point.
+  useEffect(() => {
+    editorHeadingRef.current?.focus();
+  }, []);
 
   const canReview = canPublish || authorRole === "unit_manager";
 
@@ -362,6 +503,9 @@ function EditorialEditor({
     setSaveState("error");
     if (reason instanceof ApiError) {
       setFieldErrors(reason.fieldErrors);
+      if (reason.fieldErrors.title) {
+        titleInputRef.current?.focus();
+      }
       const current = getConflict(reason);
       if (current || reason.code === "content_conflict") {
         const local = currentItemRef.current;
@@ -393,15 +537,36 @@ function EditorialEditor({
 
   const loadDetail = useCallback(async (contentId: string | number) => {
     setDetailLoading(true);
+    // FE-CMS-EDITOR-DETAIL-HYDRATION-LOSS-001: the form fields stay
+    // interactive while this request is in flight (there's no loading
+    // gate on them), so a user who starts editing before the detail
+    // response lands used to have their edit silently overwritten the
+    // moment it arrived -- `setDraft`/`setDirty(false)` ran unconditionally.
+    // `editVersion` (bumped by every field edit, see `update()` below) is
+    // the same call-time-captured guard `persist()` already uses to detect
+    // "did the user edit since I started" for the save path; applying it
+    // here too skips re-hydrating the draft from a response that's now
+    // stale relative to an edit the user has already made.
+    const versionAtStart = editVersion.current;
     try {
       const loaded = await panelService.contentItem(contentId);
       currentItemRef.current = loaded;
       setCurrentItem(loaded);
-      setDraft(draftFrom(loaded, defaultKind, unitId));
-      setDirty(false);
+      if (editVersion.current === versionAtStart) {
+        setDraft(draftFrom(loaded, defaultKind, unitId));
+        setDirty(false);
+      }
       setConflict(null);
+      setDetailError(false);
+      // FE-CMS-EDITOR-DETAIL-ERROR-STALE-ALERT-001: a successful retry
+      // cleared the dedicated detailError alert but left the earlier
+      // failure's generic `errorText` banner (set by applyFailure() below
+      // on the FIRST attempt) stuck on screen indefinitely -- nothing else
+      // clears it until some unrelated action happens to overwrite it.
+      setErrorText("");
     } catch (reason) {
       applyFailure(reason);
+      setDetailError(true);
     } finally {
       setDetailLoading(false);
     }
@@ -490,6 +655,15 @@ function EditorialEditor({
     ? revisionCache
     : [];
 
+  // The reviewer's rejection note is the most recent revision recorded
+  // against the raw backend "rejected" status (serialize_content_item
+  // renames it to "changes_requested" for the frontend, but revision
+  // snapshots keep the raw model value) -- shown only while the content is
+  // actually in that state, so it disappears once the author moves past it.
+  const latestChangesFeedback = currentItem?.status === "changes_requested"
+    ? revisions.find((revision) => (revision.snapshot.status as string) === "rejected") ?? null
+    : null;
+
   const payload = useMemo(() => ({
     kind: draft.kind,
     title: draft.title.trim(),
@@ -503,6 +677,7 @@ function EditorialEditor({
     seo: seoDraftToPayload(draft.seo),
     audience: draft.audience,
     is_featured: draft.isFeatured,
+    ...(draft.kind === "news" ? { is_important: draft.isImportant } : {}),
   }), [draft, unitId]);
 
   const persist = useCallback(async (
@@ -552,11 +727,36 @@ function EditorialEditor({
   }, [defaultKind, onSaved, payload, unitId]);
 
   async function save() {
+    // FE-CMS-EDITOR-UPLOAD-SAVE-RACE-001: RichEditor's onUploadMedia
+    // callback hasn't inserted its result into the document yet while an
+    // upload is pending -- saving right now would persist body_html as it
+    // exists at this exact instant, missing the media the user is
+    // actively in the middle of adding (or, for the block-inserter
+    // upload path, could persist a shorter document than what the user
+    // sees once the insertion lands). Checked via the authoritative ref
+    // (see its declaration above), not the cosmetic `uploading` state.
+    if (pendingUploadCountRef.current > 0) {
+      setErrorText("بارگذاری تصویر یا فایل هنوز تمام نشده است. لطفاً صبر کنید.");
+      return;
+    }
+    // FE-CMS-EDITOR-DETAIL-ERROR-RECOVERY-001: the disabled attribute on
+    // the save/workflow buttons already covers the normal click path, but
+    // this form's own onSubmit still fires on a plain Enter keypress
+    // regardless of any button's disabled state -- so both save() and
+    // workflow() must also refuse to persist a draft built from an
+    // incomplete detail fetch, the same way the upload-pending guard
+    // above does.
+    if (detailError) {
+      setErrorText("دریافت نسخه کامل این محتوا ناموفق بود. پیش از ذخیره، «تلاش دوباره» را بزنید.");
+      return;
+    }
     if (conflict) {
       setErrorText("نسخه شما قدیمی است. ابتدا نسخه جدید را دریافت کنید.");
       setSaveState("conflict");
       return;
     }
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setErrorText("");
     setFieldErrors({});
@@ -566,18 +766,46 @@ function EditorialEditor({
       applyFailure(reason);
     } finally {
       setSaving(false);
+      savingRef.current = false;
     }
   }
 
   async function workflow(action: ContentWorkflowAction) {
+    // FE-CMS-EDITOR-UPLOAD-SAVE-RACE-001: same guard/rationale as save()
+    // above -- a workflow transition (submit for review, publish, etc.)
+    // persists the current draft just like a plain save does, and must
+    // not run while an upload is still in flight for the same reason.
+    if (pendingUploadCountRef.current > 0) {
+      setErrorText("بارگذاری تصویر یا فایل هنوز تمام نشده است. لطفاً صبر کنید.");
+      return;
+    }
+    // FE-CMS-EDITOR-DETAIL-ERROR-RECOVERY-001: the disabled attribute on
+    // the save/workflow buttons already covers the normal click path, but
+    // this form's own onSubmit still fires on a plain Enter keypress
+    // regardless of any button's disabled state -- so both save() and
+    // workflow() must also refuse to persist a draft built from an
+    // incomplete detail fetch, the same way the upload-pending guard
+    // above does.
+    if (detailError) {
+      setErrorText("دریافت نسخه کامل این محتوا ناموفق بود. پیش از ذخیره، «تلاش دوباره» را بزنید.");
+      return;
+    }
     if (conflict) {
       setErrorText("نسخه شما قدیمی است. ابتدا نسخه جدید را دریافت کنید.");
       setSaveState("conflict");
       return;
     }
-    if (action === "request-changes" && !workflowComment.trim()) {
+    if (savingRef.current) return;
+    if (action === "reject" && !workflowComment.trim()) {
       setFieldErrors({ comment: ["برای درخواست اصلاح، بازخورد سردبیر را بنویسید."] });
       setErrorText("بازخورد اصلاحات لازم است.");
+      // FE-CMS-REVIEW-REJECT-NOTE-FOCUS-001: the field error above rendered
+      // correctly but stayed hidden inside the collapsed "بازخورد گردش کار"
+      // details group with no focus movement -- open the group here; the
+      // actual focus() call happens in the effect below, once the group has
+      // genuinely re-rendered open in the DOM (see pendingCommentFocus).
+      setWorkflowFeedbackOpen(true);
+      setPendingCommentFocus((current) => current + 1);
       return;
     }
     const scheduledAt = action === "schedule" ? toIsoDateTime(draft.scheduledAt) : null;
@@ -599,6 +827,7 @@ function EditorialEditor({
       return;
     }
 
+    savingRef.current = true;
     setSaving(true);
     setErrorText("");
     setFieldErrors({});
@@ -633,8 +862,21 @@ function EditorialEditor({
       applyFailure(reason);
     } finally {
       setSaving(false);
+      savingRef.current = false;
     }
   }
+
+  // FE-CMS-REVIEW-REJECT-NOTE-FOCUS-001: runs after workflowFeedbackOpen has
+  // actually committed to the DOM. useLayoutEffect (not useEffect) so this
+  // fires synchronously right after that DOM mutation and before the
+  // browser paints -- not deferred to a later passive-effect pass -- so the
+  // <details> is guaranteed genuinely open and its textarea genuinely
+  // focusable by the time this runs, unlike calling .focus() directly
+  // inside the same synchronous handler that requests the group open.
+  useLayoutEffect(() => {
+    if (pendingCommentFocus === 0) return;
+    workflowCommentRef.current?.focus();
+  }, [pendingCommentFocus]);
 
   useEffect(() => {
     if (!open || !dirty || !payload.title || conflict) return;
@@ -689,8 +931,26 @@ function EditorialEditor({
   }
 
   async function uploadCover(file: File) {
+    // FE-CMS-EDITOR-COVER-UPLOAD-DOUBLE-SUBMIT-001: shares the `saving`
+    // guard used by save()/workflow() -- the cover file input isn't
+    // disabled while `saving` is true (state hasn't re-rendered yet
+    // either way), so two same-tick cover changes both reached
+    // uploadMedia without this.
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setErrorText("");
+    // FE-CMS-COVER-PREVIEW-UPLOAD-RACE-001: this upload is awaited
+    // directly by this component (matching the `pendingUploadCountRef`
+    // contract described above uploadEditorMedia), but it never reported
+    // into that authoritative gate -- only into the `saving`/`savingRef`
+    // pair, which save()/workflow() already check but openPreview() does
+    // not. With an unrelated editor-media upload settling in the
+    // meantime (correctly returning pendingUploadCountRef to 0), Preview
+    // read that ref as "nothing pending" and opened a local preview built
+    // from the draft's still-stale coverImageUrl while this upload was
+    // genuinely still in flight.
+    trackAuthoritativeUpload(true);
     try {
       const media = await panelService.uploadMedia(file, {
         unitId: numericId(unitId),
@@ -700,12 +960,15 @@ function EditorialEditor({
     } catch (reason) {
       applyFailure(reason);
     } finally {
+      trackAuthoritativeUpload(false);
       setSaving(false);
+      savingRef.current = false;
       if (coverInput.current) coverInput.current.value = "";
     }
   }
 
   async function uploadEditorMedia(file: File) {
+    trackAuthoritativeUpload(true);
     try {
       return await panelService.uploadMedia(file, {
         unitId: numericId(unitId),
@@ -714,6 +977,8 @@ function EditorialEditor({
     } catch (reason) {
       applyFailure(reason);
       throw reason;
+    } finally {
+      trackAuthoritativeUpload(false);
     }
   }
 
@@ -723,6 +988,11 @@ function EditorialEditor({
       setErrorText("برای بازگردانی، ابتدا نسخه جدید محتوا را دریافت کنید.");
       return;
     }
+    // FE-CMS-EDITOR-RESTORE-DOUBLE-SUBMIT-001: shares the savingRef guard
+    // already used by save()/workflow()/uploadCover() -- this entry point
+    // was missed when that guard was added.
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setErrorText("");
     try {
@@ -743,6 +1013,7 @@ function EditorialEditor({
       applyFailure(reason);
     } finally {
       setSaving(false);
+      savingRef.current = false;
     }
   }
 
@@ -754,6 +1025,7 @@ function EditorialEditor({
   }
 
   function closePreview() {
+    revisionComparisonSeqRef.current += 1;
     setPreviewOpen(false);
     setActiveRevision(null);
     setServerPreview(null);
@@ -773,23 +1045,48 @@ function EditorialEditor({
     setRevisionComparisonError("");
     setRevisionComparisonLoading(true);
     setPreviewOpen(true);
+    const requestSeq = ++revisionComparisonSeqRef.current;
     try {
       const comparison = await panelService.contentRevisionComparison(
         currentItem.id,
         selectedRevision.id,
       );
+      if (revisionComparisonSeqRef.current !== requestSeq) return;
       setRevisionComparison(comparison);
     } catch (reason) {
+      if (revisionComparisonSeqRef.current !== requestSeq) return;
       setRevisionComparisonError(getApiErrorMessage(reason));
     } finally {
-      setRevisionComparisonLoading(false);
+      if (revisionComparisonSeqRef.current === requestSeq) {
+        setRevisionComparisonLoading(false);
+      }
     }
   }
 
   async function openPreview() {
+    // FE-CMS-EDITOR-UPLOAD-SAVE-RACE-001: a local preview renders the
+    // current draft as-is -- opening it mid-upload would show the
+    // document missing whatever media the user is actively in the middle
+    // of adding, which is misleading even though (unlike save/workflow)
+    // it doesn't persist anything.
+    if (pendingUploadCountRef.current > 0) {
+      setErrorText("بارگذاری تصویر یا فایل هنوز تمام نشده است. لطفاً صبر کنید.");
+      return;
+    }
+    // FE-CMS-EDITOR-PREVIEW-STALE-DETAIL-001: the header button's disabled
+    // attribute already covers the normal click path, but this guards the
+    // function itself too (consistent with save()/workflow() above) --
+    // opening a preview while the detail fetch is still failing/in flight
+    // would show stale/incomplete content and, for the "server preview"
+    // branch below, fire a second, premature detail request before the
+    // user has even retried the first one.
+    if (detailError || detailLoading) {
+      return;
+    }
     previewOpenerRef.current = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;
+    revisionComparisonSeqRef.current += 1;
     setErrorText("");
     setActiveRevision(null);
     setRevisionComparison(null);
@@ -829,6 +1126,8 @@ function EditorialEditor({
       mode={mode}
       onOutlineChange={setOutline}
       onStatsChange={setStats}
+      onActiveBlockChange={setActiveBlock}
+      onTableSettingsClick={() => setTableInspectorRequested(true)}
       onUploadMedia={uploadEditorMedia}
       onUploadState={setUploading}
       placeholder="متن کامل محتوا را اینجا بنویسید..."
@@ -863,7 +1162,7 @@ function EditorialEditor({
             );
           })}
         </ol>
-        {currentItem?.status === "unpublished" || currentItem?.status === "archived" || currentItem?.status === "trash" ? (
+        {currentItem?.status === "archived" ? (
           <p className="mt-3 text-xs font-bold leading-6 text-slate-500">وضعیت فعلی: {statusLabels[currentItem.status]}</p>
         ) : null}
       </section>
@@ -879,6 +1178,9 @@ function EditorialEditor({
           <label><span>زمان انتشار</span><input type="datetime-local" value={draft.scheduledAt} onChange={(event) => update("scheduledAt", event.target.value)} className="panel-input" /><FieldErrors errors={fieldErrors} field="scheduled_at" /></label>
           <label><span>زمان لغو انتشار (اختیاری)</span><input type="datetime-local" value={draft.scheduledUnpublishAt} onChange={(event) => update("scheduledUnpublishAt", event.target.value)} className="panel-input" /><FieldErrors errors={fieldErrors} field="scheduled_unpublish_at" /></label>
           <label className="besat-editor-switch"><input type="checkbox" checked={draft.isFeatured} onChange={(event) => update("isFeatured", event.target.checked)} /><span aria-hidden="true" /><b>نمایش به‌عنوان محتوای ویژه</b></label>
+          {draft.kind === "news" ? (
+            <label className="besat-editor-switch"><input type="checkbox" checked={draft.isImportant} onChange={(event) => update("isImportant", event.target.checked)} /><span aria-hidden="true" /><b>نمایش در بخش «اخبار و رویدادها»ی صفحه نخست</b></label>
+          ) : null}
         </div>
       </details>
 
@@ -896,17 +1198,42 @@ function EditorialEditor({
       <details className="besat-editor-setting-group" open>
         <summary>تصویر شاخص <EditorIcon name="chevron-down" /></summary>
         <div className="besat-editor-setting-body">
-          <input ref={coverInput} type="file" accept="image/*" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadCover(file); }} />
+          <input ref={coverInput} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden="true" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadCover(file); }} />
           {draft.coverImageUrl ? <img src={draft.coverImageUrl} alt="پیش‌نمایش تصویر شاخص" className="besat-editor-cover-preview" /> : <p className="besat-editor-cover-empty">هنوز تصویر شاخص انتخاب نشده است.</p>}
           <button type="button" onClick={() => coverInput.current?.click()} className="panel-secondary-button w-full"><EditorIcon name="upload" className="size-4" />{draft.coverImageUrl ? "جایگزینی تصویر" : "بارگذاری تصویر"}</button>
           <FieldErrors errors={fieldErrors} field="cover_image_url" />
         </div>
       </details>
 
-      <details className="besat-editor-setting-group" open>
+      <details
+        className="besat-editor-setting-group"
+        open={workflowFeedbackOpen}
+        onToggle={(event) => setWorkflowFeedbackOpen(event.currentTarget.open)}
+      >
         <summary>بازخورد گردش کار <EditorIcon name="chevron-down" /></summary>
         <div className="besat-editor-setting-body">
-          <label><span>یادداشت برای بازبینی یا اصلاح</span><textarea value={workflowComment} onChange={(event) => setWorkflowComment(event.target.value)} className="panel-input min-h-24" placeholder="برای درخواست اصلاح، این بازخورد الزامی است." /><FieldErrors errors={fieldErrors} field="comment" /></label>
+          <label>
+            <span>یادداشت برای بازبینی یا اصلاح</span>
+            <textarea
+              ref={workflowCommentRef}
+              value={workflowComment}
+              onChange={(event) => {
+                setWorkflowComment(event.target.value);
+                if (fieldErrors.comment) {
+                  setFieldErrors((current) => {
+                    const rest = { ...current };
+                    delete rest.comment;
+                    return rest;
+                  });
+                }
+              }}
+              className="panel-input min-h-24"
+              placeholder="برای درخواست اصلاح، این بازخورد الزامی است."
+              aria-invalid={Boolean(fieldMessages(fieldErrors, "comment").length)}
+              aria-describedby={fieldMessages(fieldErrors, "comment").length ? workflowCommentErrorId : undefined}
+            />
+            <FieldErrors errors={fieldErrors} field="comment" id={workflowCommentErrorId} />
+          </label>
         </div>
       </details>
 
@@ -924,29 +1251,62 @@ function EditorialEditor({
   );
 
   return (
-    <form onSubmit={(event: FormEvent) => { event.preventDefault(); void save(); }} className="besat-editor-studio" dir="rtl">
+    <form onSubmit={(event: FormEvent) => { event.preventDefault(); void save(); }} noValidate className="besat-editor-studio" dir="rtl">
       <header className="besat-editor-studio-header">
         <div className="besat-editor-studio-title">
           <button type="button" onClick={close} aria-label="بازگشت به فهرست محتوا"><EditorIcon name="chevron-left" /></button>
-          <div><p>مدیریت محتوا / {currentItem ? "ویرایش محتوا" : "محتوای جدید"}</p><h2>ادیتور {mode === "simple" ? "ساده" : "پیشرفته"}</h2></div>
+          <div><p>مدیریت محتوا / {currentItem ? "ویرایش محتوا" : "محتوای جدید"}</p><h2 ref={editorHeadingRef} tabIndex={-1}>ادیتور {mode === "simple" ? "ساده" : "پیشرفته"}</h2></div>
         </div>
         <div className="besat-editor-header-actions">
           <span role="status" aria-live="polite" className={"besat-editor-save-state " + (saveState === "error" || saveState === "conflict" ? "is-error" : "")}>
             <i aria-hidden="true" />
-            {detailLoading ? "در حال دریافت نسخه ویرایش…" : saving || uploading ? "در حال ذخیره یا بارگذاری…" : saveState === "conflict" ? "تعارض نسخه: ذخیره خودکار متوقف شد" : dirty ? "تغییرات ذخیره‌نشده" : saveState === "saved" ? "ذخیره شد · " + formatDate(currentItem?.updated_at) : "ذخیره خودکار فعال است"}
+            {detailLoading ? "در حال دریافت نسخه ویرایش…" : detailError ? "خطا در دریافت نسخه ویرایش" : saving || uploading ? "در حال ذخیره یا بارگذاری…" : saveState === "conflict" ? "تعارض نسخه: ذخیره خودکار متوقف شد" : dirty ? "تغییرات ذخیره‌نشده" : saveState === "saved" ? "ذخیره شد · " + formatDate(currentItem?.updated_at) : "ذخیره خودکار فعال است"}
           </span>
-          <button type="button" disabled={previewLoading} onClick={() => void openPreview()} className="panel-secondary-button"><PanelIcon name="eye" className="size-4" />{previewLoading ? "دریافت پیش‌نمایش…" : "پیش‌نمایش"}</button>
+          <button type="button" disabled={previewLoading || uploading || saving || detailError || detailLoading} onClick={() => void openPreview()} className="panel-secondary-button"><PanelIcon name="eye" className="size-4" />{previewLoading ? "دریافت پیش‌نمایش…" : "پیش‌نمایش"}</button>
         </div>
       </header>
 
       {errorText ? <p role="alert" className="besat-editor-error">{errorText}</p> : null}
+      {detailError ? <section role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-950"><p>دریافت نسخه کامل این محتوا ناموفق بود. تا دریافت موفق، محتوای نمایش‌داده‌شده ممکن است ناقص باشد و ذخیره غیرفعال شده است.</p><button type="button" onClick={() => { const retryId = currentItem?.id ?? item?.id; if (retryId) void loadDetail(retryId); }} className="mt-2 underline">تلاش دوباره</button></section> : null}
       {conflict ? <section role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-950"><p>نسخه دیگری از این محتوا در {formatDate(conflict.updatedAt)} ذخیره شده است. تغییرات شما بدون دریافت نسخه جدید ارسال نمی‌شوند.</p><FieldErrors errors={fieldErrors} field="version" /><button type="button" onClick={() => void loadLatest()} className="mt-2 underline">دریافت نسخه جدید از سرور</button></section> : null}
+      {latestChangesFeedback ? (
+        <section role="status" className="besat-editor-review-feedback">
+          <p className="besat-editor-review-feedback-title">
+            <EditorIcon name="close" className="size-4" />
+            بازخورد بازبینی — نیازمند اصلاح
+          </p>
+          <p className="besat-editor-review-feedback-body">{latestChangesFeedback.note}</p>
+          <p className="besat-editor-review-feedback-meta">
+            {latestChangesFeedback.actor?.full_name ?? "سردبیر"} · {formatDate(latestChangesFeedback.created_at)}
+          </p>
+        </section>
+      ) : null}
 
       <div dir="ltr" className={"besat-editor-layout " + (mode === "advanced" ? "is-advanced" : "is-simple")}>
-        {mode === "advanced" ? <aside dir="rtl" className="besat-editor-left-column"><EditorDocumentOutline editorRef={editorRef} outline={outline} /><ContentBlockInserter value="" onChange={(html) => editorRef.current?.insertHtml(html)} unitId={unitId} variant="sidebar" onUploadState={setUploading} /></aside> : null}
-        <main dir="rtl" className="besat-editor-document">
+        {mode === "advanced" ? (
+          <aside dir="rtl" className="besat-editor-left-column">
+            <EditorDocumentOutline
+              editorRef={editorRef}
+              outline={outline}
+              inspector={
+                activeBlock && (activeBlock.kind !== "table" || tableInspectorRequested) ? (
+                  <BlockInspector block={activeBlock} onReplaceImage={() => editorRef.current?.replaceImage()} />
+                ) : undefined
+              }
+            >
+              <ContentBlockInserter
+                value=""
+                onChange={(html) => editorRef.current?.insertHtml(html)}
+                unitId={unitId}
+                variant="sidebar"
+                onUploadState={(active) => { trackAuthoritativeUpload(active); setUploading(active); }}
+              />
+            </EditorDocumentOutline>
+          </aside>
+        ) : null}
+        <div dir="rtl" className="besat-editor-document">
           <div className="besat-editor-document-meta">
-            <label><span>عنوان محتوا <b aria-hidden="true">*</b></span><input required value={draft.title} onChange={(event) => update("title", event.target.value)} placeholder="عنوان دقیق و خوانای محتوا را بنویسید" /><FieldErrors errors={fieldErrors} field="title" /></label>
+            <label><span>عنوان محتوا <b aria-hidden="true">*</b></span><input ref={titleInputRef} required value={draft.title} onChange={(event) => update("title", event.target.value)} placeholder="عنوان دقیق و خوانای محتوا را بنویسید" aria-invalid={Boolean(fieldErrors.title)} aria-describedby={fieldErrors.title ? "editorial-title-error" : undefined} /><FieldErrors errors={fieldErrors} field="title" id="editorial-title-error" /></label>
             <label><span>خلاصه</span><textarea value={draft.summary} onChange={(event) => update("summary", event.target.value)} placeholder="خلاصه کوتاه برای کارت خبر و نتایج جست‌وجو" /><small>{draft.summary.length.toLocaleString("fa-IR")} نویسه</small><FieldErrors errors={fieldErrors} field="summary" /></label>
           </div>
           {mode === "simple" && draft.coverImageUrl ? <img src={draft.coverImageUrl} alt="" className="besat-editor-inline-cover" /> : null}
@@ -954,22 +1314,20 @@ function EditorialEditor({
           {editor}
           <FieldErrors errors={fieldErrors} field="body_json" />
           <FieldErrors errors={fieldErrors} field="body_html" />
-        </main>
+        </div>
         <div dir="rtl" className="besat-editor-right-column">{settings}</div>
       </div>
 
       <footer className="besat-editor-actionbar">
         <div>{currentItem ? <StatusBadge status={currentItem.status} /> : <span className="panel-status">محتوای جدید</span>}<small>میان‌بر ذخیره: Ctrl/⌘ + S</small></div>
         <div>
-          <button disabled={saving} type="submit" className="panel-secondary-button"><PanelIcon name="document" className="size-4" />ذخیره</button>
-          {!currentItem || currentItem.status === "draft" || currentItem.status === "changes_requested" ? <button disabled={saving} type="button" onClick={() => void workflow("submit-review")} className="panel-primary-button"><PanelIcon name="review" className="size-4" />ارسال برای بررسی</button> : null}
-          {currentItem?.status === "in_review" && canReview ? <><button disabled={saving} type="button" onClick={() => void workflow("request-changes")} className="panel-secondary-button !border-rose-200 !text-rose-700"><EditorIcon name="close" className="size-4" />درخواست اصلاح</button><button disabled={saving} type="button" onClick={() => void workflow("approve")} className="panel-secondary-button !border-emerald-200 !text-emerald-700"><EditorIcon name="check" className="size-4" />تأیید</button></> : null}
-          {canPublish && currentItem?.status === "approved" ? <button disabled={saving} type="button" onClick={() => void workflow(draft.scheduledAt ? "schedule" : "publish")} className="panel-primary-button !bg-[#d98712]"><PanelIcon name={draft.scheduledAt ? "calendar" : "check"} className="size-4" />{draft.scheduledAt ? "زمان‌بندی انتشار" : "انتشار نهایی"}</button> : null}
-          {canPublish && currentItem?.status === "scheduled" ? <button disabled={saving} type="button" onClick={() => void workflow("publish")} className="panel-primary-button !bg-[#d98712]"><PanelIcon name="check" className="size-4" />انتشار اکنون</button> : null}
-          {canPublish && currentItem?.status === "published" ? <button disabled={saving} type="button" onClick={() => void workflow("unpublish")} className="panel-secondary-button"><EditorIcon name="close" className="size-4" />لغو انتشار</button> : null}
-          {currentItem && currentItem.status !== "trash" && currentItem.status !== "archived" ? <button disabled={saving} type="button" onClick={() => void workflow("archive")} className="panel-secondary-button"><PanelIcon name="document" className="size-4" />بایگانی</button> : null}
-          {currentItem && currentItem.status !== "trash" ? <button disabled={saving} type="button" onClick={() => void workflow("trash")} className="panel-secondary-button !border-rose-200 !text-rose-700"><PanelIcon name="trash" className="size-4" />انتقال به زباله‌دان</button> : null}
-          {currentItem && (currentItem.status === "archived" || currentItem.status === "trash") ? <button disabled={saving} type="button" onClick={() => void workflow("restore")} className="panel-primary-button"><PanelIcon name="document" className="size-4" />بازگردانی به پیش‌نویس</button> : null}
+          <button disabled={saving || uploading || detailError} type="submit" className="panel-secondary-button"><PanelIcon name="document" className="size-4" />ذخیره</button>
+          {!currentItem || currentItem.status === "draft" || currentItem.status === "changes_requested" ? <button disabled={saving || uploading || detailError} type="button" onClick={() => void workflow("submit-review")} className="panel-primary-button"><PanelIcon name="review" className="size-4" />ارسال برای بررسی</button> : null}
+          {currentItem?.status === "in_review" && canReview ? <><button disabled={saving || uploading || detailError} type="button" onClick={() => void workflow("reject")} className="panel-secondary-button !border-rose-200 !text-rose-700"><EditorIcon name="close" className="size-4" />درخواست اصلاح</button><button disabled={saving || uploading || detailError} type="button" onClick={() => void workflow("approve")} className="panel-secondary-button !border-emerald-200 !text-emerald-700"><EditorIcon name="check" className="size-4" />تأیید</button></> : null}
+          {canPublish && currentItem?.status === "approved" ? <button disabled={saving || uploading || detailError} type="button" onClick={() => void workflow(draft.scheduledAt ? "schedule" : "publish")} className="panel-primary-button !bg-[#d98712]"><PanelIcon name={draft.scheduledAt ? "calendar" : "check"} className="size-4" />{draft.scheduledAt ? "زمان‌بندی انتشار" : "انتشار نهایی"}</button> : null}
+          {canPublish && currentItem?.status === "scheduled" ? <button disabled={saving || uploading || detailError} type="button" onClick={() => void workflow("publish")} className="panel-primary-button !bg-[#d98712]"><PanelIcon name="check" className="size-4" />انتشار اکنون</button> : null}
+          {currentItem?.status === "published" ? <button disabled={saving || uploading || detailError} type="button" onClick={() => void workflow("archive")} className="panel-secondary-button"><PanelIcon name="document" className="size-4" />آرشیو</button> : null}
+          {currentItem?.status === "archived" ? <button disabled={saving || uploading || detailError} type="button" onClick={() => void workflow("restore")} className="panel-primary-button"><PanelIcon name="document" className="size-4" />بازگردانی به پیش‌نویس</button> : null}
         </div>
       </footer>
 
@@ -978,7 +1336,12 @@ function EditorialEditor({
           className="besat-editor-preview-backdrop"
           role="presentation"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) closePreview();
+            if (event.target !== event.currentTarget) return;
+            // Without this, the browser's native mousedown default action
+            // shifts focus to the nearest focusable ancestor of the backdrop
+            // before our own close/focus-restore logic gets a chance to act.
+            event.preventDefault();
+            closePreview();
           }}
         >
           <section
@@ -1087,6 +1450,10 @@ export function EditorialWorkspace({
   const [editor, setEditor] = useState<{ mode: EditorMode; item: ContentItem | null } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [bulkPending, setBulkPending] = useState(false);
+  // FE-CMS-EDITOR-BULK-ARCHIVE-DOUBLE-SUBMIT-001: `bulkPending` is
+  // state-backed, so two same-tick clicks both started the batch before
+  // either update committed.
+  const bulkPendingRef = useRef(false);
   const [filtersReady, setFiltersReady] = useState(false);
 
   useEffect(() => {
@@ -1191,11 +1558,13 @@ export function EditorialWorkspace({
   }
 
   async function moveSelected(
-    action: "archive" | "trash",
+    action: "archive",
     ids = selectedIds,
   ) {
     const targets = items.filter((item) => ids.some((id) => String(id) === String(item.id)));
     if (!targets.length || !window.confirm("عملیات انتخاب‌شده برای " + targets.length.toLocaleString("fa-IR") + " محتوا انجام شود؟")) return;
+    if (bulkPendingRef.current) return;
+    bulkPendingRef.current = true;
     setBulkPending(true);
     setActionError(null);
     let completed = 0;
@@ -1208,17 +1577,13 @@ export function EditorialWorkspace({
         failures.push(target.title + ": " + getApiErrorMessage(reason));
       }
     }
+    bulkPendingRef.current = false;
     setBulkPending(false);
     setSelectedIds([]);
     request.reload();
     if (failures.length) {
       setActionError(completed + " مورد انجام شد؛ " + failures.join(" | "));
     }
-  }
-
-  async function trashSelected() {
-    if (!selected) return;
-    await moveSelected("trash", [selected.id]);
   }
 
   if (editor) {
@@ -1267,7 +1632,7 @@ export function EditorialWorkspace({
         </section>
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex rounded-lg border border-slate-200 bg-white p-1">{([["all", "همه محتواها"], ["news", "اخبار"], ["announcement", "اطلاعیه‌ها"]] as const).map(([value, label]) => <button key={value} type="button" onClick={() => { setKind(value); setPage(1); }} className={"rounded-md px-4 py-2 text-xs font-black " + (kind === value ? "bg-[#fff3de] text-[#a8660b]" : "text-slate-500 hover:bg-slate-50")}>{label}</button>)}</div>
+        <div className="flex rounded-lg border border-slate-200 bg-white p-1">{([["all", "همه محتواها"], ["news", "اخبار"], ["announcement", "اطلاعیه‌ها"]] as const).map(([value, label]) => <button key={value} type="button" onClick={() => { setKind(value); setPage(1); }} className={"rounded-md px-4 py-2 text-xs font-black " + (kind === value ? "bg-[#fff3de] text-[#8a5709]" : "text-slate-500 hover:bg-slate-50")}>{label}</button>)}</div>
         <div className="flex overflow-hidden rounded-lg border border-slate-200">
           <button
             type="button"
@@ -1290,12 +1655,12 @@ export function EditorialWorkspace({
 
       <section className="panel-split-layout grid gap-5 2xl:grid-cols-[19rem_minmax(0,1fr)]">
         <aside className="panel-card h-fit 2xl:sticky 2xl:top-28">
-          {selected ? <><header className="mb-4 flex items-center justify-between"><h2 className="text-sm font-black text-[#183a5b]">پیش‌نمایش محتوا</h2><ContentStatus status={selected.status} /></header>{selected.cover_image_url ? <img src={selected.cover_image_url} alt="" className="h-44 w-full rounded-lg border border-slate-200 object-cover" /> : <div className="flex h-44 items-center justify-center rounded-lg border border-dashed border-slate-200 text-xs font-bold text-slate-400">بدون تصویر شاخص</div>}<h3 className="mt-4 text-lg font-black leading-8 text-[#172b43]">{selected.title}</h3>{selected.summary ? <p className="mt-2 text-xs font-bold leading-7 text-slate-500">{selected.summary}</p> : null}<dl className="mt-5 grid grid-cols-[5rem_1fr] gap-y-2 border-t border-slate-100 pt-4 text-xs font-bold text-slate-600"><dt>نویسنده:</dt><dd>{selected.author?.full_name ?? "ثبت نشده"}</dd><dt>واحد هدف:</dt><dd>{selected.scope === "school" ? "کل مدرسه" : selected.unit?.title ?? "واحد ثبت نشده"}</dd><dt>دسته‌بندی:</dt><dd>{selected.category?.title ?? "بدون دسته‌بندی"}</dd><dt>انتشار:</dt><dd>{formatDate(selected.published_at ?? selected.scheduled_at)}</dd></dl><div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={() => setEditor({ mode: "advanced", item: selected })} className="panel-secondary-button"><PanelIcon name="edit" className="size-4" />ویرایش</button><button type="button" onClick={() => void trashSelected()} className="panel-secondary-button !border-rose-200 !text-rose-600"><PanelIcon name="trash" className="size-4" />زباله‌دان</button></div></> : <PanelEmpty title="محتوایی برای پیش‌نمایش انتخاب نشده است." />}
+          {selected ? <><header className="mb-4 flex items-center justify-between"><h2 className="text-sm font-black text-[#183a5b]">پیش‌نمایش محتوا</h2><ContentStatus status={selected.status} /></header>{selected.cover_image_url ? <img src={selected.cover_image_url} alt="" className="h-44 w-full rounded-lg border border-slate-200 object-cover" /> : <div className="flex h-44 items-center justify-center rounded-lg border border-dashed border-slate-200 text-xs font-bold text-slate-500">بدون تصویر شاخص</div>}<h3 className="mt-4 text-lg font-black leading-8 text-[#172b43]">{selected.title}</h3>{selected.summary ? <p className="mt-2 text-xs font-bold leading-7 text-slate-500">{selected.summary}</p> : null}<dl className="mt-5 grid grid-cols-[5rem_1fr] gap-y-2 border-t border-slate-100 pt-4 text-xs font-bold text-slate-600"><dt>نویسنده:</dt><dd>{selected.author?.full_name ?? "ثبت نشده"}</dd><dt>واحد هدف:</dt><dd>{selected.scope === "school" ? "کل مدرسه" : selected.unit?.title ?? "واحد ثبت نشده"}</dd><dt>دسته‌بندی:</dt><dd>{selected.category?.title ?? "بدون دسته‌بندی"}</dd><dt>انتشار:</dt><dd>{formatDate(selected.published_at ?? selected.scheduled_at)}</dd></dl><div className="mt-5"><button type="button" onClick={() => setEditor({ mode: "advanced", item: selected })} className="panel-secondary-button w-full"><PanelIcon name="edit" className="size-4" />ویرایش</button></div></> : <PanelEmpty title="محتوایی برای پیش‌نمایش انتخاب نشده است." />}
         </aside>
 
         <section className="panel-card min-w-0">
           <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <label className="panel-search"><PanelIcon name="search" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="panel-input" placeholder="جست‌وجو در عنوان یا خلاصه…" /></label>
+            <label className="panel-search"><PanelIcon name="search" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="panel-input" placeholder="جست‌وجو در عنوان یا خلاصه…" aria-label="جست‌وجو در عنوان یا خلاصه" /></label>
             <select value={status} onChange={(event) => { setStatus(event.target.value as ContentWorkflowStatus | ""); setPage(1); }} className="panel-select" aria-label="وضعیت محتوا"><option value="">همه وضعیت‌ها</option>{statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
             <select value={ordering} onChange={(event) => { setOrdering(event.target.value as (typeof orderingOptions)[number]["value"]); setPage(1); }} className="panel-select" aria-label="مرتب‌سازی محتوا">{orderingOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
             <select value={scope} onChange={(event) => { setScope(event.target.value as "school" | "unit" | ""); setPage(1); }} className="panel-select" aria-label="دامنه محتوا"><option value="">همه دامنه‌ها</option><option value="school">کل مجموعه</option><option value="unit">واحد آموزشی</option></select>
@@ -1303,17 +1668,29 @@ export function EditorialWorkspace({
             <div className="flex gap-2"><button type="button" onClick={() => { setQueueMode("all"); setPage(1); }} className={"panel-secondary-button flex-1 " + (queueMode === "all" ? "!border-blue-300 !text-blue-700" : "")}>همه صف‌ها</button><button type="button" onClick={() => { setQueueMode("mine"); setPage(1); }} className={"panel-secondary-button flex-1 " + (queueMode === "mine" ? "!border-blue-300 !text-blue-700" : "")}>کارهای من</button></div>
           </div>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><p className="text-xs font-bold text-slate-500">فیلترها در همین مرورگر حفظ می‌شوند؛ «کارهای من» از فیلتر امن author=me استفاده می‌کند.</p><button type="button" onClick={resetFilters} className="panel-secondary-button"><PanelIcon name="filter" className="size-4" />پاک‌کردن فیلترها</button></div>
-          {selectedIds.length ? <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-[#173652]"><span>{selectedIds.length.toLocaleString("fa-IR")} مورد انتخاب شده</span><button disabled={bulkPending} type="button" onClick={() => void moveSelected("archive")} className="panel-secondary-button">بایگانی گروهی</button><button disabled={bulkPending} type="button" onClick={() => void moveSelected("trash")} className="panel-secondary-button !border-rose-200 !text-rose-700">انتقال گروهی به زباله‌دان</button></div> : null}
+          {selectedIds.length ? <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-[#173652]"><span>{selectedIds.length.toLocaleString("fa-IR")} مورد انتخاب شده</span><button disabled={bulkPending} type="button" onClick={() => void moveSelected("archive")} className="panel-secondary-button">آرشیو گروهی</button></div> : null}
           {items.length ? (
             <>
               {/* Below md: a stacked card per row -- 8 columns of horizontal
                   scroll with no visible affordance was the exact pattern
                   flagged for a deliberate mobile layout instead. */}
-              <div className="grid gap-3 md:hidden">
+              <div className="grid grid-cols-1 gap-3 md:hidden">
                 {items.map((entry) => (
                   <article
                     key={entry.id}
                     onClick={() => setSelectedId(entry.id)}
+                    // FE-PANEL-MEDIA-REVIEW-MOBILE-CARD-KEYBOARD-001: this
+                    // card had only onClick -- no tabIndex/role/keyboard
+                    // handler at all, unlike the desktop <tr> below which
+                    // already has the full treatment. Matches that same
+                    // established pattern (role="button" instead of the
+                    // desktop row's implicit row semantics, since this is a
+                    // card, not a table row).
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={String(effectiveSelectedId) === String(entry.id)}
+                    aria-label={"مشاهده " + entry.title}
+                    onKeyDown={(event) => handleSelectableRowKeyDown(event, () => setSelectedId(entry.id))}
                     className={`rounded-lg border p-4 ${String(effectiveSelectedId) === String(entry.id) ? "border-blue-300 bg-blue-50/40" : "border-slate-200 bg-white"}`}
                   >
                     <div className="flex items-start gap-3">
@@ -1351,7 +1728,7 @@ export function EditorialWorkspace({
                 ))}
               </div>
 
-              <div className="hidden overflow-x-auto rounded-lg border border-slate-200 md:block"><table className="panel-table min-w-[62rem]"><thead><tr><th><input type="checkbox" checked={allPageSelected} onChange={togglePageSelection} aria-label="انتخاب همه موارد صفحه" /></th><th>عنوان</th><th>نوع</th><th>دسته‌بندی</th><th>واحد آموزشی</th><th>وضعیت</th><th>نویسنده</th><th>تاریخ انتشار</th><th>عملیات</th></tr></thead><tbody>{items.map((entry) => <tr key={entry.id} onClick={() => setSelectedId(entry.id)} className={String(effectiveSelectedId) === String(entry.id) ? "is-selected" : ""}><td><input type="checkbox" checked={selectedIds.some((id) => String(id) === String(entry.id))} onClick={(event) => event.stopPropagation()} onChange={() => toggleSelected(entry.id)} aria-label={"انتخاب " + entry.title} /></td><td className="max-w-64 whitespace-normal font-black leading-6 text-[#172b43]">{entry.title}</td><td>{entry.kind === "news" ? "خبر" : "اطلاعیه"}</td><td>{entry.category?.title ?? "—"}</td><td>{entry.scope === "school" ? "کل مدرسه" : entry.unit?.title ?? "—"}</td><td><ContentStatus status={entry.status} /></td><td>{entry.author?.full_name ?? "—"}</td><td>{formatDate(entry.published_at ?? entry.scheduled_at ?? entry.created_at)}</td><td><button type="button" onClick={(event) => { event.stopPropagation(); setEditor({ mode: "advanced", item: entry }); }} className="panel-icon-button !size-8" aria-label={"ویرایش " + entry.title}><PanelIcon name="edit" className="size-4" /></button></td></tr>)}</tbody></table></div>
+              <div className="hidden overflow-x-auto rounded-lg border border-slate-200 md:block"><table className="panel-table min-w-[62rem]"><thead><tr><th><input type="checkbox" checked={allPageSelected} onChange={togglePageSelection} aria-label="انتخاب همه موارد صفحه" /></th><th>عنوان</th><th>نوع</th><th>دسته‌بندی</th><th>واحد آموزشی</th><th>وضعیت</th><th>نویسنده</th><th>تاریخ انتشار</th><th>عملیات</th></tr></thead><tbody>{items.map((entry) => <tr key={entry.id} onClick={() => setSelectedId(entry.id)} onKeyDown={(event) => handleSelectableRowKeyDown(event, () => setSelectedId(entry.id))} tabIndex={0} aria-selected={String(effectiveSelectedId) === String(entry.id)} className={String(effectiveSelectedId) === String(entry.id) ? "is-selected" : ""}><td><input type="checkbox" checked={selectedIds.some((id) => String(id) === String(entry.id))} onClick={(event) => event.stopPropagation()} onChange={() => toggleSelected(entry.id)} aria-label={"انتخاب " + entry.title} /></td><td className="max-w-64 whitespace-normal font-black leading-6 text-[#172b43]">{entry.title}</td><td>{entry.kind === "news" ? "خبر" : "اطلاعیه"}</td><td>{entry.category?.title ?? "—"}</td><td>{entry.scope === "school" ? "کل مدرسه" : entry.unit?.title ?? "—"}</td><td><ContentStatus status={entry.status} /></td><td>{entry.author?.full_name ?? "—"}</td><td>{formatDate(entry.published_at ?? entry.scheduled_at ?? entry.created_at)}</td><td><button type="button" onClick={(event) => { event.stopPropagation(); setEditor({ mode: "advanced", item: entry }); }} className="panel-icon-button !size-8" aria-label={"ویرایش " + entry.title}><PanelIcon name="edit" className="size-4" /></button></td></tr>)}</tbody></table></div>
 
               <footer className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-slate-500"><span>صفحه {page.toLocaleString("fa-IR")} — مجموع {(request.data?.count ?? 0).toLocaleString("fa-IR")} مورد</span><div className="flex gap-2"><button disabled={!request.data?.previous} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button" className="panel-secondary-button">صفحه قبل</button><button disabled={!request.data?.next} onClick={() => setPage((value) => value + 1)} type="button" className="panel-secondary-button">صفحه بعد</button></div></footer>
             </>

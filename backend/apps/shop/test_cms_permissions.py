@@ -1,5 +1,9 @@
+import io
+
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from PIL import Image
 from rest_framework.test import APIClient
 
 from apps.accounts.models import UserProfile
@@ -9,6 +13,13 @@ from .services import cart_service, checkout_service
 from .tests import make_physical_product
 
 User = get_user_model()
+
+
+def _make_test_image(name="product.png"):
+    buffer = io.BytesIO()
+    Image.new("RGB", (20, 20), color="white").save(buffer, "PNG")
+    buffer.seek(0)
+    return SimpleUploadedFile(name=name, content=buffer.read(), content_type="image/png")
 
 
 class ShopCMSPermissionTests(TestCase):
@@ -157,6 +168,25 @@ class ShopCMSPermissionTests(TestCase):
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Product.objects.filter(pk=product.pk).exists())
 
+    def test_general_manager_can_edit_a_draft_physical_product_keeping_its_own_sku(self):
+        product = self._create_draft_product()
+        self._as(self.general_manager)
+
+        response = self.client.patch(
+            f"/api/cms/shop/products/{product.pk}/",
+            {
+                "title": "محصول آزمایشی (ویرایش‌شده)",
+                "physical_detail": {
+                    "sku": f"SKU-{product.pk}",
+                    "inventory_qty": 12,
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["physical_detail"]["inventory_qty"], 12)
+
     def test_media_manager_cannot_edit_a_published_product(self):
         product = self._create_draft_product()
         product.status = Product.Status.PUBLISHED
@@ -168,6 +198,62 @@ class ShopCMSPermissionTests(TestCase):
             f"/api/cms/shop/products/{product.pk}/", {"title": "تغییر عنوان"}, format="json"
         )
         self.assertEqual(response.status_code, 403)
+
+    def test_media_manager_cannot_upload_gallery_image_to_a_published_product(self):
+        product = self._create_draft_product()
+        product.status = Product.Status.PUBLISHED
+        product.published_at = product.created_at.date()
+        product.save()
+
+        self._as(self.unit_media)
+        response = self.client.post(
+            f"/api/cms/shop/products/{product.pk}/upload-image/",
+            {"image": _make_test_image()},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(product.gallery_images.exists())
+
+    def test_media_manager_cannot_upload_gallery_image_to_an_archived_product(self):
+        product = self._create_draft_product()
+        product.status = Product.Status.ARCHIVED
+        product.save()
+
+        self._as(self.unit_media)
+        response = self.client.post(
+            f"/api/cms/shop/products/{product.pk}/upload-image/",
+            {"image": _make_test_image()},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(product.gallery_images.exists())
+
+    def test_media_manager_can_upload_gallery_image_to_a_draft_product(self):
+        product = self._create_draft_product()
+
+        self._as(self.unit_media)
+        response = self.client.post(
+            f"/api/cms/shop/products/{product.pk}/upload-image/",
+            {"image": _make_test_image()},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertTrue(product.gallery_images.exists())
+
+    def test_general_manager_can_upload_gallery_image_to_a_published_product(self):
+        product = self._create_draft_product()
+        product.status = Product.Status.PUBLISHED
+        product.published_at = product.created_at.date()
+        product.save()
+
+        self._as(self.general_manager)
+        response = self.client.post(
+            f"/api/cms/shop/products/{product.pk}/upload-image/",
+            {"image": _make_test_image()},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertTrue(product.gallery_images.exists())
 
     # --- Categories --------------------------------------------------------
 

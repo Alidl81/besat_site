@@ -54,6 +54,7 @@ THIRD_PARTY_APPS = [
     "django_filters",
     "drf_spectacular",
     "rest_framework_simplejwt.token_blacklist",
+    "django_prometheus",
 ]
 
 LOCAL_APPS = [
@@ -82,6 +83,11 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 
 MIDDLEWARE = [
+    # Outermost per django-prometheus's own requirement: sees the request
+    # first and (because Django unwinds the response phase in reverse
+    # middleware order) the response last, so its timing wraps everything
+    # below it, including every other middleware.
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -91,6 +97,12 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Needs the final response (status code) and, for `route`, the URL
+    # resolver match that's only guaranteed populated once every earlier
+    # middleware/the view has run -- placed just inside
+    # PrometheusAfterMiddleware so it still sees that same final state.
+    "apps.core.middleware.RequestLoggingMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 
@@ -120,6 +132,34 @@ DATABASES = {
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
     )
 }
+
+# PostgreSQL-only server-side safety timeouts -- see
+# docs/reliability/POSTGRESQL_RELIABILITY.md for the reasoning and the
+# capacity math behind each value. Skipped for sqlite (the local
+# no-Docker fallback default above), which doesn't understand libpq
+# connection options. All three default to unlimited (0) in a stock
+# PostgreSQL install, which is exactly the "long-running request"/
+# "long transaction"/"lock wait forever" failure mode documented in
+# docs/reliability/FAILURE_MATRIX.md -- this closes it at the connection
+# level, independent of any one view remembering to set its own timeout.
+if DATABASES["default"].get("ENGINE") == "django.db.backends.postgresql":
+    DATABASES["default"].setdefault("OPTIONS", {})
+    DATABASES["default"]["OPTIONS"]["options"] = (
+        # 30s: generously above any real request's expected query time
+        # (the slowest endpoints in this app are simple list/detail
+        # queries with default pagination), well below GUNICORN_TIMEOUT
+        # (60s) so a runaway query is killed by Postgres before gunicorn
+        # would otherwise kill the whole worker.
+        "-c statement_timeout=30000 "
+        # 60s: a transaction left open and idle (client crashed mid-
+        # transaction, forgot to commit) releases its locks instead of
+        # holding them indefinitely.
+        "-c idle_in_transaction_session_timeout=60000 "
+        # 10s: a request waiting on a row/table lock fails fast with a
+        # clear error instead of queuing behind a stuck transaction for
+        # the full statement_timeout.
+        "-c lock_timeout=10000"
+    )
 
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -211,6 +251,21 @@ if TRUST_PROXY_HEADERS:
     USE_X_FORWARDED_HOST = True
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+# Gates GET /api/health/deep/ (apps.core.views.deep_health_check) --
+# operational diagnostics, not a public API. Empty by default, which fails
+# the endpoint CLOSED (see _deep_health_authorized): an unconfigured token
+# means the endpoint is unreachable by anyone rather than accidentally
+# open to the internet. Set to a long random value in any environment
+# where deep health actually needs to be polled (e.g. by the future Ops
+# Portal or an internal monitoring probe), and send it as the
+# X-Internal-Health-Token header.
+INTERNAL_HEALTH_TOKEN = env("INTERNAL_HEALTH_TOKEN", default="")
+
+# apps.core.alerting.fire_alert's email channel. Empty by default (no
+# alert email sent, only the structured log line) -- see
+# docs/reliability/ALERTING.md for exactly what this is and is not.
+ALERT_RECIPIENT_EMAIL = env("ALERT_RECIPIENT_EMAIL", default="")
+
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -242,6 +297,23 @@ REST_FRAMEWORK = {
         "checkout": "20/hour",
         "payment_callback": "60/hour",
     },
+
+    # SimpleRateThrottle.get_ident() trusts the caller-supplied
+    # X-Forwarded-For header verbatim as the rate-limit identity whenever
+    # NUM_PROXIES is left at its DRF default of None -- so with the
+    # backend port reachable directly (docker-compose.prod.yml publishes
+    # it with no reverse proxy defined in this repo), any caller can set a
+    # fresh X-Forwarded-For value per request and get a fresh throttle
+    # bucket every time, completely defeating AnonRateThrottle /
+    # ScopedRateThrottle (login brute-force, contact/registration spam,
+    # payment-callback abuse, ...). NUM_PROXIES=0 makes get_ident() ignore
+    # X-Forwarded-For entirely and always use REMOTE_ADDR, which is exactly
+    # right when nothing in front of Django is trusted to have set that
+    # header -- the same condition TRUST_PROXY_HEADERS above already
+    # gates. Only when TRUST_PROXY_HEADERS is on (a single header-owning
+    # reverse proxy confirmed to be in front of Django) do we trust the
+    # single rightmost hop of X-Forwarded-For.
+    "NUM_PROXIES": 1 if TRUST_PROXY_HEADERS else 0,
 
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
@@ -280,5 +352,55 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
     "UPDATE_LAST_LOGIN": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+
+# Structured JSON logging -- see docs/reliability/OBSERVABILITY.md.
+# Previously: no LOGGING setting existed at all, meaning Django's bare
+# implicit default applied (unstructured console output, no redaction,
+# no per-request correlation). "besat.request" (one line per HTTP
+# request, emitted by apps.core.middleware.RequestLoggingMiddleware) and
+# "besat.health" (apps.core.views, the DB-connectivity probe's own
+# error logging) are the two loggers currently in active use;
+# django.request keeps Django's own request-level error reporting
+# flowing through the same JSON formatter instead of its default
+# plain-text one, so a real backend exception is still visible in
+# server logs even though apps.core.views deliberately never returns
+# it in an HTTP response body.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "()": "apps.core.logging_utils.JSONFormatter",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "besat": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
 }
     

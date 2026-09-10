@@ -30,8 +30,13 @@ export type ProductListQuery = {
   ordering?: string;
 };
 
-export function getShopProducts(query: ProductListQuery = {}) {
-  return apiRequest<ApiListResponse<ProductListItem>>(withQuery(apiEndpoints.shop.products, query));
+// FE-CATALOG-FILTER-URL-MIXED-REQUEST-001 (residual): accepting an
+// optional AbortSignal lets a caller actually cancel a superseded request's
+// transport (not just discard its result once it lands) -- see
+// ShopExplorer's fetch effect, which aborts the previous request's
+// controller before issuing a new one on a filter/page/URL change.
+export function getShopProducts(query: ProductListQuery = {}, signal?: AbortSignal) {
+  return apiRequest<ApiListResponse<ProductListItem>>(withQuery(apiEndpoints.shop.products, query), { signal });
 }
 
 export function getShopProduct(slug: string) {
@@ -57,7 +62,7 @@ export function getCart(guestToken: string | null): Promise<CartTransportResult<
 
 export function addCartItem(
   guestToken: string | null,
-  payload: { product_id: number; variant_id?: number | null; quantity: number },
+  payload: { product_id: number; variant_id?: number | null; quantity: number; client_request_id?: string },
 ): Promise<CartTransportResult<Cart>> {
   return cartApiRequest<Cart>(apiEndpoints.shop.cartItems, {
     method: "POST",

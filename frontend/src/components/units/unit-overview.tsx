@@ -40,7 +40,7 @@ export function UnitOverview({ slug }: { slug: string }) {
   if (error || notFound) {
     return (
       <PublicPageLayout>
-        <main className="bg-slate-50 py-20">
+        <div className="bg-slate-50 py-20">
           <Container>
             <div role={error ? "alert" : undefined} className="rounded-lg border border-slate-200 bg-white p-10 text-center">
               <School aria-hidden="true" className="mx-auto size-10 text-slate-400" />
@@ -61,7 +61,7 @@ export function UnitOverview({ slug }: { slug: string }) {
               ) : null}
             </div>
           </Container>
-        </main>
+        </div>
       </PublicPageLayout>
     );
   }
@@ -69,7 +69,7 @@ export function UnitOverview({ slug }: { slug: string }) {
   if (!unit) {
     return (
       <PublicPageLayout>
-        <main aria-busy="true" className="min-h-[32rem] animate-pulse bg-slate-100 motion-reduce:animate-none" />
+        <div aria-busy="true" className="min-h-[32rem] animate-pulse bg-slate-100 motion-reduce:animate-none" />
       </PublicPageLayout>
     );
   }
@@ -93,7 +93,7 @@ export function UnitOverview({ slug }: { slug: string }) {
         </Container>
       </header>
 
-      <main className="bg-slate-50 py-8">
+      <div className="bg-slate-50 py-8">
         <Container className="space-y-8">
           <UnitScopedTabs slug={slug} active="overview" />
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -106,7 +106,7 @@ export function UnitOverview({ slug }: { slug: string }) {
           </section>
           <UnitRegistrationCta unit={unit} />
         </Container>
-      </main>
+      </div>
     </PublicPageLayout>
   );
 }

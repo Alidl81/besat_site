@@ -23,17 +23,20 @@ import heading from "@iconify-icons/tabler/heading";
 import image from "@iconify-icons/tabler/photo";
 import italic from "@iconify-icons/tabler/italic";
 import link from "@iconify-icons/tabler/link";
+import more from "@iconify-icons/tabler/dots";
 import orderedList from "@iconify-icons/tabler/list-numbers";
 import paragraph from "@iconify-icons/tabler/pilcrow";
 import quote from "@iconify-icons/tabler/quote";
 import redo from "@iconify-icons/tabler/arrow-forward-up";
 import search from "@iconify-icons/tabler/search";
+import settings from "@iconify-icons/tabler/settings";
 import strike from "@iconify-icons/tabler/strikethrough";
 import table from "@iconify-icons/tabler/table";
 import trash from "@iconify-icons/tabler/trash";
 import underline from "@iconify-icons/tabler/underline";
 import undo from "@iconify-icons/tabler/arrow-back-up";
 import upload from "@iconify-icons/tabler/upload";
+import video from "@iconify-icons/tabler/video";
 
 export type EditorIconName =
   | "alert-circle"
@@ -59,17 +62,20 @@ export type EditorIconName =
   | "image"
   | "italic"
   | "link"
+  | "more"
   | "ordered-list"
   | "paragraph"
   | "quote"
   | "redo"
   | "search"
+  | "settings"
   | "strike"
   | "table"
   | "trash"
   | "underline"
   | "undo"
-  | "upload";
+  | "upload"
+  | "video";
 
 const icons: Record<EditorIconName, IconifyIcon> = {
   "alert-circle": alertCircle,
@@ -95,17 +101,20 @@ const icons: Record<EditorIconName, IconifyIcon> = {
   image,
   italic,
   link,
+  more,
   "ordered-list": orderedList,
   paragraph,
   quote,
   redo,
   search,
+  settings,
   strike,
   table,
   trash,
   underline,
   undo,
   upload,
+  video,
 };
 
 type EditorIconProps = Omit<IconProps, "icon"> & {

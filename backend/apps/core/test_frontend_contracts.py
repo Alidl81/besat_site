@@ -6,7 +6,7 @@ from apps.accounts.models import UserProfile
 from apps.contact.models import ContactMessage
 from apps.gallery.models import GalleryItem
 from apps.home.models import HomeSlide
-from apps.registration.models import RegistrationRequest
+from apps.registration.models import RegistrationInfo, RegistrationRequest
 from apps.units.models import SchoolUnit
 
 
@@ -28,6 +28,13 @@ class FrontendBackendContractTests(TestCase):
             gender=SchoolUnit.Gender.BOYS,
             is_active=True,
         )
+        # REG-REGISTRATION-CLOSED-BYPASS-001: a registration submission is
+        # now rejected outright when there is no active RegistrationInfo
+        # row at all (not just when one exists and is explicitly closed) --
+        # this fixture predates that fix and needs an active row for its
+        # own registration-submission assertions to reach the behavior
+        # they're actually testing.
+        RegistrationInfo.objects.create(title="ثبت‌نام", is_open=True, is_active=True)
 
     def authenticate_manager(self):
         self.client.force_authenticate(self.manager)
@@ -136,6 +143,7 @@ class FrontendBackendContractTests(TestCase):
                 {
                     "status": next_status,
                     "published_at": "2026-07-11",
+                    "version": content_response.data["version"],
                 },
                 format="json",
             )
@@ -144,8 +152,8 @@ class FrontendBackendContractTests(TestCase):
         self.client.force_authenticate(user=None)
         anonymous_content = self.client.get("/api/cms/content/")
         self.assertEqual(anonymous_content.status_code, 200)
-        self.assertEqual(anonymous_content.data[0]["kind"], "news")
-        self.assertEqual(anonymous_content.data[0]["cover_image_url"], "/images/news.jpg")
+        self.assertEqual(anonymous_content.data["results"][0]["kind"], "news")
+        self.assertEqual(anonymous_content.data["results"][0]["cover_image_url"], "/images/news.jpg")
 
     def test_missing_cms_repository_paths_support_crud(self):
         self.authenticate_manager()

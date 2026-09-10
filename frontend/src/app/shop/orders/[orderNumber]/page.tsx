@@ -8,6 +8,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Per-user order data -- must not be statically generated as one shared page.
+export const dynamic = "force-dynamic";
+
 export default async function OrderDetailPage({
   params,
 }: {

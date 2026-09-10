@@ -1,3 +1,5 @@
+import { safePublicMediaUrl } from "@/lib/media/safe-url";
+
 export type StructuredMediaItem = {
   id?: string;
   src: string;
@@ -26,18 +28,33 @@ function attribute(name: string, value: string | undefined) {
   return value ? ` ${name}="${escapeHtml(value)}"` : "";
 }
 
+// FE-RICH-MEDIA-PROTOCOL-RELATIVE-001: this used to accept any value
+// merely starting with "/" as a same-origin local path, which also let a
+// protocol-relative "//evil.example/..." through unchanged -- the browser
+// resolves that against "evil.example", not this site, sending an
+// unreviewed cross-origin media request (and its referrer) for untrusted
+// CMS-authored rich content. isSafeRelativePath() rejects that and the
+// related backslash/parser-normalization bypass variants.
+//
+// SEC-FE-RICH-MEDIA-PARSER-001: the absolute-URL branch had the same
+// bare-`new URL()` gap already fixed in isSafeExternalHttpUrl and
+// lib/media/safe-url.ts -- a backslash-scheme form like
+// "http:\\evil.example/pixel.jpg" parses identically to the honest
+// forward-slash form.
+//
+// SEC-FE-RICH-MEDIA-ORIGIN-001: this used to stop at validating the URL,
+// same as safePublicMediaUrl() did before FE-PUBLIC-MEDIA-ORIGIN-001 --
+// so a persisted rich-content gallery/media `src` the backend built with
+// the wrong Host (e.g. an absolute "http://localhost:3000/media/..." in a
+// real deployment) passed validation unchanged and was rendered as a dead
+// cross-origin <img>, tripping the CSP img-src allowlist exactly like the
+// public gallery/shop sinks did. Delegating entirely to the shared,
+// already-fixed safePublicMediaUrl() closes both the parser bypass and the
+// origin bypass here in one place instead of re-deriving either a third
+// time -- every public media sink now goes through the identical
+// normalization.
 export function safeStructuredMediaUrl(value: string | null | undefined) {
-  if (!value) return null;
-  if (value.startsWith("/")) return value;
-
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === "https:" || parsed.protocol === "http:"
-      ? parsed.toString()
-      : null;
-  } catch {
-    return null;
-  }
+  return safePublicMediaUrl(value);
 }
 
 export function normalizeSafeEmbedUrl(value: string | null | undefined) {

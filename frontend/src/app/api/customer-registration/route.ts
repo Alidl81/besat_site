@@ -1,5 +1,7 @@
 import { requestBackend } from "@/lib/server/backend-client";
+import { isCrossOriginMutation } from "@/lib/server/cross-origin-guard";
 import { appendSessionCookies } from "@/lib/server/session-cookies";
+import { isNonEmptyToken } from "@/lib/server/token-validation";
 
 // Mirrors /api/session's POST handler exactly (same cookie-issuing
 // mechanism, same response shape) but calls auth/register instead of
@@ -20,6 +22,15 @@ function errorResponse(message: string, status: number, extra?: Record<string, u
   return Response.json({ detail: message, ...extra }, { status });
 }
 
+// SEC-FE-AUTH-LOGIN-CSRF-001: this route issues the session cookie
+// directly on a successful signup, but never checked Origin first -- see
+// lib/server/cross-origin-guard.ts for the full rationale (shared with
+// /api/session's identical guard).
+function rejectCrossOrigin(request: Request) {
+  if (!isCrossOriginMutation(request)) return null;
+  return errorResponse("درخواست از مبدأ نامعتبر پذیرفته نشد.", 403);
+}
+
 async function responseJson(response: Response) {
   try {
     return await response.json();
@@ -29,6 +40,9 @@ async function responseJson(response: Response) {
 }
 
 export async function POST(request: Request) {
+  const rejected = rejectCrossOrigin(request);
+  if (rejected) return rejected;
+
   let payload: RegisterPayload;
   try {
     payload = await request.json();
@@ -69,7 +83,11 @@ export async function POST(request: Request) {
     }
 
     const result = body as { access?: unknown; refresh?: unknown; user?: unknown; redirect_path?: unknown };
-    if (typeof result.access !== "string" || typeof result.refresh !== "string" || !result.user) {
+    // AUTH-FE-SESSION-EMPTY-TOKENS-001: a mere typeof check accepts an
+    // empty or whitespace-only string just as readily as a real token --
+    // see lib/server/token-validation.ts for the full rationale (shared
+    // with the BFF refresh path and /api/session).
+    if (!isNonEmptyToken(result.access) || !isNonEmptyToken(result.refresh) || !result.user) {
       return errorResponse("پاسخ ثبت‌نام بک‌اند کامل نیست.", 502);
     }
 

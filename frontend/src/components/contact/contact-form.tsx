@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2, Send } from "lucide-react";
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { ApiError, getApiErrorMessage } from "@/lib/api/client";
 import { submitContactMessage } from "@/services/public-content-service";
 import type {
@@ -39,7 +39,7 @@ const fieldLabels: Record<FieldName, string> = {
 };
 
 const inputClass =
-  "min-h-12 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm font-bold text-[#0f2f4a] outline-none transition focus:border-[#b97827] focus:ring-4 focus:ring-amber-100 motion-reduce:transition-none";
+  "besat-focus-scroll-offset min-h-12 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm font-bold text-[#0f2f4a] outline-none transition focus:border-[#b97827] focus:ring-4 focus:ring-amber-100 motion-reduce:transition-none";
 
 export function validateContactMessage(
   payload: ContactMessagePayload,
@@ -111,6 +111,18 @@ export function ContactForm({
   );
   const pendingRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const successRef = useRef<HTMLDivElement>(null);
+
+  // Submitting from far down a long page leaves the success panel
+  // rendered off-screen (the form it replaces was much taller) with focus
+  // abandoned on BODY -- move focus to the panel and bring it into view
+  // explicitly rather than relying on the browser's default post-render
+  // scroll position, which doesn't follow a content swap like this.
+  useEffect(() => {
+    if (state !== "success") return;
+    successRef.current?.focus();
+    successRef.current?.scrollIntoView({ block: "center" });
+  }, [state]);
 
   function payloadFromForm(form: HTMLFormElement): ContactMessagePayload {
     const formData = new FormData(form);
@@ -136,9 +148,20 @@ export function ContactForm({
     }
 
     window.requestAnimationFrame(() => {
-      formRef.current
-        ?.querySelector<HTMLElement>(`[name="${first}"]`)
-        ?.focus();
+      const target = formRef.current?.querySelector<HTMLElement>(`[name="${first}"]`);
+      if (!target) return;
+      // .focus() alone triggers the browser's own "scroll into view if
+      // needed" heuristic, which only scrolls the *minimum* distance to
+      // make the element nearest-visible -- combined with the fields'
+      // md:grid-cols-2 layout (a field that's stacked far down the page
+      // at narrow widths can already sit much closer to the top once the
+      // grid goes two-column at md), that minimal scroll sometimes isn't
+      // enough to actually clear besat-focus-scroll-offset's reserved
+      // space at every breakpoint. An explicit scrollIntoView with
+      // block: "center" is deterministic regardless of the field's prior
+      // on-screen position or which grid column it's in.
+      target.focus();
+      target.scrollIntoView({ block: "center" });
     });
   }
 
@@ -235,7 +258,7 @@ export function ContactForm({
       className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,35,57,0.08)]"
     >
       <div className="border-b border-slate-200 bg-[#f8fafc] p-6 sm:p-8">
-        <p className="text-sm font-black text-[#b97827]">بازخورد و پیگیری</p>
+        <p className="text-sm font-black text-[#8a641f]">بازخورد و پیگیری</p>
         <h2 id="contact-form-title" className="mt-2 text-2xl font-black text-[#0f2f4a]">
           ارسال پیام
         </h2>
@@ -245,7 +268,7 @@ export function ContactForm({
       </div>
 
       {state === "success" ? (
-        <div className="p-6 text-center sm:p-8" role="status" aria-live="polite">
+        <div ref={successRef} tabIndex={-1} className="p-6 text-center outline-none sm:p-8" role="status" aria-live="polite">
           <CheckCircle2 aria-hidden="true" className="mx-auto size-11 text-emerald-700" />
           <h3 className="mt-4 text-xl font-black text-emerald-900">پیام ثبت شد</h3>
           <p className="mt-2 text-sm font-bold leading-7 text-emerald-800">{message}</p>
@@ -420,7 +443,7 @@ export function ContactForm({
               onInput={() => clearFieldErrors(["message"])}
               aria-invalid={Boolean(errors.message)}
               aria-describedby={errors.message ? "message-error" : "message-help"}
-              className="w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold leading-7 text-[#0f2f4a] outline-none transition focus:border-[#b97827] focus:ring-4 focus:ring-amber-100 motion-reduce:transition-none"
+              className="besat-focus-scroll-offset w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold leading-7 text-[#0f2f4a] outline-none transition focus:border-[#b97827] focus:ring-4 focus:ring-amber-100 motion-reduce:transition-none"
             />
             <p id="message-help" className="mt-2 text-xs font-bold text-slate-500">
               حداقل ۱۰ کاراکتر وارد کنید.

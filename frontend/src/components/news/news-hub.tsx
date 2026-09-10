@@ -1,9 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useGSAP } from "@gsap/react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { CalendarDays, FilterX, Newspaper, RefreshCw, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getApiErrorMessage } from "@/lib/api/client";
+import { ensureScrollTriggerRegistered, prefersReducedMotion } from "@/lib/motion/gsap-scroll-trigger";
 import { safePublicMediaUrl } from "@/lib/media/safe-url";
 import {
   getPublicNews,
@@ -69,9 +74,17 @@ type Filters = {
 
 const initialFilters: Filters = { search: "", categorySlug: "", unitId: "", page: 1 };
 
-function readInitialFilters(): Filters {
-  if (typeof window === "undefined") return initialFilters;
-  const params = new URLSearchParams(window.location.search);
+// Reads from Next.js's own useSearchParams() rather than
+// window.location.search directly -- the latter returns initialFilters on
+// the server (no window) but the real URL-derived values on the client's
+// first hydration pass, so any route with a non-default query string (e.g.
+// ?search=...) rendered different JSX (the "حذف فیلترها" clear-filters
+// button only appears when a filter is active) between the server HTML and
+// the client's initial render, a hydration mismatch (React error #418).
+// useSearchParams() is populated consistently by Next.js on both the
+// server and the client, so this produces the same initial value both
+// times (see FE-NEWS-ERROR-REACT-418-001).
+function filtersFromSearchParams(params: URLSearchParams): Filters {
   return {
     search: params.get("search") ?? "",
     categorySlug: params.get("category") ?? "",
@@ -91,7 +104,20 @@ function syncUrl(filters: Filters) {
 }
 
 export function NewsHub() {
-  const [filters, setFilters] = useState<Filters>(readInitialFilters);
+  const searchParams = useSearchParams();
+  const filtersFromUrl = useMemo(() => filtersFromSearchParams(searchParams), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [filters, setFilters] = useState<Filters>(filtersFromUrl);
+  // FE-CATALOG-FILTER-URL-REHYDRATION-001: `filtersFromUrl` above only
+  // seeds state once, at mount -- Next re-renders this same component
+  // instance with a changed `searchParams` on browser back/forward
+  // navigation, or when a link elsewhere on the site points at /news with
+  // different query params, and nothing previously reacted to that. Unlike
+  // ShopExplorer, syncUrl() below writes via raw `history.replaceState`
+  // rather than the router, so it never feeds back into `useSearchParams()`
+  // -- no echo to guard against here, every `searchParams` change this
+  // effect observes is a genuine external navigation.
+  const searchParamsKey = searchParams.toString();
+  const appliedSearchParamsKeyRef = useRef<string | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
   const [items, setItems] = useState<PublicNewsItem[] | null>(null);
   const [count, setCount] = useState(0);
@@ -99,14 +125,55 @@ export function NewsHub() {
   const [units, setUnits] = useState<PublicSchoolUnit[]>([]);
   const [error, setError] = useState("");
   const [requestVersion, setRequestVersion] = useState(0);
+  const gridRef = useRef<HTMLDivElement | null>(null);
+
+  // FE-NEWS-FILTER-CLEAR-MIXED-001: clearing filters used to only call
+  // setFilters(initialFilters) -- that resets `filters.search` immediately,
+  // but the fetch effect below actually queries with `debouncedSearch`, a
+  // separate state variable only caught up by the debounce effect 350ms
+  // later. With a category/unit also active, resetting them changed a
+  // *direct* dependency of the fetch effect, so it re-ran immediately using
+  // the still-stale `debouncedSearch` -- producing a wrong empty-result
+  // fetch, and syncUrl() (called from that same effect run) wrote the stale
+  // search term straight back into the URL. Clearing now resets
+  // `debouncedSearch` in the same commit, exactly matching the URL-
+  // rehydration effect's own established atomic-reset pattern above.
+  function clearFilters() {
+    setFilters(initialFilters);
+    setDebouncedSearch("");
+  }
 
   useEffect(() => {
+    if (appliedSearchParamsKeyRef.current === searchParamsKey) return;
+    appliedSearchParamsKeyRef.current = searchParamsKey;
+    const next = filtersFromSearchParams(searchParams);
+    setFilters(next);
+    // FE-CATALOG-FILTER-URL-MIXED-REQUEST-001: batched into the same
+    // commit as `setFilters` above (rather than left for the debounce
+    // effect below to catch up 400ms later) so the fetch effect never
+    // observes a half-rehydrated state -- an external URL change updating
+    // both `search` and, say, `unit` used to land in two separate
+    // commits: one with `unit` already updated but `debouncedSearch`
+    // still stale (an immediate fetch with a mixed old-search/new-unit
+    // tuple), then a second, correct fetch once the debounce caught up.
+    setDebouncedSearch(next.search);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParamsKey]);
+
+  useEffect(() => {
+    // Nothing pending -- either settled already, or just rehydrated
+    // atomically alongside `filters` by the rehydration effect above. The
+    // page-reset-to-1 below is specifically a *typing* behavior (a new
+    // search term should restart pagination); skipping it here also
+    // avoids clobbering a page number rehydration just set from the URL
+    // (e.g. `?search=new&page=5`) back to 1.
+    if (filters.search === debouncedSearch) return;
     const timer = window.setTimeout(() => {
       setDebouncedSearch(filters.search);
       setFilters((current) => (current.page === 1 ? current : { ...current, page: 1 }));
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [filters.search]);
+  }, [filters.search, debouncedSearch]);
 
   useEffect(() => {
     Promise.all([getPublicNewsCategories(), getPublicUnits()])
@@ -121,6 +188,15 @@ export function NewsHub() {
   }, []);
 
   useEffect(() => {
+    // FE-CATALOG-FILTER-URL-MIXED-REQUEST-001 (residual): `controller` was
+    // already created and its cleanup already called `controller.abort()`,
+    // but its `signal` was never actually passed to `getPublicNews()` --
+    // aborting it only ever set `controller.signal.aborted`, which the
+    // handlers below already checked to suppress a superseded response's
+    // *result*. The underlying request itself still ran to completion,
+    // wasting bandwidth/backend load on a response nobody would use (most
+    // visibly on a rapid A -> B -> C filter/URL change). Passing the
+    // signal through actually cancels the transport, not just its result.
     const controller = new AbortController();
     getPublicNews({
       page: filters.page,
@@ -131,7 +207,7 @@ export function NewsHub() {
       search: debouncedSearch || undefined,
       category: filters.categorySlug || undefined,
       unit_id: filters.unitId || undefined,
-    })
+    }, controller.signal)
       .then((response) => {
         if (controller.signal.aborted) return;
         setError("");
@@ -149,6 +225,42 @@ export function NewsHub() {
       });
     return () => controller.abort();
   }, [filters.page, filters.categorySlug, filters.unitId, debouncedSearch, requestVersion]);
+
+  // Editorial sequencing: cards settle in from the reading direction (right,
+  // in RTL) rather than Gallery's upward reveal -- the same batched-stagger
+  // technique, given a distinct feel per section instead of one motion
+  // vocabulary copy-pasted everywhere.
+  useGSAP(
+    () => {
+      if (!items || items.length === 0) return;
+      if (prefersReducedMotion()) return;
+
+      ensureScrollTriggerRegistered();
+
+      const cards = gridRef.current?.querySelectorAll(".news-card");
+      if (!cards || cards.length === 0) return;
+
+      gsap.set(cards, { opacity: 0, x: 24 });
+      const triggers = ScrollTrigger.batch(cards, {
+        start: "top 90%",
+        once: true,
+        onEnter: (batch) =>
+          gsap.to(batch, {
+            opacity: 1,
+            x: 0,
+            duration: 0.55,
+            stagger: 0.07,
+            ease: "power2.out",
+            overwrite: true,
+          }),
+      });
+
+      return () => {
+        triggers.forEach((trigger) => trigger.kill());
+      };
+    },
+    { scope: gridRef, dependencies: [items], revertOnUpdate: true },
+  );
 
   const hasActiveFilters = Boolean(filters.search || filters.categorySlug || filters.unitId);
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
@@ -208,7 +320,7 @@ export function NewsHub() {
         {hasActiveFilters ? (
           <button
             type="button"
-            onClick={() => setFilters(initialFilters)}
+            onClick={clearFilters}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-black text-slate-600 transition hover:border-rose-300 hover:text-rose-700"
           >
             <FilterX aria-hidden="true" className="size-4" />
@@ -255,7 +367,7 @@ export function NewsHub() {
           {hasActiveFilters ? (
             <button
               type="button"
-              onClick={() => setFilters(initialFilters)}
+              onClick={clearFilters}
               className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 px-5 text-sm font-black text-[#0f2f4a]"
             >
               حذف فیلترها
@@ -267,19 +379,19 @@ export function NewsHub() {
           <p className="text-sm font-bold text-slate-500">
             {new Intl.NumberFormat("fa-IR").format(count)} خبر
           </p>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div ref={gridRef} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((item) => (
-              <article key={item.id} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+              <article key={item.id} className="news-card overflow-hidden rounded-lg border border-slate-200 bg-white">
                 <div className="aspect-[16/9] overflow-hidden bg-slate-100">
                   <NewsImage item={item} />
                 </div>
                 <div className="p-5 text-right">
                   <NewsMeta item={item} />
-                  <h3 className="mt-3 text-base font-black leading-8 text-[#0f2f4a]">
+                  <h2 className="mt-3 text-base font-black leading-8 text-[#0f2f4a]">
                     <Link href={`/news/${encodeURIComponent(item.slug)}`} className="hover:text-blue-700">
                       {item.title}
                     </Link>
-                  </h3>
+                  </h2>
                   {item.summary ? (
                     <p className="mt-2 line-clamp-2 text-sm font-bold leading-7 text-slate-600">
                       {item.summary}

@@ -110,3 +110,44 @@ test("general manager sees the paid order in the admin panel", async ({ page }) 
   const rows = page.locator(".panel-table tbody tr");
   await expect(rows.first()).toBeVisible({ timeout: 20_000 });
 });
+
+test("product description editor: clicking to type focuses the editor, not the hidden image-upload file input", async ({ page }) => {
+  const password = process.env.BESAT_E2E_ADMIN_PASSWORD;
+  if (!password) throw new Error("BESAT_E2E_ADMIN_PASSWORD was not supplied to Playwright.");
+
+  await page.goto("/login");
+  await page.locator('input[name="username"]').fill("phase2-e2e-admin");
+  await page.locator('input[name="password"]').fill(password);
+  await page.getByRole("button", { name: "ورود" }).click();
+  await expect(page).toHaveURL(/\/dashboard\/admin$/, { timeout: 20_000 });
+
+  await page.goto("/dashboard/admin/shop/products");
+  await page.getByRole("button", { name: "محصول جدید" }).click();
+
+  const editor = page.locator(".besat-editor-canvas");
+  await expect(editor).toBeVisible();
+
+  // A regression here means clicking into the description text opens the
+  // native OS file picker (the label wrapping the editor was implicitly
+  // forwarding clicks to the editor's hidden image-upload <input type=file>).
+  // Playwright treats an unexpected file chooser as a hard failure by
+  // default, so simply not awaiting/handling one here already asserts it
+  // doesn't fire; the explicit listener makes the assertion legible too.
+  let fileChooserOpenedUnexpectedly = false;
+  page.once("filechooser", () => {
+    fileChooserOpenedUnexpectedly = true;
+  });
+
+  await editor.click();
+  await page.keyboard.type("توضیحات آزمایشی محصول");
+  await expect(editor).toContainText("توضیحات آزمایشی محصول");
+  expect(
+    fileChooserOpenedUnexpectedly,
+    "clicking into the description editor must not open the file picker",
+  ).toBe(false);
+
+  // The explicit toolbar action is the only thing that should open it.
+  const fileChooserPromise = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "بارگذاری تصویر" }).click();
+  await fileChooserPromise;
+});

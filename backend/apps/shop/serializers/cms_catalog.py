@@ -99,6 +99,16 @@ class PhysicalDetailCMSSerializer(serializers.ModelSerializer):
             "weight_grams", "length_mm", "width_mm", "height_mm",
             "requires_shipping", "max_purchase_quantity",
         )
+        # This serializer is nested and never bound with `instance=` (it only
+        # validates the shape of the `physical_detail` sub-payload -- the
+        # actual model instance is resolved later in
+        # CMSProductWriteSerializer._save_detail). DRF's auto-generated
+        # UniqueValidator has no instance to exclude in that case, so it
+        # would reject every update that keeps its own unchanged SKU.
+        # Real uniqueness is already enforced correctly by
+        # `detail.full_clean()` in _save_detail, which does have the right
+        # instance to exclude.
+        extra_kwargs = {"sku": {"validators": []}}
 
 
 class OnlineCourseDetailCMSSerializer(serializers.ModelSerializer):
@@ -252,6 +262,12 @@ class CMSProductWriteSerializer(serializers.Serializer):
         instance.save()
 
         self._save_detail(instance, physical_data, course_data)
+        # `instance` was fetched by the view with select_related("physical_detail",
+        # "online_course_detail", "in_person_course_detail"), so it still holds the
+        # pre-edit cached detail row even though _save_detail() just updated it in
+        # the database. Clear that stale cache so the response the view builds from
+        # this same instance reflects what was actually saved.
+        instance.refresh_from_db()
         return instance
 
     def _save_detail(self, product, physical_data, course_data):

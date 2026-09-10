@@ -117,6 +117,12 @@ class AddCartItemSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()
     variant_id = serializers.IntegerField(required=False, allow_null=True)
     quantity = serializers.IntegerField(min_value=1, default=1)
+    # REL-FE-CART-ADD-RESPONSE-LOSS-001: optional client-supplied
+    # idempotency key for this specific add attempt -- see
+    # CartItem.last_add_request_id's docstring and add_item()'s dedup
+    # check. Never required: an older/other client that doesn't send one
+    # gets the pre-existing always-increment behavior unchanged.
+    client_request_id = serializers.CharField(required=False, allow_blank=True, max_length=64)
 
 
 class UpdateCartItemSerializer(serializers.Serializer):

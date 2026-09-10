@@ -9,14 +9,10 @@ from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAuthenticatedAndActiveProfile
 from apps.accounts.selectors import get_or_create_user_profile
-from apps.announcements.models import Announcement
-from apps.gallery.models import GalleryItem
-from apps.news.models import News
 from apps.registration.models import RegistrationRequest
-from apps.staff.models import StaffMember
 
 from .models import PanelService, Program, Student
-from .views import user_is_general_manager, user_is_parent
+from .views import unit_performance_payloads, user_is_general_manager, user_is_parent
 
 
 def parent_child_payload(student):
@@ -162,51 +158,8 @@ class ReportsOverviewAPIView(APIView):
         from apps.accounts.models import UserProfile
         from apps.units.models import SchoolUnit
 
-        units = SchoolUnit.objects.filter(is_active=True).order_by("order", "id")
-        unit_payloads = [
-            {
-                "id": unit.id,
-                "title": unit.title,
-                "students_count": Student.objects.filter(unit=unit).count(),
-                "staff_count": StaffMember.objects.filter(
-                    is_active=True,
-                    scope=StaffMember.Scope.UNIT,
-                    unit=unit,
-                ).count(),
-                "new_registrations_count": RegistrationRequest.objects.filter(
-                    requested_unit=unit,
-                    created_at__year=timezone.now().year,
-                ).count(),
-                "published_content_count": (
-                    News.objects.filter(
-                        is_active=True,
-                        status=News.Status.PUBLISHED,
-                        scope=News.Scope.UNIT,
-                        unit=unit,
-                        published_at__isnull=False,
-                        published_at__lte=timezone.localdate(),
-                    ).count()
-                    + Announcement.objects.filter(
-                        is_active=True,
-                        status=Announcement.Status.PUBLISHED,
-                        scope=Announcement.Scope.UNIT,
-                        unit=unit,
-                        published_at__isnull=False,
-                        published_at__lte=timezone.localdate(),
-                    ).count()
-                    + GalleryItem.objects.filter(
-                        is_active=True,
-                        status=GalleryItem.Status.PUBLISHED,
-                        scope=GalleryItem.Scope.UNIT,
-                        unit=unit,
-                        published_at__isnull=False,
-                        published_at__lte=timezone.localdate(),
-                    ).count()
-                ),
-                "is_active": unit.is_active,
-            }
-            for unit in units
-        ]
+        units = SchoolUnit.objects.real().order_by("order", "id")
+        unit_payloads = unit_performance_payloads(units)
         return Response(
             {
                 "metrics": [
@@ -261,10 +214,18 @@ class PanelServicesAPIView(APIView):
     permission_classes = [IsAuthenticatedAndActiveProfile]
 
     def get(self, request):
-        audience = request.query_params.get("audience")
+        # AUTH-DASH-SERVICES-001: `audience` used to come straight from
+        # `request.query_params`, so any authenticated caller (a parent, in
+        # particular) could request `?audience=staff` -- or omit the param
+        # entirely, which never matched the "not in service.audiences"
+        # exclusion at all -- and receive every active PanelService row
+        # regardless of who it's actually meant for. The caller's audience
+        # must be derived from their own authenticated role, never trusted
+        # from the request.
+        audience = "parent" if user_is_parent(request.user) else "staff"
         payload = []
         for service in PanelService.objects.filter(is_active=True):
-            if audience and service.audiences and audience not in service.audiences:
+            if service.audiences and audience not in service.audiences:
                 continue
             payload.append({
                 "id": service.id,

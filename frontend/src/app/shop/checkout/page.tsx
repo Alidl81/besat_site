@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Per-session cart/checkout state -- must not be statically generated as one shared page.
+export const dynamic = "force-dynamic";
+
 export default function CheckoutPage() {
   return (
     <PublicPageLayout>

@@ -15,8 +15,16 @@
 
 # next.js
 /.next/
-/.next-playwright-*/
-/.next-playwright-*.tsconfig.json
+# FE-OPS-DOCKER-CONTEXT-001: every isolated/disposable build this session
+# has used its own `.next-<label>` scratch dist-dir naming convention
+# (BESAT_NEXT_DIST_DIR) -- playwright, qg, qa, seo, and whatever the next
+# one is called. Chasing each new convention with its own explicit
+# gitignore entry keeps missing new ones (this finding is exactly that:
+# .next-qa-*/.next-seo-* were never added after .next-playwright-*/
+# .next-qg-* were). One glob covering the whole `.next-*` naming family
+# closes this permanently instead of needing another addition next time.
+/.next-*/
+/.next-*.tsconfig.json
 /out/
 
 # production
@@ -52,6 +60,7 @@ next-env.d.ts
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 .idea/
 .vscode/

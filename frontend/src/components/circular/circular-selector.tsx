@@ -236,7 +236,7 @@ export function CircularSelector({
                 <span
                   className={`flex items-center justify-center rounded-full text-center transition-all duration-500 ${
                     isActive
-                      ? "bg-blue-500 text-white shadow-[0_20px_40px_rgba(43,111,159,0.34)]"
+                      ? "bg-blue-600 text-white shadow-[0_20px_40px_rgba(43,111,159,0.34)]"
                       : "bg-white text-[#062452] shadow-[0_12px_26px_rgba(15,23,42,0.13)] hover:scale-110 hover:bg-blue-50 hover:text-blue-700"
                   }`}
                   style={{

@@ -39,6 +39,7 @@ import type {
   ServiceItem,
   StudentItem,
   StudentSummary,
+  UnitPerformance,
 } from "@/types/panel-api";
 
 type BackendDashboard = {
@@ -46,6 +47,7 @@ type BackendDashboard = {
   scope: string;
   selected_unit?: { id: ApiId; title: string; slug: string } | null;
   accessible_units?: Array<{ id: ApiId; title: string; slug: string }>;
+  units?: UnitPerformance[];
   cards?: Array<{
     key: string;
     label: string;
@@ -196,7 +198,7 @@ export const panelService = {
       messages: [],
       events: [],
       announcements: [],
-      units: [],
+      units: raw.units ?? [],
       accessible_units: raw.accessible_units ?? [],
     } satisfies AdminDashboard;
   },
@@ -282,10 +284,16 @@ export const panelService = {
   contentItem(id: string | number) {
     return authed<ContentItem>(detailEndpoint(apiEndpoints.cms.content, id));
   },
+  // FE-CMS-EDITOR-PREVIEW-404-001: CMSContentViewSet never had a "preview"
+  // action -- this always 404'd for any already-saved, non-dirty content
+  // (openPreview()'s "server preview" branch, used whenever there's no
+  // local unsaved draft to show instead). What "server preview" actually
+  // needs is just the content's current persisted state, which the
+  // existing, already-working detail endpoint (contentItem(), backed by
+  // CMSContentViewSet.retrieve()) already returns in the identical shape
+  // -- no separate backend action was ever necessary.
   contentPreview(id: string | number) {
-    return authed<ContentItem>(
-      actionEndpoint(apiEndpoints.cms.content, id, "preview"),
-    );
+    return authed<ContentItem>(detailEndpoint(apiEndpoints.cms.content, id));
   },
   createContent(payload: Record<string, unknown>) {
     return mutate<ContentItem>(apiEndpoints.cms.content, "POST", payload);
@@ -470,9 +478,9 @@ export const panelService = {
       payload,
     );
   },
-  messages(folder: "inbox" | "sent") {
+  messages(folder: "inbox" | "sent", page?: number) {
     return authed<PanelListResponse<InternalMessageItem>>(
-      withQuery(apiEndpoints.cms.internalMessages, { folder }),
+      withQuery(apiEndpoints.cms.internalMessages, { folder, page }),
     );
   },
   messageRecipients() {

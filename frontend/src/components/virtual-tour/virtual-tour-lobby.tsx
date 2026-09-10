@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PanoramaViewer } from "@/components/virtual-tour/panorama-viewer";
 import { BesatLogoMark } from "@/components/shared/besat-logo";
 import {
   getPublicDepartments,
   getPublicUnits,
 } from "@/services/public-content-service";
+import { safePublicMediaUrl } from "@/lib/media/safe-url";
 import { getPublicTourDoorScenes } from "@/services/virtual-tour-service";
 import type {
   PublicDepartment,
@@ -47,6 +48,7 @@ function Door({ destination, onOpen, index }: { destination: Destination; onOpen
     <button
       type="button"
       onClick={onOpen}
+      data-door-id={destination.id}
       style={{ animationDelay: `${index * 55}ms` }}
       className="besat-lobby-door group relative mx-auto w-full max-w-[220px] text-right text-white"
     >
@@ -102,28 +104,116 @@ function WingDoor({
 export function VirtualTourLobby() {
   const [units, setUnits] = useState<PublicSchoolUnit[]>([]);
   const [departments, setDepartments] = useState<PublicDepartment[]>([]);
+  // FE-VTOUR-LOBBY-LOAD-ERROR-001: the lobby's units/departments fetch
+  // used to have its failure swallowed by a bare `.catch(() => undefined)`
+  // -- a real outage (both calls forced to 503 in Codex's reproduction)
+  // left `units`/`departments` at their initial empty arrays forever, with
+  // no visible alert and no way to retry; the lobby just quietly rendered
+  // "0 فضای آموزشی"/"0 فضای تخصصی" as if the school genuinely had none.
+  const [lobbyStatus, setLobbyStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [lobbyRetryToken, setLobbyRetryToken] = useState(0);
   const [wing, setWing] = useState<Wing>("lobby");
   const [selected, setSelected] = useState<Destination | null>(null);
   const [selectedScenes, setSelectedScenes] = useState<TourSceneDetail[] | null>(null);
   const [loadingScenes, setLoadingScenes] = useState(false);
+  // FE-VTOUR-SCENE-LOAD-ERROR-001: a scene-list fetch failure used to be
+  // converted to the same selectedScenes=[] a door with genuinely zero
+  // published scenes produces -- the two are indistinguishable to a
+  // visitor, who saw the ordinary "missing panorama, add one later" copy
+  // for what was actually a backend outage, with no alert or retry.
+  const [sceneLoadError, setSceneLoadError] = useState<string | null>(null);
+  const [sceneRetryToken, setSceneRetryToken] = useState(0);
+  const corridorHeadingRef = useRef<HTMLHeadingElement>(null);
+  const lobbyHeadingRef = useRef<HTMLHeadingElement>(null);
+  const hasHandledWingChangeRef = useRef(false);
+  const sceneCloseButtonRef = useRef<HTMLButtonElement>(null);
+  const doorGalleryRef = useRef<HTMLDivElement>(null);
+  // Storing the clicked DOM node itself (as the earlier fix did) doesn't
+  // survive the round trip: closing the scene remounts the whole corridor
+  // section (it's conditionally rendered based on `selected`), so every
+  // door button is a brand-new DOM node by the time focus needs to be
+  // restored -- calling .focus() on the old, now-detached node is a no-op.
+  // A stable identifier survives the remount; the actual node is looked up
+  // fresh, by that identifier, once the new doors exist in the DOM.
+  const openedDoorIdRef = useRef<string | null>(null);
+
+  // Choosing a lobby wing unmounts the door trigger that had keyboard
+  // focus (the corridor is a different in-place view, not a navigation).
+  // Browsers don't move focus anywhere useful when a focused element is
+  // removed -- it silently falls back to <body> -- so a keyboard user
+  // loses their place and the new view's context is never announced.
+  // Moving focus to the corridor heading itself gives both.
+  //
+  // FE-TOUR-CORRIDOR-LOBBY-BACK-FOCUS-001: this only ever handled the
+  // forward direction (lobby -> a wing) -- pressing the corridor's own
+  // "بازگشت به لابی" button unmounts that same button (the lobby view
+  // replaces the whole corridor section) with nothing to move focus to,
+  // so it fell back to <body> exactly like the unhandled case this
+  // effect was written to fix in the first place. `lobbyHeadingRef` is
+  // the lobby's own equivalent focus target. `hasHandledWingChangeRef`
+  // guards against firing on the very first render (`wing` starts as
+  // "lobby", and unconditionally focusing the lobby heading then would
+  // steal focus on initial page load, which the forward-direction branch
+  // never did either -- it only runs once `wing` has actually changed at
+  // least once).
+  useEffect(() => {
+    if (!hasHandledWingChangeRef.current) {
+      hasHandledWingChangeRef.current = true;
+      return;
+    }
+    if (wing !== "lobby") corridorHeadingRef.current?.focus();
+    else lobbyHeadingRef.current?.focus();
+  }, [wing]);
+
+  // Same problem as the corridor transition above, one level deeper: opening
+  // a door unmounts the door button that had focus, and closing it unmounts
+  // whatever was focused inside the scene view (the populated pannellum
+  // canvas has no focusable heading of its own; the empty-scene state's own
+  // <h1> is conditionally rendered, so a stable target is safer than a ref
+  // on a sometimes-absent element). The always-present "بازگشت به درها"
+  // button works for both the populated and empty scene view. On close,
+  // restore focus to the exact door that was activated to open it.
+  useEffect(() => {
+    if (selected) {
+      sceneCloseButtonRef.current?.focus();
+    } else if (openedDoorIdRef.current) {
+      doorGalleryRef.current
+        ?.querySelector<HTMLButtonElement>(`[data-door-id="${openedDoorIdRef.current}"]`)
+        ?.focus();
+      openedDoorIdRef.current = null;
+    }
+  }, [selected]);
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([getPublicUnits(), getPublicDepartments()])
+    // react-hooks/set-state-in-effect forbids a setState call directly in
+    // the effect body -- deferring the whole fetch (including this initial
+    // "loading" reset) behind a microtask, same as the guest-cart-merge
+    // retry effect in cart-context.tsx, satisfies it without changing
+    // behavior.
+    Promise.resolve()
+      .then(() => {
+        if (mounted) setLobbyStatus("loading");
+        return Promise.all([getPublicUnits(), getPublicDepartments()]);
+      })
       .then(([unitRecords, departmentRecords]) => {
         if (!mounted) return;
         setUnits(unitRecords);
         setDepartments(departmentRecords);
+        setLobbyStatus("ready");
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (mounted) setLobbyStatus("error");
+      });
     return () => { mounted = false; };
-  }, []);
+  }, [lobbyRetryToken]);
 
   useEffect(() => {
     if (!selected) return;
     let mounted = true;
     Promise.resolve()
       .then(() => {
+        if (mounted) setSceneLoadError(null);
         if (mounted) setLoadingScenes(true);
         return getPublicTourDoorScenes(selected.type, selected.slug);
       })
@@ -131,41 +221,92 @@ export function VirtualTourLobby() {
         if (mounted) setSelectedScenes(scenes);
       })
       .catch(() => {
-        if (mounted) setSelectedScenes([]);
+        if (!mounted) return;
+        setSelectedScenes(null);
+        setSceneLoadError("بارگذاری فضاهای این بخش با خطا مواجه شد.");
       })
       .finally(() => {
         if (mounted) setLoadingScenes(false);
       });
     return () => { mounted = false; };
-  }, [selected]);
+  }, [selected, sceneRetryToken]);
 
-  const unitDestinations = useMemo<Destination[]>(() => units.filter((unit) => unit.cover_image).map((unit) => ({
-    id: String(unit.id),
-    type: "unit",
-    title: unit.title,
-    slug: unit.slug,
-    description: unit.description ?? "",
-    preview: unit.cover_image as string,
-  })), [units]);
+  const unitDestinations = useMemo<Destination[]>(() => units.flatMap((unit) => {
+    const preview = safePublicMediaUrl(unit.cover_image);
+    if (!preview) return [];
+    return [{
+      id: String(unit.id),
+      type: "unit" as const,
+      title: unit.title,
+      slug: unit.slug,
+      description: unit.description ?? "",
+      preview,
+    }];
+  }), [units]);
 
-  const departmentDestinations = useMemo<Destination[]>(() => departments.filter((department) => department.cover_image).map((department) => ({
-    id: String(department.id),
-    type: "department",
-    title: department.title,
-    slug: department.slug,
-    description: department.description ?? "",
-    preview: department.cover_image as string,
-  })), [departments]);
+  const departmentDestinations = useMemo<Destination[]>(() => departments.flatMap((department) => {
+    const preview = safePublicMediaUrl(department.cover_image);
+    if (!preview) return [];
+    return [{
+      id: String(department.id),
+      type: "department" as const,
+      title: department.title,
+      slug: department.slug,
+      description: department.description ?? "",
+      preview,
+    }];
+  }), [departments]);
 
   const destinations = wing === "units" ? unitDestinations : departmentDestinations;
 
+  if (lobbyStatus === "loading") {
+    return (
+      <div dir="rtl" className="flex min-h-dvh items-center justify-center bg-[#06182d] text-white">
+        <span className="mx-auto block size-11 animate-spin rounded-full border-2 border-white/20 border-t-[#e2ae5b]" />
+      </div>
+    );
+  }
+
+  if (lobbyStatus === "error") {
+    return (
+      <div dir="rtl" className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[#06182d] px-5 text-center text-white">
+        <p role="alert" className="text-base font-black text-white/90">
+          بارگذاری لابی تور مجازی با خطا مواجه شد.
+        </p>
+        <p className="max-w-md text-sm font-bold leading-7 text-white/60">
+          لطفاً اتصال اینترنت خود را بررسی کنید و دوباره تلاش کنید.
+        </p>
+        <button
+          type="button"
+          onClick={() => setLobbyRetryToken((token) => token + 1)}
+          className="mt-2 inline-flex h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/[.07] px-5 text-xs font-black backdrop-blur-md transition hover:bg-white/13"
+        >
+          تلاش دوباره
+        </button>
+      </div>
+    );
+  }
+
   if (selected) {
     return (
-      <main dir="rtl" className="min-h-dvh bg-[#06182d] text-white">
+      <div dir="rtl" className="min-h-dvh bg-[#06182d] text-white">
         <div className="relative min-h-dvh">
           {loadingScenes ? (
             <div className="flex min-h-dvh items-center justify-center bg-[#06182d] text-white">
               <span className="mx-auto block size-11 animate-spin rounded-full border-2 border-white/20 border-t-[#e2ae5b]" />
+            </div>
+          ) : sceneLoadError ? (
+            <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[#06182d] px-5 text-center text-white">
+              <p role="alert" className="text-base font-black text-white/90">
+                {sceneLoadError}
+              </p>
+              <button
+                type="button"
+                onClick={() => setSceneRetryToken((token) => token + 1)}
+                className="mt-2 inline-flex h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/[.07] px-5 text-xs font-black backdrop-blur-md transition hover:bg-white/13"
+              >
+                تلاش دوباره
+              </button>
             </div>
           ) : selectedScenes && selectedScenes.length > 0 ? (
             <PanoramaViewer scenes={selectedScenes} title={selected.title} />
@@ -175,8 +316,7 @@ export function VirtualTourLobby() {
               <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,18,34,.55),rgba(4,18,34,.82))]" />
               <div className="relative z-10 max-w-xl rounded-[2rem] border border-white/14 bg-[#06182d]/72 p-7 shadow-2xl backdrop-blur-xl sm:p-10">
                 <span className="mx-auto flex size-20 items-center justify-center rounded-full border border-[#e2ae5b]/45 bg-[#e2ae5b]/12 text-xl font-black text-[#efc675]" dir="ltr">360°</span>
-                <p className="mt-6 text-xs font-black text-[#efc675]">زیرساخت این صحنه آماده است</p>
-                <h1 className="mt-2 text-3xl font-black">{selected.title}</h1>
+                <h1 className="mt-6 text-3xl font-black">{selected.title}</h1>
                 <p className="mt-4 text-sm font-bold leading-8 text-white/72">{selected.description}</p>
                 <div className="mt-6 rounded-xl border border-white/10 bg-white/[.06] px-4 py-3 text-xs font-bold leading-7 text-white/72">
                   برای فعال‌شدن نمای تعاملی واقعی، تصویر پانورامای ۲:۱ این فضا باید به پروژه اضافه شود.
@@ -184,16 +324,16 @@ export function VirtualTourLobby() {
               </div>
             </div>
           )}
-          <button type="button" onClick={() => setSelected(null)} className="fixed right-5 top-5 z-50 inline-flex h-11 items-center gap-2 rounded-xl border border-white/16 bg-[#06182d]/76 px-4 text-xs font-black text-white shadow-xl backdrop-blur-xl transition hover:bg-[#143c63] sm:right-8 sm:top-8">
+          <button ref={sceneCloseButtonRef} type="button" onClick={() => setSelected(null)} className="fixed right-5 top-5 z-50 inline-flex h-11 items-center gap-2 rounded-xl border border-white/16 bg-[#06182d]/76 px-4 text-xs font-black text-white shadow-xl backdrop-blur-xl transition hover:bg-[#143c63] sm:right-8 sm:top-8">
             <CloseIcon /> بازگشت به درها
           </button>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main dir="rtl" className="besat-tour-room relative min-h-dvh overflow-hidden bg-[#071b31] text-white">
+    <div dir="rtl" className="besat-tour-room relative min-h-dvh overflow-hidden bg-[#071b31] text-white">
       <div className="besat-tour-room-ceiling absolute inset-x-0 top-0 h-[28%]" />
       <div className="besat-tour-room-floor absolute inset-x-0 bottom-0 h-[48%]" />
       <div className="absolute inset-y-0 left-0 w-[22%] bg-[linear-gradient(90deg,rgba(2,11,22,.78),transparent)]" />
@@ -217,11 +357,11 @@ export function VirtualTourLobby() {
         {wing === "lobby" ? (
           <section className="besat-room-content flex flex-1 flex-col items-center justify-center py-8">
             <p className="text-xs font-black text-[#efc675] sm:text-sm">به لابی مجازی مجتمع بعثت خوش آمدید</p>
-            <h1 className="mt-3 text-center text-3xl font-black leading-[1.5] sm:text-4xl lg:text-5xl">کدام مسیر را می‌خواهید ببینید؟</h1>
+            <h1 ref={lobbyHeadingRef} tabIndex={-1} className="mt-3 text-center text-3xl font-black leading-[1.5] outline-none focus:ring-4 focus:ring-[#e2ae5b]/50 sm:text-4xl lg:text-5xl">کدام مسیر را می‌خواهید ببینید؟</h1>
             <p className="mt-3 max-w-xl text-center text-sm font-bold leading-8 text-white/62">یکی از دو در اصلی را باز کنید؛ در مرحله بعد تمام فضاهای همان بخش روبه‌روی شما قرار می‌گیرند.</p>
             <div className="mt-9 grid w-full max-w-[790px] grid-cols-2 items-end gap-5 sm:gap-12">
-              <WingDoor label="واحدهای آموزشی" eyebrow={`${unitDestinations.length || 12} فضای آموزشی`} image="/images/official/units/unit-07.jpg" onOpen={() => setWing("units")} />
-              <WingDoor label="دپارتمان‌ها" eyebrow={`${departmentDestinations.length || 5} فضای تخصصی`} image="/images/official/units/unit-06.jpg" onOpen={() => setWing("departments")} />
+              <WingDoor label="واحدهای آموزشی" eyebrow={`${unitDestinations.length} فضای آموزشی`} image="/images/official/units/unit-07.jpg" onOpen={() => setWing("units")} />
+              <WingDoor label="دپارتمان‌ها" eyebrow={`${departmentDestinations.length} فضای تخصصی`} image="/images/official/units/unit-06.jpg" onOpen={() => setWing("departments")} />
             </div>
           </section>
         ) : (
@@ -229,21 +369,47 @@ export function VirtualTourLobby() {
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <p className="text-xs font-black text-[#efc675]">راهروی انتخاب فضا</p>
-                <h1 className="mt-2 text-3xl font-black sm:text-4xl">{wing === "units" ? "واحدهای آموزشی بعثت" : "دپارتمان‌های تخصصی بعثت"}</h1>
+                <h1 ref={corridorHeadingRef} tabIndex={-1} className="mt-2 text-3xl font-black outline-none focus:ring-4 focus:ring-[#e2ae5b]/50 sm:text-4xl">{wing === "units" ? "واحدهای آموزشی بعثت" : "دپارتمان‌های تخصصی بعثت"}</h1>
               </div>
               <button type="button" onClick={() => setWing("lobby")} className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/15 bg-white/[.07] px-4 text-xs font-black backdrop-blur-md transition hover:bg-white/13">
                 <ArrowIcon /> بازگشت به لابی
               </button>
             </div>
 
-            <div className="besat-door-gallery mt-8 grid flex-1 grid-cols-2 items-end gap-x-4 gap-y-8 overflow-y-auto pb-8 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-4 xl:grid-cols-6">
-              {destinations.map((destination, index) => (
-                <Door key={destination.id} destination={destination} index={index} onOpen={() => setSelected(destination)} />
-              ))}
-            </div>
+            {destinations.length > 0 ? (
+              <div ref={doorGalleryRef} className="besat-door-gallery mt-8 grid flex-1 grid-cols-2 items-end gap-x-4 gap-y-8 overflow-y-auto pb-8 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-4 xl:grid-cols-6">
+                {destinations.map((destination, index) => (
+                  <Door
+                    key={destination.id}
+                    destination={destination}
+                    index={index}
+                    onOpen={() => {
+                      openedDoorIdRef.current = destination.id;
+                      setSelected(destination);
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="mt-8 flex flex-1 flex-col items-center justify-center gap-4 text-center">
+                <p className="text-base font-black text-white/85">
+                  {wing === "units" ? "هنوز فضای تصویرشده‌ای برای واحدهای آموزشی ثبت نشده است." : "هنوز فضای تصویرشده‌ای برای دپارتمان‌های تخصصی ثبت نشده است."}
+                </p>
+                <p className="max-w-md text-sm font-bold leading-7 text-white/55">
+                  به‌محض افزودن تصویر ۳۶۰ درجه برای این بخش، درهای مربوطه در همین‌جا نمایش داده می‌شوند.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setWing("lobby")}
+                  className="mt-2 inline-flex h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/[.07] px-5 text-xs font-black backdrop-blur-md transition hover:bg-white/13"
+                >
+                  <ArrowIcon /> بازگشت به لابی
+                </button>
+              </div>
+            )}
           </section>
         )}
       </div>
-    </main>
+    </div>
   );
 }

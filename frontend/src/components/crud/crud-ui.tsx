@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
+import { lockBodyScroll } from "@/lib/body-scroll-lock";
+import { isTopDialog, popDialog, pushDialog } from "@/lib/dialog-stack";
 
 // ---------- Modal ----------
 type ModalProps = {
@@ -13,12 +15,78 @@ type ModalProps = {
 };
 
 export function Modal({ open, onClose, title, children, size = "lg" }: ModalProps) {
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  // Keeps the keydown handler below able to call the latest onClose without
+  // needing it in the effect's dependency array -- callers commonly pass a
+  // new inline closure on every render, and depending on it directly would
+  // re-run the effect (and yank focus back to the opener) on every one of
+  // those renders while the dialog is still open.
+  const onCloseRef = useRef(onClose);
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    }
+    onCloseRef.current = onClose;
+  });
+
+  // FE-MODAL-FOCUS-STACK-ORDER-001: lockBodyScroll()'s reference count
+  // (not a capture-and-restore-the-prior-value scheme, this component's
+  // previous approach per FE-MODAL-SCROLL-STACK-001) stays correct
+  // regardless of the order concurrently open modals close in -- e.g. a
+  // media picker opened from inside this modal closing before this modal
+  // does. Early-returning when `!open` also means no lock/release call is
+  // made for a run that never opened anything.
+  useEffect(() => {
+    if (!open) return;
+    const releaseScrollLock = lockBodyScroll();
     return () => {
-      document.body.style.overflow = "";
+      releaseScrollLock();
+    };
+  }, [open]);
+
+  // Standard dialog focus contract: move focus in on open, trap Tab inside
+  // it, close on Escape, and restore focus to whatever opened it once it
+  // closes -- otherwise focus stays on the now-hidden opener behind the
+  // backdrop and a keyboard user has no idea where they landed.
+  useEffect(() => {
+    if (!open) return;
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const token = pushDialog();
+    const timer = window.setTimeout(() => closeRef.current?.focus(), 0);
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        // A dialog opened on top of this one (e.g. a media picker launched
+        // from inside this modal) has its own Escape listener on the same
+        // document target -- without this check, one Escape press would
+        // close both at once instead of just the topmost one.
+        if (!isTopDialog(token)) return;
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])",
+      )).filter((element) => element.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("keydown", onKeyDown);
+      popDialog(token);
+      openerRef.current?.focus();
     };
   }, [open]);
 
@@ -30,20 +98,30 @@ export function Modal({ open, onClose, title, children, size = "lg" }: ModalProp
   return (
     <div
       dir="rtl"
+      role="presentation"
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 p-4 backdrop-blur-sm sm:p-8"
+      onMouseDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        // Without this, the browser's native mousedown default action
+        // shifts focus to the nearest focusable ancestor of the backdrop
+        // (some tabIndex=-1 dashboard content container up the tree) before
+        // our own close/focus-restore effect below gets a chance to act,
+        // so focus lands there instead of back on the opener.
+        event.preventDefault();
+        onClose();
+      }}
     >
-      <button
-        type="button"
-        aria-label="بستن"
-        onClick={onClose}
-        className="fixed inset-0 -z-10"
-      />
       <div
-        className={`relative w-full ${widthClass} rounded-xl border border-slate-200 bg-white shadow-2xl`}
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className={`relative flex max-h-[calc(100dvh-2rem)] w-full ${widthClass} flex-col rounded-xl border border-slate-200 bg-white shadow-2xl sm:max-h-[calc(100dvh-4rem)]`}
       >
-        <div className="flex items-center justify-between gap-4 border-b border-slate-100 p-5 sm:p-6">
-          <h2 className="text-xl font-black text-[#062452]">{title}</h2>
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-100 p-5 sm:p-6">
+          <h2 id={titleId} className="text-xl font-black text-[#062452]">{title}</h2>
           <button
+            ref={closeRef}
             type="button"
             onClick={onClose}
             aria-label="بستن"
@@ -52,7 +130,11 @@ export function Modal({ open, onClose, title, children, size = "lg" }: ModalProp
             <PanelIcon name="plus" className="size-5 rotate-45" />
           </button>
         </div>
-        <div className="p-5 sm:p-6">{children}</div>
+        {/* Caps the panel to the viewport (minus the outer p-4/sm:p-8) and
+            scrolls only this body internally, so long forms never force a
+            document-level scroll to reach their own action buttons -- the
+            header above stays put via shrink-0/flex-col on the panel. */}
+        <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">{children}</div>
       </div>
     </div>
   );
@@ -65,23 +147,104 @@ type ConfirmDialogProps = {
   description: string;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Defaults to "حذف" -- pass a different verb for a non-delete
+   * destructive confirmation (e.g. "لغو سفارش", "تایید بازگشت وجه"). */
+  confirmLabel?: string;
+  /** Extra content rendered between the description and the action
+   * buttons -- e.g. an optional-reason textarea for an action that needs
+   * one, still gated behind this same explicit Confirm/Cancel/Escape/
+   * backdrop contract. */
+  children?: ReactNode;
 };
 
-export function ConfirmDialog({ open, title, description, onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, title, description, onConfirm, onCancel, confirmLabel = "حذف", children }: ConfirmDialogProps) {
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  // Same latest-callback-without-effect-deps reasoning as Modal above.
+  const onCancelRef = useRef(onCancel);
+  useEffect(() => {
+    onCancelRef.current = onCancel;
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    // FE-MODAL-FOCUS-STACK-ORDER-001 (originally added for FE-MODAL-SCROLL-
+    // STACK-001, which gave ConfirmDialog its first scroll lock at all --
+    // the page behind a destructive confirmation could otherwise still
+    // scroll while the user decides): lockBodyScroll()'s reference count
+    // stays correct regardless of the order concurrently open dialogs
+    // close in, unlike a capture-and-restore-the-prior-value scheme.
+    const releaseScrollLock = lockBodyScroll();
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const token = pushDialog();
+    // Focus the non-destructive Cancel action, not Confirm/Delete -- this is
+    // a destructive-action confirmation, so the default keyboard-accessible
+    // focus target should never be the button that causes data loss.
+    const timer = window.setTimeout(() => cancelRef.current?.focus(), 0);
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        if (!isTopDialog(token)) return;
+        event.preventDefault();
+        onCancelRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])",
+      )).filter((element) => element.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("keydown", onKeyDown);
+      popDialog(token);
+      openerRef.current?.focus();
+      releaseScrollLock();
+    };
+  }, [open]);
+
   if (!open) return null;
   return (
     <div
       dir="rtl"
+      role="presentation"
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
+      onMouseDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        event.preventDefault();
+        onCancel();
+      }}
     >
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 text-right shadow-2xl">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 text-right shadow-2xl"
+      >
         <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-rose-50 text-rose-600">
           <PanelIcon name="trash" className="size-6" />
         </div>
-        <h3 className="text-lg font-black text-[#062452]">{title}</h3>
+        <h3 id={titleId} className="text-lg font-black text-[#062452]">{title}</h3>
         <p className="mt-2 text-sm font-bold leading-7 text-slate-500">{description}</p>
+        {children ? <div className="mt-4">{children}</div> : null}
         <div className="mt-6 flex justify-end gap-3">
           <button
+            ref={cancelRef}
             type="button"
             onClick={onCancel}
             className="rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-black text-[#062452] transition hover:bg-slate-50"
@@ -93,7 +256,7 @@ export function ConfirmDialog({ open, title, description, onConfirm, onCancel }:
             onClick={onConfirm}
             className="rounded-2xl bg-rose-600 px-5 py-2.5 text-sm font-black text-white transition hover:bg-rose-700"
           >
-            حذف
+            {confirmLabel}
           </button>
         </div>
       </div>
@@ -107,23 +270,36 @@ type FieldProps = {
   children: ReactNode;
   required?: boolean;
   className?: string;
+  /**
+   * "label" (default) implicitly associates the field text with the first
+   * labelable control inside `children` -- correct and desirable when that
+   * child is a single real form control (input/select/textarea). Pass "div"
+   * for compound custom widgets (e.g. a rich editor) that contain their own
+   * incidental hidden controls (like an image-upload <input type="file">) --
+   * a wrapping <label> would silently forward clicks anywhere in the widget
+   * to that unrelated hidden control instead of the widget itself.
+   */
+  as?: "label" | "div";
 };
 
-export function Field({ label, children, required, className = "" }: FieldProps) {
+export function Field({ label, children, required, className = "", as = "label" }: FieldProps) {
+  const Wrapper = as;
   return (
-    <label className={`block text-right ${className}`}>
+    <Wrapper className={`block text-right ${className}`}>
       <span className="mb-2 block text-sm font-black text-[#062452]">
         {label}
         {required ? <span className="mr-1 text-rose-500">*</span> : null}
       </span>
       {children}
-    </label>
+    </Wrapper>
   );
 }
 
 const inputClass = "panel-input";
 
-export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+export function TextInput(
+  props: React.InputHTMLAttributes<HTMLInputElement> & { ref?: React.Ref<HTMLInputElement> },
+) {
   return <input {...props} className={`${inputClass} ${props.className ?? ""}`} />;
 }
 
@@ -136,7 +312,9 @@ export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   );
 }
 
-export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+export function Select(
+  props: React.SelectHTMLAttributes<HTMLSelectElement> & { ref?: React.Ref<HTMLSelectElement> },
+) {
   return (
     <select
       {...props}

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CircularSelector, type CircularItem } from "@/components/circular/circular-selector";
 import { ScopedTabs, type ScopedTab } from "@/components/circular/scoped-tabs";
+import { useFocusTrap } from "@/hooks/use-focus-trap";
+import { safePublicMediaUrl } from "@/lib/media/safe-url";
 import {
   getPublicAchievements,
   getPublicGallery,
@@ -80,7 +82,10 @@ export function CircularExplorer({ items, descriptions, variant, initialSlug }: 
           <div className="lg:sticky lg:top-28">
             <div className="rounded-[2.5rem] border border-slate-200 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.08)] sm:p-8">
               <CircularSelector items={items} activeId={activeId} onSelect={handleSelect} />
-              <p className="mt-5 text-center text-xs font-bold leading-7 text-slate-400">
+              {/* A11Y-UNITS-ACHIEVEMENT-CONTRAST-001: same text-slate-500-on-white
+                  contrast shortfall (~4.49:1, needs 4.5:1) fixed proactively
+                  throughout this file, not just the one instance reported. */}
+              <p className="mt-5 text-center text-xs font-bold leading-7 text-slate-600">
                 برای انتخاب، روی {variant === "unit" ? "واحد" : "دپارتمان"} مورد نظر کلیک کنید یا گردونه را بچرخانید.
               </p>
             </div>
@@ -100,6 +105,7 @@ export function CircularExplorer({ items, descriptions, variant, initialSlug }: 
               tabs={variant === "unit" ? tabs : tabs.slice(0, 1)}
               activeKey={activeTab}
               onChange={setActiveTab}
+              label={`بخش‌های محتوای ${activeItem?.title ?? (variant === "unit" ? "واحد" : "دپارتمان")}`}
             >
               {tabContent}
             </ScopedTabs>
@@ -141,7 +147,7 @@ function EmptyBox({ text }: { text: string }) {
       <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-blue-50 text-2xl text-blue-700">
         ◌
       </div>
-      <p className="text-sm font-bold leading-8 text-slate-500">{text}</p>
+      <p className="text-sm font-bold leading-8 text-slate-600">{text}</p>
     </div>
   );
 }
@@ -163,7 +169,7 @@ function OverviewTab({ description, variant }: { description: string | null; var
       <p className="mt-4 text-sm font-bold leading-8 text-slate-600">
         {description ?? "توضیحات این بخش پس از ثبت توسط مدیریت نمایش داده می‌شود."}
       </p>
-      <p className="mt-5 text-xs font-bold text-slate-400">
+      <p className="mt-5 text-xs font-bold text-slate-600">
         برای مشاهده اخبار، افتخارات و گالری این {variant === "unit" ? "واحد" : "دپارتمان"}، از تب‌های بالا استفاده کنید.
       </p>
     </Card>
@@ -202,7 +208,9 @@ function ContentTab({
   return (
     <>
       <div className="space-y-4">
-        {items.map((item) => (
+        {items.map((item) => {
+          const image = safePublicMediaUrl(item.cover_image);
+          return (
           <button
             key={item.id}
             type="button"
@@ -210,9 +218,9 @@ function ContentTab({
             className="group w-full rounded-[2rem] border border-slate-200 bg-white p-5 text-right shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md sm:p-6"
           >
             <div className="flex items-start gap-4">
-              {item.cover_image ? (
+              {image ? (
                 <img
-                  src={item.cover_image}
+                  src={image}
                   alt={item.title}
                   className="hidden size-16 rounded-2xl object-cover sm:block"
                 />
@@ -226,13 +234,13 @@ function ContentTab({
                   {item.title}
                 </h3>
                 {item.summary ? (
-                  <p className="mt-2 text-sm font-bold leading-7 text-slate-500 line-clamp-2">
+                  <p className="mt-2 text-sm font-bold leading-7 text-slate-600 line-clamp-2">
                     {item.summary}
                   </p>
                 ) : null}
                 <div className="mt-3 flex items-center justify-between">
                   {item.published_at ? (
-                    <span className="text-xs font-bold text-slate-400">
+                    <span className="text-xs font-bold text-slate-600">
                       {new Intl.DateTimeFormat("fa-IR").format(new Date(item.published_at))}
                     </span>
                   ) : null}
@@ -241,7 +249,8 @@ function ContentTab({
               </div>
             </div>
           </button>
-        ))}
+          );
+        })}
       </div>
 
       <ContentDetailModal item={detail} onClose={() => setDetail(null)} />
@@ -258,26 +267,25 @@ function ContentDetailModal({
 }) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (item) document.body.style.overflow = "hidden";
-    else document.body.style.overflow = "";
-    return () => { document.body.style.overflow = ""; };
-  }, [item]);
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    if (item) window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [item, onClose]);
+  // FE-CIRCULAR-MODAL-A11Y-001: this used to be two hand-rolled effects
+  // (a body-scroll lock and an Escape-only keydown listener) with no dialog
+  // role, no focus trap, and no opener-focus restoration. useFocusTrap is
+  // the same primitive already relied on for the shop cart drawer/filters --
+  // it also traps Tab, moves initial focus into the dialog, and restores
+  // focus to whatever triggered it on close.
+  useFocusTrap(overlayRef, Boolean(item), onClose);
 
   if (!item) return null;
+
+  const image = safePublicMediaUrl(item.cover_image);
 
   return (
     <div
       ref={overlayRef}
       dir="rtl"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="circular-news-modal-title"
       className="besat-modal-overlay fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/45 p-4 backdrop-blur-sm sm:p-8"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
@@ -289,9 +297,9 @@ function ContentDetailModal({
                 {item.category.title}
               </span>
             ) : null}
-            <h2 className="text-xl font-black leading-[1.6] text-[#062452] sm:text-2xl">{item.title}</h2>
+            <h2 id="circular-news-modal-title" className="text-xl font-black leading-[1.6] text-[#062452] sm:text-2xl">{item.title}</h2>
             {item.published_at ? (
-              <p className="mt-2 text-xs font-bold text-slate-400">
+              <p className="mt-2 text-xs font-bold text-slate-600">
                 {new Intl.DateTimeFormat("fa-IR", { year: "numeric", month: "long", day: "numeric" }).format(new Date(item.published_at))}
               </p>
             ) : null}
@@ -306,9 +314,9 @@ function ContentDetailModal({
           </button>
         </div>
 
-        {item.cover_image ? (
+        {image ? (
           <div className="aspect-[16/7] overflow-hidden">
-            <img src={item.cover_image} alt={item.title} className="h-full w-full object-cover" />
+            <img src={image} alt={item.title} className="h-full w-full object-cover" />
           </div>
         ) : null}
 
@@ -352,17 +360,19 @@ function AchievementsTab({ itemId }: { itemId: string }) {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        {items.map((item) => (
+        {items.map((item) => {
+          const image = safePublicMediaUrl(item.image);
+          return (
           <button
             key={item.id}
             type="button"
             onClick={() => setDetail(item)}
             className="group overflow-hidden rounded-[2rem] border border-slate-200 bg-white text-right shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
           >
-            {item.image ? (
+            {image ? (
               <div className="aspect-[16/9] overflow-hidden bg-slate-100">
                 <img
-                  src={item.image}
+                  src={image}
                   alt={item.title}
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                 />
@@ -378,15 +388,18 @@ function AchievementsTab({ itemId }: { itemId: string }) {
                 {item.title}
               </h3>
 
+              {/* A11Y-UNITS-ACHIEVEMENT-CONTRAST-001: text-slate-500 (~4.49:1
+                  against white) fell just short of WCAG AA's 4.5:1 for
+                  small text -- slate-600 (~7.6:1) clears it comfortably. */}
               {item.description ? (
-                <p className="mt-2 line-clamp-2 text-sm font-bold leading-7 text-slate-500">
+                <p className="mt-2 line-clamp-2 text-sm font-bold leading-7 text-slate-600">
                   {item.description}
                 </p>
               ) : null}
 
               <div className="mt-4 flex items-center justify-between">
                 {item.achieved_at ? (
-                  <span className="text-xs font-bold text-slate-400">
+                  <span className="text-xs font-bold text-slate-600">
                     {new Intl.DateTimeFormat("fa-IR").format(new Date(item.achieved_at))}
                   </span>
                 ) : (
@@ -397,7 +410,8 @@ function AchievementsTab({ itemId }: { itemId: string }) {
               </div>
             </div>
           </button>
-        ))}
+          );
+        })}
       </div>
 
       <AchievementDetailModal item={detail} onClose={() => setDetail(null)} />
@@ -414,27 +428,21 @@ function AchievementDetailModal({
 }) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (item) document.body.style.overflow = "hidden";
-    else document.body.style.overflow = "";
-    return () => { document.body.style.overflow = ""; };
-  }, [item]);
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-
-    if (item) window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [item, onClose]);
+  // FE-CIRCULAR-MODAL-A11Y-001: see the identical comment on
+  // ContentDetailModal above -- same fix, same reused primitive.
+  useFocusTrap(overlayRef, Boolean(item), onClose);
 
   if (!item) return null;
+
+  const image = safePublicMediaUrl(item.image);
 
   return (
     <div
       ref={overlayRef}
       dir="rtl"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="circular-achievement-modal-title"
       className="besat-modal-overlay fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/45 p-4 backdrop-blur-sm sm:p-8"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
@@ -445,12 +453,14 @@ function AchievementDetailModal({
               افتخارات
             </span>
 
-            <h2 className="text-xl font-black leading-[1.6] text-[#062452] sm:text-2xl">
+            <h2 id="circular-achievement-modal-title" className="text-xl font-black leading-[1.6] text-[#062452] sm:text-2xl">
               {item.title}
             </h2>
 
             {item.achieved_at ? (
-              <p className="mt-2 text-xs font-bold text-slate-400">
+              // A11Y-UNITS-ACHIEVEMENT-CONTRAST-001: same fix as the card
+              // above -- text-slate-500 fell just short of 4.5:1.
+              <p className="mt-2 text-xs font-bold text-slate-600">
                 {new Intl.DateTimeFormat("fa-IR", { year: "numeric", month: "long", day: "numeric" }).format(new Date(item.achieved_at))}
               </p>
             ) : null}
@@ -466,9 +476,9 @@ function AchievementDetailModal({
           </button>
         </div>
 
-        {item.image ? (
+        {image ? (
           <div className="aspect-[16/7] overflow-hidden bg-slate-100">
-            <img src={item.image} alt={item.title} className="h-full w-full object-cover" />
+            <img src={image} alt={item.title} className="h-full w-full object-cover" />
           </div>
         ) : null}
 
@@ -476,7 +486,7 @@ function AchievementDetailModal({
           {item.description ? (
             <p className="text-sm font-bold leading-8 text-slate-600">{item.description}</p>
           ) : (
-            <p className="text-sm font-bold leading-8 text-slate-500">توضیحی برای این افتخار ثبت نشده است.</p>
+            <p className="text-sm font-bold leading-8 text-slate-600">توضیحی برای این افتخار ثبت نشده است.</p>
           )}
         </div>
       </article>
@@ -487,6 +497,7 @@ function AchievementDetailModal({
 function GalleryTab({ itemId }: { itemId: string }) {
   const [items, setItems] = useState<PublicGalleryItem[] | null>(null);
   const [lightbox, setLightbox] = useState<PublicGalleryItem | null>(null);
+  const lightboxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -502,11 +513,23 @@ function GalleryTab({ itemId }: { itemId: string }) {
     };
   }, [itemId]);
 
-  useEffect(() => {
-    if (lightbox) document.body.style.overflow = "hidden";
-    else document.body.style.overflow = "";
-    return () => { document.body.style.overflow = ""; };
-  }, [lightbox]);
+  // FE-CIRCULAR-GALLERY-UNSAFE-IMAGE-LOCK-001: `lightboxImage` (the
+  // sanitized value the dialog's own render condition below actually
+  // gates on) must be computed before the focus-trap call and used as its
+  // activation condition, rather than the raw, unsanitized `lightbox?.image`.
+  // A selected item whose image safePublicMediaUrl() rejects (e.g. a
+  // protocol-relative URL) never renders a dialog at all -- but the raw
+  // string is still truthy, so activating the trap off it engaged the
+  // focus trap and body scroll lock for a dialog that was never actually
+  // shown, leaving the page permanently locked with no visible way to
+  // escape it.
+  const lightboxImage = safePublicMediaUrl(lightbox?.image);
+
+  // FE-CIRCULAR-MODAL-A11Y-001: this lightbox had no dialog role, no Escape
+  // handler, no focus trap, and its close button had no accessible name at
+  // all (a bare "✕" glyph). Same reused primitive as the other two
+  // detail modals above.
+  useFocusTrap(lightboxRef, Boolean(lightboxImage), () => setLightbox(null));
 
   if (items === null) return <Spinner />;
   if (items.length === 0) return <EmptyBox text="تصویری برای این بخش ثبت نشده است." />;
@@ -514,17 +537,19 @@ function GalleryTab({ itemId }: { itemId: string }) {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((item) => (
+        {items.map((item) => {
+          const image = safePublicMediaUrl(item.image);
+          return (
           <button
             key={item.id}
             type="button"
             onClick={() => setLightbox(item)}
             className="group overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-md"
           >
-            {item.image ? (
+            {image ? (
               <div className="aspect-[4/3] overflow-hidden bg-slate-100">
                 <img
-                  src={item.image}
+                  src={image}
                   alt={item.alt_text || item.title}
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                 />
@@ -534,21 +559,27 @@ function GalleryTab({ itemId }: { itemId: string }) {
               <p className="text-sm font-black text-[#062452]">{item.title}</p>
             </div>
           </button>
-        ))}
+          );
+        })}
       </div>
 
-      {lightbox?.image ? (
+      {lightbox && lightboxImage ? (
         <div
+          ref={lightboxRef}
           dir="rtl"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="circular-gallery-lightbox-title"
           className="besat-modal-overlay fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/85 p-4"
           onClick={() => setLightbox(null)}
         >
           <div className="besat-modal-panel relative max-h-[90vh] max-w-4xl" onClick={(e) => e.stopPropagation()}>
-            <img src={lightbox.image} alt={lightbox.title} className="max-h-[80vh] w-auto rounded-2xl object-contain" />
-            <p className="mt-3 text-center text-sm font-black text-white">{lightbox.title}</p>
+            <img src={lightboxImage} alt={lightbox.title} className="max-h-[80vh] w-auto rounded-2xl object-contain" />
+            <p id="circular-gallery-lightbox-title" className="mt-3 text-center text-sm font-black text-white">{lightbox.title}</p>
             <button
               type="button"
               onClick={() => setLightbox(null)}
+              aria-label="بستن"
               className="absolute -top-3 -left-3 flex size-9 items-center justify-center rounded-full bg-white text-sm font-black text-slate-700 shadow-lg"
             >
               ✕

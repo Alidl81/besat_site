@@ -81,12 +81,14 @@ class CMSSchoolUnitSerializer(AbsoluteMediaURLMixin, serializers.ModelSerializer
             "longitude",
             "accepts_registration",
             "is_active",
+            "is_internal",
             "order",
             "created_at",
             "updated_at",
         )
         read_only_fields = (
             "id",
+            "is_internal",
             "created_at",
             "updated_at",
         )

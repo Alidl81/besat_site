@@ -135,6 +135,13 @@ export function RegistrationUnitSelector({
 
               <div
                 id="registration-unit-options"
+                // A11Y-FE-REGISTRATION-COLLAPSED-OPTIONS-001: see the
+                // identical comment in registration-grade-selector.tsx --
+                // the collapsed state is CSS-only (for the open/close
+                // transition), so aria-hidden here plus tabIndex={-1} on
+                // each option below are needed to actually remove a closed
+                // selector's options from the keyboard tab order.
+                aria-hidden={!isMobileOpen}
                 className={`mt-2 overflow-hidden rounded-2xl border bg-white transition-all duration-300 ease-out motion-reduce:transition-none ${
                   isMobileOpen
                     ? "max-h-[24rem] translate-y-0 border-slate-200 opacity-100 shadow-[0_18px_45px_rgba(15,23,42,0.12)]"
@@ -150,6 +157,7 @@ export function RegistrationUnitSelector({
                       <button
                         key={unit.id}
                         type="button"
+                        tabIndex={isMobileOpen ? 0 : -1}
                         onClick={() => {
                           onSelect(String(unit.id));
                           setIsMobileOpen(false);

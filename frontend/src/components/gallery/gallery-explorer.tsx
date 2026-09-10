@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getApiErrorMessage } from "@/lib/api/client";
+import { ensureScrollTriggerRegistered, prefersReducedMotion } from "@/lib/motion/gsap-scroll-trigger";
 import { isExternalMediaUrl, safePublicMediaUrl } from "@/lib/media/safe-url";
 import { GalleryLightbox, type LightboxItem } from "@/components/gallery/gallery-lightbox";
 import {
@@ -23,11 +24,6 @@ import type {
   PublicGalleryItem,
   PublicSchoolUnit,
 } from "@/types/public-content";
-
-// Registered lazily inside useGSAP (not at module scope) so importing this
-// module for its pure helpers (e.g. in unit tests, which run under jsdom
-// without a full window.matchMedia implementation) never touches GSAP.
-let scrollTriggerRegistered = false;
 
 type GalleryFilters = {
   search: string;
@@ -47,10 +43,12 @@ const initialFilters: GalleryFilters = {
   page: 1,
 };
 
-// A small deterministic cycle of aspect ratios gives the grid an
-// asymmetric, editorial feel without needing real image dimensions from
-// the backend (GalleryItem doesn't store intrinsic width/height).
-const CARD_ASPECT_CLASSES = ["aspect-[3/4]", "aspect-square", "aspect-[4/5]", "aspect-[4/3]"];
+// PublicGalleryItem carries no intrinsic width/height, so every card uses
+// one fixed aspect-ratio viewport (object-fit: cover) instead of sizing
+// itself off the source image. Combined with a real CSS grid (not
+// masonry columns), this keeps cards in the same row equal height instead
+// of producing an uneven, randomly-sized-looking layout.
+const CARD_ASPECT_CLASS = "aspect-[4/3]";
 
 export function buildGalleryQuery(
   filters: GalleryFilters,
@@ -96,24 +94,21 @@ function syncUrl(filters: GalleryFilters) {
 
 function GalleryCard({
   item,
-  index,
   onOpen,
 }: {
   item: PublicGalleryItem;
-  index: number;
   onOpen: () => void;
 }) {
   const image = safePublicMediaUrl(item.image);
   const external = isExternalMediaUrl(item.image);
-  const aspect = CARD_ASPECT_CLASSES[index % CARD_ASPECT_CLASSES.length];
 
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="gallery-card group mb-5 block w-full break-inside-avoid overflow-hidden rounded-lg border border-slate-200 bg-white text-right shadow-sm transition hover:shadow-md"
+      className="gallery-card group flex h-full w-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white text-right shadow-sm transition hover:shadow-md"
     >
-      <div className={`relative ${aspect} overflow-hidden bg-slate-100`}>
+      <div className={`relative ${CARD_ASPECT_CLASS} shrink-0 overflow-hidden bg-slate-100`}>
         {image ? (
           <Image
             src={image}
@@ -148,7 +143,7 @@ function GalleryCard({
             </time>
           ) : null}
         </div>
-        <h2 className="mt-3 text-base font-black leading-7 text-[#0f2f4a]">
+        <h2 className="mt-3 line-clamp-2 text-base font-black leading-7 text-[#0f2f4a]">
           {item.title}
         </h2>
         {item.caption || item.summary ? (
@@ -174,6 +169,17 @@ export function GalleryExplorer() {
   const [requestVersion, setRequestVersion] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  // FE-GALLERY-DEEPLINK-PAGE-001: the search-debounce effect below is keyed
+  // on filters.search, so it also re-fires when the URL-hydration effect
+  // sets the initial search value on mount -- indistinguishable, from its
+  // own perspective, from the user actually typing. Its settle callback
+  // unconditionally reset filters.page to 1, silently discarding a
+  // deep-linked ?page=3 the moment hydration's own debounce timer settled.
+  // This ref lets that callback tell "the debounce settling for the first
+  // time after mount (hydration, or simply the timer that was already
+  // running before the user could have typed anything)" apart from "an
+  // actual subsequent user edit" -- only the latter should reset the page.
+  const skipNextSearchResetRef = useRef(true);
 
   useEffect(() => {
     let active = true;
@@ -191,6 +197,10 @@ export function GalleryExplorer() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedSearch(filters.search.trim());
+      if (skipNextSearchResetRef.current) {
+        skipNextSearchResetRef.current = false;
+        return;
+      }
       setFilters((current) =>
         current.page === 1 ? current : { ...current, page: 1 },
       );
@@ -260,12 +270,9 @@ export function GalleryExplorer() {
   useGSAP(
     () => {
       if (!items || items.length === 0) return;
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      if (prefersReducedMotion()) return;
 
-      if (!scrollTriggerRegistered) {
-        gsap.registerPlugin(ScrollTrigger);
-        scrollTriggerRegistered = true;
-      }
+      ensureScrollTriggerRegistered();
 
       const cards = gridRef.current?.querySelectorAll(".gallery-card");
       if (!cards || cards.length === 0) return;
@@ -438,16 +445,16 @@ export function GalleryExplorer() {
           </button>
         </div>
       ) : items === null ? (
-        <div role="status" aria-busy="true" aria-live="polite" aria-label="در حال دریافت گالری" className="columns-1 gap-5 sm:columns-2 lg:columns-3">
+        <div role="status" aria-busy="true" aria-live="polite" aria-label="در حال دریافت گالری" className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }, (_, index) => (
-            <div key={index} className={`mb-5 ${CARD_ASPECT_CLASSES[index % CARD_ASPECT_CLASSES.length]} animate-pulse break-inside-avoid rounded-lg bg-slate-200 motion-reduce:animate-none`} />
+            <div key={index} className={`${CARD_ASPECT_CLASS} animate-pulse rounded-lg bg-slate-200 motion-reduce:animate-none`} />
           ))}
         </div>
       ) : items.length ? (
         <>
-          <div ref={gridRef} className="columns-1 gap-5 sm:columns-2 lg:columns-3">
+          <div ref={gridRef} className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((item, index) => (
-              <GalleryCard key={item.id} item={item} index={index} onOpen={() => setLightboxIndex(index)} />
+              <GalleryCard key={item.id} item={item} onOpen={() => setLightboxIndex(index)} />
             ))}
           </div>
           <nav aria-label="صفحه‌بندی گالری" className="flex items-center justify-center gap-3">

@@ -9,5 +9,5 @@ export const metadata: Metadata = {
 
 export default async function AchievementDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  return <PublicPageLayout><main className="bg-slate-50 py-14 md:py-16"><Container><AchievementDetail slug={slug} /></Container></main></PublicPageLayout>;
+  return <PublicPageLayout><div className="bg-slate-50 py-14 md:py-16"><Container><AchievementDetail slug={slug} /></Container></div></PublicPageLayout>;
 }

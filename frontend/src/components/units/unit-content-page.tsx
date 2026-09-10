@@ -59,11 +59,11 @@ export function UnitContentPage({ slug, type }: UnitContentPageProps) {
         <Container className="py-14 md:py-20">
           <p className="mb-4 text-sm font-black text-blue-700">{type === "news" ? "اخبار واحد" : "گالری واحد"}</p>
           <h1 className="text-3xl font-black leading-[1.4] text-[#0f2f4a] md:text-5xl">
-            {type === "news" ? "اخبار" : "گالری"} {unit?.title ?? ""}
+            {type === "news" ? "اخبار" : "گالری"} {unit?.title ?? "واحد"}
           </h1>
         </Container>
       </header>
-      <main className="bg-slate-50 py-8">
+      <div className="bg-slate-50 py-8">
         <Container className="space-y-8">
           <UnitScopedTabs slug={slug} active={type} />
           {error ? (
@@ -111,7 +111,7 @@ export function UnitContentPage({ slug, type }: UnitContentPageProps) {
           )}
           {unit ? <UnitRegistrationCta unit={unit} /> : null}
         </Container>
-      </main>
+      </div>
     </PublicPageLayout>
   );
 }

@@ -83,14 +83,45 @@ def start_payment(order: Order, *, actor, return_url: str) -> tuple[PaymentAttem
     return attempt, intent
 
 
-def _apply_inventory_on_payment_success(order: Order) -> None:
+def _is_current_attempt(order: Order, attempt: PaymentAttempt) -> bool:
+    """An order can have several PaymentAttempt rows (one per retry). A
+    callback for anything but the most recent one is stale: a later
+    attempt is what actually determines where the order stands now, so a
+    late-arriving success or failure for a superseded attempt must not be
+    allowed to move the order's own status (PaymentAttempt.Meta.ordering
+    is already "-created_at", "-id", so .first() is the current one)."""
+    latest = order.payment_attempts.first()
+    return latest is not None and latest.pk == attempt.pk
+
+
+def _apply_inventory_on_payment_success(order: Order) -> tuple[list[str], set[int]]:
+    """Applies inventory/entitlement effects only for order items whose
+    stock reservation is still ACTIVE. A reservation stops being ACTIVE
+    when `expire_stock_reservations` releases it after its hold expires
+    (see that command) -- if a payment callback arrives late enough for
+    that to have already happened, the stock may since have been sold to
+    someone else, so applying the decrement/entitlement again here would
+    be double-counting against a reservation that no longer represents a
+    real hold. Returns (skipped_titles, skipped_order_item_ids): the
+    titles for the caller to flag the order for manual reconciliation, and
+    the order_item IDs so the caller can also skip course-entitlement
+    granting for the exact same items -- grant_course_entitlements can't
+    re-check reservation state itself, since a *legitimately* processed
+    course item's reservation is already marked CONSUMED by the time it
+    would run (right here, a few lines below)."""
+    skipped_titles: list[str] = []
+    skipped_order_item_ids: set[int] = set()
     for order_item in order.items.select_related("product", "variant").all():
         reservation = StockReservation.objects.filter(
             order_item=order_item, status=StockReservation.Status.ACTIVE
         ).first()
-        if reservation is not None:
-            reservation.status = StockReservation.Status.CONSUMED
-            reservation.save(update_fields=["status", "updated_at"])
+        if reservation is None:
+            skipped_order_item_ids.add(order_item.pk)
+            if order_item.product is not None:
+                skipped_titles.append(order_item.product.title)
+            continue
+        reservation.status = StockReservation.Status.CONSUMED
+        reservation.save(update_fields=["status", "updated_at"])
 
         product = order_item.product
         if product is None:
@@ -120,6 +151,8 @@ def _apply_inventory_on_payment_success(order: Order) -> None:
             detail.recompute_enrollment_status(commit=False)
             detail.save()
 
+    return skipped_titles, skipped_order_item_ids
+
 
 @transaction.atomic
 def handle_payment_callback(provider_name: str, request_data: dict) -> dict:
@@ -134,11 +167,48 @@ def handle_payment_callback(provider_name: str, request_data: dict) -> dict:
         return {"order": None, "attempt": None, "outcome": "attempt_not_found"}
 
     order = Order.objects.select_for_update().get(pk=attempt.order_id)
+    is_current_attempt = _is_current_attempt(order, attempt)
 
-    already_succeeded = PaymentTransaction.objects.filter(
-        attempt=attempt, transaction_type=PaymentTransaction.TransactionType.VERIFICATION_SUCCEEDED
-    ).exists()
-    if already_succeeded:
+    # PAY-SAME-ATTEMPT-REVERSAL-001: this used to only check for a PRIOR
+    # SUCCESS, so a valid failure callback followed by a later valid
+    # success for the SAME, STILL-CURRENT attempt sailed straight through
+    # -- the attempt was already PaymentAttempt.Status.FAILED (set below,
+    # in the failure branch), but nothing here checked that, so the late
+    # success created a second, contradictory VERIFICATION_SUCCEEDED
+    # transaction, flipped the attempt back to SUCCEEDED, and went on to
+    # consume the order's inventory reservation and grant entitlements --
+    # while the order itself stayed stuck at PAYMENT_FAILED, because the
+    # PAID transition further below only fires when order.status is still
+    # PAYMENT_PROCESSING. Once the CURRENT attempt reaches either terminal
+    # state, a further callback for it can only be a contradiction or a
+    # harmless repeat, never new information -- reject it outright, before
+    # the provider is asked to re-verify it and before any side effect can
+    # occur.
+    #
+    # Deliberately scoped to `is_current_attempt` only: a SUPERSEDED
+    # attempt (one a retry has already moved past) can legitimately
+    # receive its own late, real result from the provider after already
+    # being marked FAILED here (e.g. the original webhook retried, or a
+    # genuinely late success for an attempt this order gave up on) -- the
+    # existing `elif not is_current_attempt` branches below already handle
+    # that correctly (record an event for manual review, apply zero
+    # inventory/entitlement/order-status side effects) and must keep
+    # doing so; this check must not intercept that path.
+    #
+    # PAY-SAME-ATTEMPT-REVERSAL-001-R1: the original version of this check
+    # only listed SUCCEEDED/FAILED -- the two terminal states the app's own
+    # code currently ever assigns -- but PaymentAttempt.Status also defines
+    # EXPIRED and CANCELLED as terminal outcomes. Any of the four means the
+    # attempt is done and a further callback for it is a contradiction or a
+    # replay, never new information, so all terminal states must be
+    # rejected here, not just the ones today's code paths happen to reach.
+    already_terminal_and_current = is_current_attempt and attempt.status in (
+        PaymentAttempt.Status.SUCCEEDED,
+        PaymentAttempt.Status.FAILED,
+        PaymentAttempt.Status.EXPIRED,
+        PaymentAttempt.Status.CANCELLED,
+    )
+    if already_terminal_and_current:
         PaymentTransaction.objects.create(
             attempt=attempt,
             transaction_type=PaymentTransaction.TransactionType.DUPLICATE_CALLBACK_REJECTED,
@@ -161,9 +231,20 @@ def handle_payment_callback(provider_name: str, request_data: dict) -> dict:
         )
         attempt.status = PaymentAttempt.Status.FAILED
         attempt.save(update_fields=["status", "updated_at"])
-        if order.status == Order.Status.PAYMENT_PROCESSING:
+        if is_current_attempt and order.status == Order.Status.PAYMENT_PROCESSING:
             transition_order_status(
                 order, Order.Status.PAYMENT_FAILED, reason=f"پرداخت ناموفق: {result.failure_reason}"
+            )
+        elif not is_current_attempt:
+            # A newer attempt exists for this order -- it, not this stale
+            # one, determines the order's real status now (this is the
+            # PAY-002 race: a late failure for a superseded attempt must
+            # not knock a since-succeeded/still-processing order back to
+            # failed).
+            record_order_event(
+                order,
+                OrderEvent.EventType.PAYMENT_VERIFICATION,
+                message="نتیجه ناموفق یک تلاش پرداخت قدیمی‌تر دریافت شد و نادیده گرفته شد.",
             )
         return {"order": order, "attempt": attempt, "outcome": "failed"}
 
@@ -182,8 +263,14 @@ def handle_payment_callback(provider_name: str, request_data: dict) -> dict:
         )
         attempt.status = PaymentAttempt.Status.FAILED
         attempt.save(update_fields=["status", "updated_at"])
-        if order.status == Order.Status.PAYMENT_PROCESSING:
+        if is_current_attempt and order.status == Order.Status.PAYMENT_PROCESSING:
             transition_order_status(order, Order.Status.PAYMENT_FAILED, reason="عدم تطابق مبلغ پرداخت")
+        elif not is_current_attempt:
+            record_order_event(
+                order,
+                OrderEvent.EventType.PAYMENT_VERIFICATION,
+                message="عدم تطابق مبلغ در یک تلاش پرداخت قدیمی‌تر دریافت شد و نادیده گرفته شد.",
+            )
         return {"order": order, "attempt": attempt, "outcome": "amount_mismatch"}
 
     PaymentTransaction.objects.create(
@@ -198,12 +285,42 @@ def handle_payment_callback(provider_name: str, request_data: dict) -> dict:
     attempt.status = PaymentAttempt.Status.SUCCEEDED
     attempt.save(update_fields=["status", "updated_at"])
 
-    _apply_inventory_on_payment_success(order)
-    grant_course_entitlements(order)
+    if not is_current_attempt:
+        # The provider confirmed real money moved for this attempt, but a
+        # newer attempt has since superseded it for this order -- applying
+        # inventory/entitlements or moving the order to PAID here could
+        # double-apply against whatever the current attempt already did
+        # (or will do), and would overwrite a status a more current
+        # attempt is responsible for. Real funds may have moved on an
+        # attempt this order no longer considers current, which needs a
+        # human, not more automatic state changes -- record it and stop.
+        record_order_event(
+            order,
+            OrderEvent.EventType.PAYMENT_VERIFICATION,
+            message=(
+                "نتیجه موفق یک تلاش پرداخت قدیمی‌تر دریافت شد. برای جلوگیری از "
+                "اعمال دوباره تغییرات، وضعیت سفارش تغییر نکرد -- این مورد نیاز "
+                "به بررسی دستی دارد."
+            ),
+        )
+        return {"order": order, "attempt": attempt, "outcome": "success"}
+
+    skipped_titles, skipped_order_item_ids = _apply_inventory_on_payment_success(order)
+    grant_course_entitlements(order, skip_order_item_ids=skipped_order_item_ids)
 
     if order.status == Order.Status.PAYMENT_PROCESSING:
         transition_order_status(order, Order.Status.PAID, reason="پرداخت تأیید شد.")
 
     record_order_event(order, OrderEvent.EventType.PAYMENT_VERIFICATION, message="پرداخت با موفقیت تأیید شد.")
+    if skipped_titles:
+        record_order_event(
+            order,
+            OrderEvent.EventType.PAYMENT_VERIFICATION,
+            message=(
+                "رزرو موجودی برای این اقلام هنگام تأیید پرداخت دیگر فعال نبود "
+                "و اثری روی موجودی/ظرفیت اعمال نشد؛ نیاز به بررسی دستی دارد: "
+                + "، ".join(skipped_titles)
+            ),
+        )
 
     return {"order": order, "attempt": attempt, "outcome": "success"}

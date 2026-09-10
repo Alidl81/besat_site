@@ -206,6 +206,17 @@ class CMSProductViewSet(ModelViewSet):
     @action(detail=True, methods=["post"], url_path="upload-image")
     def upload_image(self, request, pk=None):
         product = self.get_object()
+        # AUTH-SHOP-PUBLISHED-IMAGE-001: this action had no status guard at
+        # all, unlike perform_update()'s existing restriction just above --
+        # a media manager could add gallery images to a PUBLISHED/APPROVED/
+        # ARCHIVED product (visible to the public immediately via
+        # ProductDetailSerializer's gallery_images) with no review step,
+        # even though editing that same product's ordinary fields is
+        # already correctly locked once it leaves draft/review.
+        if _is_media_manager(request.user) and product.status not in (
+            Product.Status.DRAFT, Product.Status.WAITING_REVIEW, Product.Status.REJECTED,
+        ):
+            raise PermissionDenied("فقط محصولات پیش‌نویس یا در انتظار بررسی قابل افزودن تصویر توسط همکار رسانه هستند.")
         serializer = CMSProductImageUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getApiErrorMessage } from "@/lib/api/client";
 
 export function usePanelRequest<T>(
@@ -11,7 +11,21 @@ export function usePanelRequest<T>(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
-  const reload = useCallback(() => setVersion((current) => current + 1), []);
+  // FE-PANEL-RETRY-DOUBLE-SUBMIT-001: `reload()` only ever bumped `version`
+  // state, with no guard against a second same-tick call while the fetch a
+  // previous `reload()` triggered is still in flight -- two rapid retry-
+  // button activations (each a separate synchronous event dispatch) could
+  // each read state as "not yet loading" before either commit landed, so
+  // both proceeded and each started a real network request. Matches the
+  // same synchronous-ref-guard pattern already established for every
+  // mutation double-submit fix in this codebase; state alone always lags a
+  // render behind a second synchronous call.
+  const reloadingRef = useRef(false);
+  const reload = useCallback(() => {
+    if (reloadingRef.current) return;
+    reloadingRef.current = true;
+    setVersion((current) => current + 1);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -31,6 +45,7 @@ export function usePanelRequest<T>(
       })
       .finally(() => {
         if (active) setLoading(false);
+        reloadingRef.current = false;
       });
 
     return () => {

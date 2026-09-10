@@ -5,8 +5,10 @@ from io import BytesIO
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from PIL import Image
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.units.models import SchoolUnit
 
@@ -277,6 +279,37 @@ class AccountsAuthTests(TestCase):
         self.assertEqual(new_login_response.status_code, 200)
         self.assertIn("access", new_login_response.data)
 
+    def test_change_password_revokes_the_pre_change_refresh_token(self):
+        # AUTH-001: a session stolen before the password change must not
+        # survive it. Rotation/blacklist-on-refresh alone doesn't help if
+        # the stolen refresh token is never itself used to refresh -- the
+        # change must proactively revoke every outstanding refresh token.
+        pre_change = self.login()
+
+        response = self.client.post(
+            "/api/me/change-password/",
+            {
+                "current_password": "password123",
+                "new_password": "newStrongPassword123!",
+                "new_password_confirm": "newStrongPassword123!",
+            },
+            HTTP_AUTHORIZATION=f"Bearer {pre_change['access']}",
+            format="json",
+        )
+        self.assertEqual(response.status_code, 204)
+
+        refresh_response = self.client.post(
+            "/api/auth/refresh/",
+            {"refresh": pre_change["refresh"]},
+            format="json",
+        )
+
+        self.assertEqual(
+            refresh_response.status_code,
+            401,
+            "The pre-password-change refresh token could still mint a new access token after the change.",
+        )
+
     def test_change_password_rejects_wrong_current_password(self):
         data = self.login()
 
@@ -349,6 +382,66 @@ class UserUnitsTests(TestCase):
             order=2,
         )
 
+        self.internal_unit = SchoolUnit.objects.create(
+            title="واحد آزمایشی حساب‌های توسعه",
+            slug="dev-accounts-unit",
+            is_active=True,
+            is_internal=True,
+            order=998,
+        )
+
+    def test_general_manager_units_list_excludes_the_internal_dev_unit(self):
+        user = User.objects.create_user(username="general2", password="password123")
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.role = UserProfile.Role.GENERAL_MANAGER
+        profile.is_active = True
+        profile.save()
+
+        login_response = self.client.post(
+            "/api/auth/login/",
+            {"username": "general2", "password": "password123"},
+            format="json",
+        )
+        access = login_response.data["access"]
+
+        response = self.client.get("/api/me/units/", HTTP_AUTHORIZATION=f"Bearer {access}")
+
+        self.assertEqual(response.status_code, 200)
+        slugs = [unit["slug"] for unit in response.data]
+        self.assertNotIn("dev-accounts-unit", slugs)
+        self.assertEqual(len(response.data), 2)
+
+    def test_unit_media_with_an_internal_unit_membership_still_resolves_it(self):
+        # This is the dev_media seeding pattern: a real membership row
+        # against the internal unit must keep working for that account,
+        # even though the internal unit is hidden from every general
+        # manager selector.
+        user = User.objects.create_user(username="devmedia2", password="password123")
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.role = UserProfile.Role.UNIT_MEDIA
+        profile.is_active = True
+        profile.save()
+
+        UserUnitMembership.objects.create(
+            user=user,
+            unit=self.internal_unit,
+            role=UserUnitMembership.UnitRole.UNIT_MEDIA,
+            is_active=True,
+        )
+
+        login_response = self.client.post(
+            "/api/auth/login/",
+            {"username": "devmedia2", "password": "password123"},
+            format="json",
+        )
+        access = login_response.data["access"]
+
+        response = self.client.get("/api/me/units/", HTTP_AUTHORIZATION=f"Bearer {access}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], self.internal_unit.id)
+
     def test_general_manager_gets_all_active_units(self):
         user = User.objects.create_user(
             username="general",
@@ -417,3 +510,65 @@ class UserUnitsTests(TestCase):
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["id"], self.unit_1.id)
         self.assertEqual(response.data[0]["access_role"], UserUnitMembership.UnitRole.UNIT_MANAGER)
+
+
+class AdminPasswordChangeRevokesSessionsTests(TestCase):
+    """AUTH-001-ADMIN: a superuser resetting another user's password
+    through Django's *own* built-in admin panel
+    (``/admin/auth/user/<id>/password/``, the stock
+    ``django.contrib.auth.admin.UserAdmin`` change-password form) must
+    revoke that user's outstanding refresh tokens, exactly like the
+    self-service and invitation-based reset paths already do (AUTH-001).
+    Without this, a session an attacker already holds survives even an
+    administrator-initiated password reset.
+
+    This exercises the real admin view/form end to end (not a shortcut
+    that bypasses the admin), via the Django test client.
+    """
+
+    def setUp(self):
+        self.superuser = User.objects.create_superuser(
+            username="admin-resetter",
+            email="admin-resetter@example.com",
+            password="adminPassword123!",
+        )
+        self.target = User.objects.create_user(
+            username="target-user",
+            password="oldPassword123!",
+        )
+        UserProfile.objects.get_or_create(user=self.target)
+
+    def test_admin_password_reset_revokes_the_targets_outstanding_refresh_token(self):
+        pre_reset_token = RefreshToken.for_user(self.target)
+
+        self.client.force_login(self.superuser)
+
+        url = reverse("admin:auth_user_password_change", args=[self.target.pk])
+        response = self.client.post(
+            url,
+            {
+                "password1": "brandNewPassword456!",
+                "password2": "brandNewPassword456!",
+            },
+        )
+
+        # A successful admin password change redirects back to the user's
+        # change page; anything else means the form itself failed and the
+        # test isn't exercising what it thinks it is.
+        self.assertEqual(response.status_code, 302, getattr(response, "content", response))
+
+        self.target.refresh_from_db()
+        self.assertTrue(self.target.check_password("brandNewPassword456!"))
+
+        refresh_response = self.client.post(
+            "/api/auth/refresh/",
+            {"refresh": str(pre_reset_token)},
+            content_type="application/json",
+        )
+
+        self.assertEqual(
+            refresh_response.status_code,
+            401,
+            "The pre-reset refresh token could still mint a new access token "
+            "after an admin-initiated password reset.",
+        )

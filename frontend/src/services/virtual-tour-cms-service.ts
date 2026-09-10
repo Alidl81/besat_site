@@ -128,6 +128,20 @@ export function cmsUpdateTourSceneWithProgress(
   );
 }
 
+// REL-FE-TOUR-UPLOAD-TIMEOUT-001: this XHR previously had no `.timeout`,
+// `ontimeout`, or `onabort` handling at all -- only `onload`/`onerror`,
+// neither of which ever fires for a connection that simply stalls (goes
+// silent mid-transfer rather than erroring outright). A stalled panorama/
+// thumbnail upload left this promise permanently unresolved, which left
+// VirtualTourManager's submitting/progress state stuck indefinitely with
+// no way to recover short of a full page reload. Panoramas are large (up
+// to 20MB) and this is a wall-clock timeout from `send()` to completion
+// (it does not reset on progress events), so this needs real headroom for
+// a genuinely slow-but-progressing connection -- 5 minutes, well beyond
+// any realistic completion time for this payload size, while still
+// guaranteeing the promise eventually settles instead of hanging forever.
+const UPLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+
 function uploadFormDataWithProgress<T>(
   method: string,
   endpoint: string,
@@ -139,6 +153,7 @@ function uploadFormDataWithProgress<T>(
     xhr.open(method, normalizeEndpoint(endpoint));
     xhr.withCredentials = true;
     xhr.responseType = "json";
+    xhr.timeout = UPLOAD_TIMEOUT_MS;
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
@@ -170,6 +185,14 @@ function uploadFormDataWithProgress<T>(
 
     xhr.onerror = () => {
       reject(new ApiError({ message: "ارتباط با بک‌اند برقرار نشد.", status: 0 }));
+    };
+
+    xhr.ontimeout = () => {
+      reject(new ApiError({ message: "بارگذاری فایل بیش از حد طول کشید. اتصال اینترنت خود را بررسی و دوباره تلاش کنید.", status: 0 }));
+    };
+
+    xhr.onabort = () => {
+      reject(new ApiError({ message: "بارگذاری فایل لغو شد.", status: 0 }));
     };
 
     xhr.send(form);

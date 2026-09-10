@@ -12,7 +12,9 @@ import {
 } from "@/components/crud/crud-ui";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
 import { ApiError, getApiErrorMessage } from "@/lib/api/client";
+import { lockBodyScroll } from "@/lib/body-scroll-lock";
 import { toDateTimeLocalValue } from "@/lib/date/jalali";
+import { isTopDialog, popDialog, pushDialog } from "@/lib/dialog-stack";
 import { panelService } from "@/services/panel-service";
 import type { ApiFieldErrors } from "@/lib/api/client";
 import type { CalendarEventItem, NamedOption } from "@/types/panel-api";
@@ -72,6 +74,7 @@ export function EventFormModal({
   const previousActiveElement = useRef<Element | null>(null);
   const [scope, setScope] = useState<"school" | "unit">("school");
   const [saving, setSaving] = useState(false);
+  const submittingRef = useRef(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState("");
   const isEdit = event !== null;
@@ -90,9 +93,20 @@ export function EventFormModal({
     if (!open) return;
 
     previousActiveElement.current = document.activeElement;
-    const body = document.body;
-    const previousOverflow = body.style.overflow;
-    body.style.overflow = "hidden";
+    // FE-EVENT-MODAL-SCROLL-STACK-001: lockBodyScroll()'s shared reference
+    // count (not a capture-and-restore-the-prior-value scheme, this
+    // component's previous approach) stays correct regardless of the order
+    // concurrently open modals close in -- e.g. a CRUD Modal opened on top
+    // of this one closing first.
+    const releaseScrollLock = lockBodyScroll();
+    // FE-MODAL-ESCAPE-STACK-001: this Escape handler used to fire
+    // unconditionally, with no awareness of another dialog opened on top
+    // of it (e.g. a CRUD Modal launched from inside this one) -- one
+    // Escape press closed THIS modal instead of the genuinely topmost one.
+    // Modal/ConfirmDialog (crud-ui.tsx) already coordinate via this same
+    // dialog-stack token; joining it here makes this modal correctly
+    // decline to act on Escape unless it's actually the topmost dialog.
+    const dialogToken = pushDialog();
 
     const frame = window.requestAnimationFrame(() => {
       const firstField = dialogRef.current?.querySelector<HTMLElement>(
@@ -103,6 +117,7 @@ export function EventFormModal({
 
     function onKeyDown(nativeEvent: KeyboardEvent) {
       if (nativeEvent.key === "Escape") {
+        if (!isTopDialog(dialogToken)) return;
         nativeEvent.stopPropagation();
         onClose();
         return;
@@ -132,7 +147,8 @@ export function EventFormModal({
     return () => {
       window.cancelAnimationFrame(frame);
       document.removeEventListener("keydown", onKeyDown, true);
-      body.style.overflow = previousOverflow;
+      popDialog(dialogToken);
+      releaseScrollLock();
       (previousActiveElement.current as HTMLElement | null)?.focus?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -186,6 +202,14 @@ export function EventFormModal({
       payload.status = String(form.get("status") ?? "draft");
     }
 
+    // FE-DASH-EVENT-DOUBLE-SUBMIT-001: same guard/rationale as
+    // login-card.tsx's AUTH-UI-DOUBLE-SUBMIT-001 -- `disabled={saving}`
+    // only takes effect after React re-renders, so two same-tick submits
+    // (both passing the synchronous validation above before either yields
+    // to this function's first await) would otherwise both reach the
+    // mutation call.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSaving(true);
     setErrors({});
     setFormError("");
@@ -201,6 +225,7 @@ export function EventFormModal({
       setFormError(getApiErrorMessage(reason));
     } finally {
       setSaving(false);
+      submittingRef.current = false;
     }
   }
 
@@ -209,9 +234,24 @@ export function EventFormModal({
   return createPortal(
     <div
       dir="rtl"
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-slate-950/45 p-4 backdrop-blur-sm sm:p-8"
+      // besat-dashboard: the dashboard's --panel-amber/--panel-navy custom
+      // properties this modal's PrimaryButton/GhostButton depend on are
+      // scoped to that class on DashboardShell's <main>, not declared
+      // globally. This modal is portaled straight to document.body, which
+      // renders it as a *sibling* of that <main>, not a descendant -- so
+      // without redeclaring the scope here, every var(--panel-*) reference
+      // resolves to nothing, silently producing a transparent background
+      // and mismatched border/text color the same way an invalid custom
+      // property reference always falls back for its whole declaration.
+      className="besat-dashboard fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-slate-950/45 p-4 backdrop-blur-sm sm:p-8"
       onMouseDown={(mouseEvent) => {
-        if (mouseEvent.target === mouseEvent.currentTarget) onClose();
+        if (mouseEvent.target !== mouseEvent.currentTarget) return;
+        // Without this, the browser's native mousedown default action
+        // shifts focus to the nearest focusable ancestor of the backdrop
+        // before this modal's own opener-focus-restoration cleanup gets a
+        // chance to act, so focus lands on <body> instead of the opener.
+        mouseEvent.preventDefault();
+        onClose();
       }}
     >
       <div

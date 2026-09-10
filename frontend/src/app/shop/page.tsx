@@ -8,17 +8,33 @@ import { FeaturedStrip } from "@/components/shop/featured-strip";
 import { ShopExplorer } from "@/components/shop/shop-explorer";
 import { ProductGridSkeleton } from "@/components/shop/skeletons";
 import { getShopProducts } from "@/services/shop-service";
+import { resolveSiteUrl } from "@/lib/site-url";
 
-export const metadata: Metadata = {
-  title: "فروشگاه | مجتمع آموزشی بعثت",
-  description: "کتاب‌های کمک‌درسی، دوره‌های آنلاین و دوره‌های حضوری مجتمع آموزشی بعثت.",
-  alternates: { canonical: "/shop" },
-  openGraph: {
-    title: "فروشگاه مجتمع آموزشی بعثت",
+// FE-SEO-PAGE-ORIGIN-001: this page has no request-time API, so Next.js
+// would otherwise prerender it once at build time -- baking the root
+// layout's metadataBase (itself sourced from the build-time-inlined
+// NEXT_PUBLIC_SITE_URL) into the canonical link permanently. Forcing
+// dynamic rendering and building an absolute canonical directly from
+// resolveSiteUrl() (called per-request, ignoring the inherited
+// metadataBase entirely -- an absolute URL in a metadata field always
+// wins over metadataBase composition) matches the same fix already
+// verified for robots.ts/sitemap.ts.
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const siteUrl = resolveSiteUrl();
+  return {
+    title: "فروشگاه | مجتمع آموزشی بعثت",
     description: "کتاب‌های کمک‌درسی، دوره‌های آنلاین و دوره‌های حضوری مجتمع آموزشی بعثت.",
-    type: "website",
-  },
-};
+    alternates: { canonical: `${siteUrl}/shop` },
+    openGraph: {
+      title: "فروشگاه مجتمع آموزشی بعثت",
+      description: "کتاب‌های کمک‌درسی، دوره‌های آنلاین و دوره‌های حضوری مجتمع آموزشی بعثت.",
+      url: `${siteUrl}/shop`,
+      type: "website",
+    },
+  };
+}
 
 const typeShortcuts = [
   { label: "کتاب و کالا", type: "physical", icon: BookOpen },
@@ -33,12 +49,12 @@ export default async function ShopPage() {
     <PublicPageLayout>
       <header className="border-b border-[#e5e7eb] bg-white">
         <Container className="py-8 md:py-10">
-          <p className="mb-2 text-sm font-black text-[#c98c3d]">فروشگاه بعثت</p>
+          <p className="mb-2 text-sm font-black text-[#8a641f]">فروشگاه بعثت</p>
           <h1 className="max-w-2xl text-2xl font-black leading-[1.5] text-[#0a2848] md:text-4xl">
             کتاب، دوره آنلاین و دوره حضوری مجتمع آموزشی بعثت
           </h1>
-          <p className="mt-3 max-w-2xl text-sm font-bold leading-8 text-[#0a2848]/60 md:text-base">
-            محصولات آموزشی تأییدشده مجتمع بعثت را مرور و خریداری کنید.
+          <p className="mt-3 max-w-2xl text-sm font-bold leading-8 text-[#0a2848]/70 md:text-base">
+            محصولات آموزشی مجتمع بعثت را مرور و خریداری کنید.
           </p>
 
           <div className="mt-5 flex flex-wrap gap-2">
@@ -56,7 +72,7 @@ export default async function ShopPage() {
         </Container>
       </header>
 
-      <main className="bg-[#fbfaf7] py-8 md:py-10">
+      <div className="bg-[#fbfaf7] py-8 md:py-10">
         <Container>
           <div className="grid gap-8">
             {featured && featured.results.length > 0 ? (
@@ -67,7 +83,7 @@ export default async function ShopPage() {
             </Suspense>
           </div>
         </Container>
-      </main>
+      </div>
     </PublicPageLayout>
   );
 }

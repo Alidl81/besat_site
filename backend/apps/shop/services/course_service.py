@@ -13,13 +13,22 @@ from ..models import CourseEnrollment, OnlineCourseDetail, Order, OrderEvent, Pr
 from .order_service import record_order_event
 
 
-def grant_course_entitlements(order: Order) -> None:
+def grant_course_entitlements(order: Order, *, skip_order_item_ids: set[int] | None = None) -> None:
+    """skip_order_item_ids: order items whose stock/seat reservation was
+    NOT active when the caller (payment_service._apply_inventory_on_
+    payment_success) checked it moments earlier -- this function can't
+    re-check reservation state itself, since a legitimately-processed
+    item's reservation is already marked CONSUMED by that point, which
+    would look identical to "was never reserved" from in here."""
+    skip_order_item_ids = skip_order_item_ids or set()
     for order_item in order.items.select_related(
         "product", "product__online_course_detail", "product__in_person_course_detail"
     ).all():
         product = order_item.product
         if product is None or not product.is_course:
             continue
+        if order_item.pk in skip_order_item_ids:
+            continue  # reservation no longer active -- see skip_order_item_ids docstring
         if hasattr(order_item, "course_enrollment"):
             continue  # already granted -- defensive, shouldn't happen given the replay guard
 

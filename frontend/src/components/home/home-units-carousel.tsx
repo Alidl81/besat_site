@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { safePublicMediaUrl } from "@/lib/media/safe-url";
 import type { PublicSchoolUnit } from "@/types/public-content";
 
 import { getOfficialUnitShortTitle } from "@/lib/units/unit-display";
@@ -96,7 +97,9 @@ export function HomeUnitsCarousel({ units }: HomeUnitsCarouselProps) {
         {/* عنوان */}
         <div className="mb-7 flex flex-col gap-3 text-right sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="mb-2 flex items-center gap-3 text-sm font-black text-[#c98c3d]">
+            {/* FE-A11Y-CONTRAST-HOME-NEWS-001 (same defect pattern, proactively
+                applied here too): same failing color/white-background pairing. */}
+            <p className="mb-2 flex items-center gap-3 text-sm font-black text-[#8a641f]">
               <span className="h-px w-8 bg-[#c98c3d]" />
               مدارس مجموعه آموزشی فرهنگی بعثت
             </p>
@@ -215,7 +218,7 @@ function UnitCard({
   isActive: boolean;
   onClick: () => void;
 }) {
-  const imageSrc = unit.cover_image;
+  const imageSrc = safePublicMediaUrl(unit.cover_image);
   const cardInner = (
     <div
       className={`relative h-[24rem] w-[18rem] overflow-hidden rounded-[1.5rem] border shadow-2xl transition-[border-color,box-shadow] duration-500 sm:h-[28rem] sm:w-[21rem] ${

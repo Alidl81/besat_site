@@ -74,4 +74,16 @@ describe("panelService content contract", () => {
       {},
     );
   });
+
+  // FE-CMS-EDITOR-PREVIEW-404-001: CMSContentViewSet never had a "preview"
+  // action, so this always 404'd for any already-saved, non-dirty content.
+  // contentPreview() now reuses the plain, already-working detail endpoint
+  // (the same one contentItem() calls) instead of a nonexistent action.
+  it("fetches the server preview from the existing content detail endpoint, not a nonexistent preview action", async () => {
+    mocks.apiRequest.mockResolvedValue({ id: 42 });
+
+    await panelService.contentPreview(42);
+
+    expect(mocks.apiRequest).toHaveBeenCalledWith("cms/content/42/", {});
+  });
 });

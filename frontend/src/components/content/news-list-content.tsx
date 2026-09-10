@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { EmptyState } from "@/components/page/empty-state";
 import { contentRepository } from "@/lib/data/repositories";
 import type { ContentRecord } from "@/lib/data/domain-types";
+import { isSafeRelativePath } from "@/lib/url-safety";
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "";
@@ -24,17 +25,29 @@ function stripHtml(value: string) {
   return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+// SEC-MOCK-PAYMENT-OPEN-REDIRECT-001 (same defect shape, proactively
+// applied here too): `cover_image_url` is a free-text field a content
+// manager can set via the CMS admin -- a bare `startsWith("/")` check also
+// accepts a protocol-relative "//evil.example" or a tab-bypass
+// "/\t/evil.example" unchanged, letting the public news list's <img>
+// resolve off-origin.
 function normalizeMediaSrc(src: string | null) {
   if (!src) return null;
 
   if (
-    src.startsWith("/") ||
+    isSafeRelativePath(src) ||
     src.startsWith("http://") ||
     src.startsWith("https://") ||
     src.startsWith("data:")
   ) {
     return src;
   }
+
+  // A value that already starts with "/" but failed the safety check above
+  // is protocol-relative or a parser-normalization bypass, not a bare
+  // filename missing its leading slash -- reject it outright rather than
+  // prepending another "/" (which wouldn't reliably neutralize it).
+  if (src.startsWith("/")) return null;
 
   return `/${src}`;
 }
@@ -112,8 +125,12 @@ export function NewsListContent() {
                   </p>
                 ) : null}
 
+                {/* FE-A11Y-CONTRAST-PUBLIC-METADATA-001 (same defect pattern):
+                    text-slate-400 on white measured 2.564:1, below AA's 4.5:1.
+                    slate-600 gives real headroom (7.58:1) vs slate-500's
+                    razor-thin pass. */}
                 {dateLabel ? (
-                  <p className="mt-4 text-xs font-black text-slate-400">
+                  <p className="mt-4 text-xs font-black text-slate-600">
                     {dateLabel}
                   </p>
                 ) : null}

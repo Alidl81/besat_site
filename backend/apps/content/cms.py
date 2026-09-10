@@ -1,7 +1,9 @@
+import re
 from datetime import datetime, timedelta
 from html import escape
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
@@ -21,7 +23,7 @@ from apps.news.permissions import get_accessible_unit_ids, is_general_manager
 from apps.units.models import SchoolUnit
 
 from .models import ContentRevision
-from .rich_text import render_tiptap_html
+from .rich_text import render_tiptap_html, sanitize_stored_tiptap_document
 
 
 CONTENT_MODELS = {
@@ -49,6 +51,8 @@ class FrontendContentSerializer(serializers.Serializer):
     scheduled_at = serializers.DateField(allow_null=True, required=False)
     published_at = serializers.DateField(allow_null=True)
     is_featured = serializers.BooleanField(required=False)
+    is_important = serializers.BooleanField(required=False)
+    priority = serializers.IntegerField(required=False)
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
     seo = serializers.DictField(required=False)
@@ -291,16 +295,37 @@ def _author_role(item):
     return profile.role if profile else None
 
 
-def serialize_content_item(request, kind, item):
+def _serialize_status(item):
     today = timezone.localdate()
-    serialized_status = (
-        "scheduled"
-        if item.status == item.Status.PUBLISHED
-        and item.published_at
-        and item.published_at > today
-        else item.status
-    )
-    body_json = item.editor_json or _editorjs_to_tiptap(item.content_json)
+    if item.status == item.Status.PUBLISHED and item.published_at and item.published_at > today:
+        return "scheduled"
+    if item.status == item.Status.REJECTED:
+        # The frontend's own status vocabulary (its filter dropdown, queue
+        # cards, and every currentItem.status comparison in
+        # editorial-workspace.tsx) calls this state "changes_requested", not
+        # "rejected" -- returning the raw model value here left every one
+        # of those comparisons silently false, which hid the "resubmit for
+        # review" action from an author whose content had been rejected.
+        # Internal storage (item.status, revision snapshots, valid_statuses)
+        # is untouched -- this only renames the value in the API response.
+        return "changes_requested"
+    if item.status == item.Status.WAITING_REVIEW:
+        # Same rename, same reason: the frontend calls this "in_review" (see
+        # e.g. editorial-workspace.tsx's approve/reject button visibility
+        # check), not "waiting_review" -- without this, a reviewer could
+        # never see the approve/reject buttons on content actually awaiting
+        # their review.
+        return "in_review"
+    return item.status
+
+
+def serialize_content_item(request, kind, item):
+    serialized_status = _serialize_status(item)
+    # CMS-TABLE-FORGED-COLWIDTH-001-R1: sanitize before this reaches the
+    # CMS editor's own hydration -- a row can carry a forged colwidth
+    # without ever having passed through validate_tiptap_document() (a
+    # fixture, a raw DB write, data saved before this guard existed).
+    body_json = sanitize_stored_tiptap_document(item.editor_json) or _editorjs_to_tiptap(item.content_json)
     body_html = (
         render_tiptap_html(item.editor_json)
         if item.editor_json is not None
@@ -309,6 +334,7 @@ def serialize_content_item(request, kind, item):
     return {
         "id": _content_id(kind, item.id),
         "kind": kind,
+        "version": item.version,
         "title": item.title,
         "slug": item.slug,
         "summary": item.summary,
@@ -346,6 +372,8 @@ def serialize_content_item(request, kind, item):
             item.published_at if serialized_status == "scheduled" else None
         ),
         "is_featured": item.is_featured,
+        "is_important": getattr(item, "is_important", False),
+        "priority": getattr(item, "priority", 0),
         "author_role": _author_role(item),
         "published_at": item.published_at,
         "created_at": item.created_at,
@@ -393,6 +421,30 @@ def _validated_seo_values(data, current):
     return values
 
 
+_LIST_ORDERING_MAP = {
+    "-updated_at": ("updated_at", True),
+    "updated_at": ("updated_at", False),
+    "title": ("title", False),
+    "-title": ("title", True),
+    "-published_at": ("published_at", True),
+    "published_at": ("published_at", False),
+}
+
+# The frontend's status filter uses a couple of names that are synonyms for
+# the real apps.core.models.ContentWorkflowModel.Status values (e.g. its
+# "در صف بررسی" option sends "in_review" where the model calls the same
+# state "waiting_review"). "scheduled" isn't a stored status at all --
+# serialize_content_item derives it at read time from a PUBLISHED item whose
+# published_at is still in the future -- so it needs the matching queryset
+# filter here rather than a straight status= lookup. "unpublished" and
+# "trash" have no corresponding stored state in the model at all; left
+# unmapped they correctly filter to zero results rather than erroring.
+_STATUS_FILTER_ALIASES = {
+    "in_review": "waiting_review",
+    "changes_requested": "rejected",
+}
+
+
 class CMSContentViewSet(GenericViewSet):
     """Compatibility CRUD API for the frontend's unified content repository."""
 
@@ -404,16 +456,140 @@ class CMSContentViewSet(GenericViewSet):
         return [IsAuthenticated()]
 
     def list(self, request):
+        params = request.query_params
+        kind_filter = params.get("kind")
+        status_filter = params.get("status")
+        scope_filter = params.get("scope")
+        unit_id_filter = params.get("unit_id")
+        featured_filter = params.get("featured")
+        search = (params.get("search") or "").strip()
+        author_filter = params.get("author")
+        ordering = params.get("ordering") or "-updated_at"
+
         items = []
         for kind, (model, _) in CONTENT_MODELS.items():
+            if kind_filter and kind_filter != kind:
+                continue
+
             queryset = self._visible_queryset(request.user, model)
+
+            if status_filter == "scheduled":
+                queryset = queryset.filter(
+                    status=model.Status.PUBLISHED,
+                    published_at__gt=timezone.localdate(),
+                )
+            elif status_filter:
+                queryset = queryset.filter(
+                    status=_STATUS_FILTER_ALIASES.get(status_filter, status_filter),
+                )
+            if scope_filter:
+                queryset = queryset.filter(scope=scope_filter)
+            if unit_id_filter:
+                queryset = queryset.filter(unit_id=unit_id_filter)
+            if featured_filter in ("true", "1"):
+                queryset = queryset.filter(is_featured=True)
+            elif featured_filter in ("false", "0"):
+                queryset = queryset.filter(is_featured=False)
+            if author_filter == "me" and request.user.is_authenticated:
+                queryset = queryset.filter(created_by=request.user)
+            if search:
+                queryset = queryset.filter(
+                    Q(title__icontains=search)
+                    | Q(summary__icontains=search)
+                    | Q(content_text__icontains=search)
+                )
+
             items.extend(
                 serialize_content_item(request, kind, item)
                 for item in queryset.select_related("category", "unit", "created_by__profile")
             )
 
-        items.sort(key=lambda item: item["updated_at"], reverse=True)
+        sort_field, sort_reverse = _LIST_ORDERING_MAP.get(ordering, ("updated_at", True))
+        items.sort(key=lambda item: str(item.get(sort_field) or ""), reverse=sort_reverse)
+
+        summary = self._status_summary(
+            request,
+            kind_filter=kind_filter,
+            scope_filter=scope_filter,
+            unit_id_filter=unit_id_filter,
+            featured_filter=featured_filter,
+            search=search,
+            author_filter=author_filter,
+        )
+
+        page = self.paginate_queryset(items)
+        if page is not None:
+            response = self.get_paginated_response(page)
+            response.data["summary"] = summary
+            return response
         return Response(items)
+
+    def _status_summary(
+        self,
+        request,
+        *,
+        kind_filter,
+        scope_filter,
+        unit_id_filter,
+        featured_filter,
+        search,
+        author_filter,
+    ):
+        """Per-status counts for the same (kind/scope/unit/featured/author/
+        search) filter set as list(), minus the status filter itself -- this
+        is what the frontend's queue-shortcut cards (draft/in review/
+        approved/...) read to show "N items in this status" and jump
+        straight to it. It was previously silently absent from the
+        response, so those cards never rendered at all."""
+        today = timezone.localdate()
+        counts = {
+            "draft": 0,
+            "in_review": 0,
+            "changes_requested": 0,
+            "approved": 0,
+            "scheduled": 0,
+            "published": 0,
+            "archived": 0,
+        }
+
+        for kind, (model, _) in CONTENT_MODELS.items():
+            if kind_filter and kind_filter != kind:
+                continue
+
+            queryset = self._visible_queryset(request.user, model)
+
+            if scope_filter:
+                queryset = queryset.filter(scope=scope_filter)
+            if unit_id_filter:
+                queryset = queryset.filter(unit_id=unit_id_filter)
+            if featured_filter in ("true", "1"):
+                queryset = queryset.filter(is_featured=True)
+            elif featured_filter in ("false", "0"):
+                queryset = queryset.filter(is_featured=False)
+            if author_filter == "me" and request.user.is_authenticated:
+                queryset = queryset.filter(created_by=request.user)
+            if search:
+                queryset = queryset.filter(
+                    Q(title__icontains=search)
+                    | Q(summary__icontains=search)
+                    | Q(content_text__icontains=search)
+                )
+
+            counts["draft"] += queryset.filter(status=model.Status.DRAFT).count()
+            counts["in_review"] += queryset.filter(status=model.Status.WAITING_REVIEW).count()
+            counts["changes_requested"] += queryset.filter(status=model.Status.REJECTED).count()
+            counts["approved"] += queryset.filter(status=model.Status.APPROVED).count()
+            counts["scheduled"] += queryset.filter(
+                status=model.Status.PUBLISHED,
+                published_at__gt=today,
+            ).count()
+            counts["published"] += queryset.filter(
+                status=model.Status.PUBLISHED,
+                published_at__lte=today,
+            ).count()
+            counts["archived"] += queryset.filter(status=model.Status.ARCHIVED).count()
+
+        return counts
 
     def retrieve(self, request, pk=None):
         kind, object_id = _parse_content_id(pk)
@@ -459,56 +635,168 @@ class CMSContentViewSet(GenericViewSet):
     def partial_update(self, request, pk=None):
         return self._update(request, pk, partial=True)
 
+    @transaction.atomic
     def destroy(self, request, pk=None):
         kind, object_id = _parse_content_id(pk)
         model, _ = CONTENT_MODELS[kind]
-        item = model.objects.filter(pk=object_id).first()
+        item = model.objects.select_for_update().filter(pk=object_id).first()
         if item is None:
             raise NotFound("محتوا یافت نشد.")
         self._ensure_delete_access(request.user, item.scope, item.unit_id)
+        # Same defect class as AUTH-CMS-PUBLISHED-MUTATION-001, the
+        # destructive counterpart: _ensure_delete_access only checks unit
+        # scope, never workflow state, so a non-GM unit role could
+        # hard-delete a live published/approved/archived item outright.
+        if not is_general_manager(request.user) and item.status in (
+            model.Status.APPROVED,
+            model.Status.PUBLISHED,
+            model.Status.ARCHIVED,
+        ):
+            raise PermissionDenied("این محتوا منتشر یا آرشیو شده و فقط توسط مدیر کل قابل حذف است.")
+        # SEC-CMS-EDITOR-OCC-BYPASS-001: a stale DELETE (the client hasn't
+        # seen a newer save someone else already made) is exactly as much
+        # a lost-update risk as a stale PATCH -- deleting content out from
+        # under a concurrent editor's just-saved change is unrecoverable,
+        # unlike a rejected PATCH the user can just retry.
+        conflict = self._check_version_or_conflict(request, kind, item)
+        if conflict is not None:
+            return conflict
         ContentRevision.objects.filter(content_kind=kind, object_id=item.id).delete()
         item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @staticmethod
+    def _conflict_response(kind, item):
+        return Response(
+            {
+                "code": "content_conflict",
+                "current": {
+                    "id": _content_id(kind, item.id),
+                    "version": item.version,
+                    "updated_at": item.updated_at.isoformat() if item.updated_at else None,
+                    "status": _serialize_status(item),
+                },
+            },
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    _IF_MATCH_VERSION_RE = re.compile(r'-v(\d+)"?\s*$')
+
+    def _submitted_version(self, request):
+        """Extracts the client's claimed version from either source
+        panel-service.ts sends it in -- the JSON body's `version` field
+        (contentWriteHeaders()'s payload) or the `If-Match` header
+        (`W/"content-<id>-v<version>"`) -- preferring the body field when
+        both are present. Returns (version, provided): `provided` is True
+        the instant *either* source was present at all, even a malformed
+        one, so the caller can tell "no precondition sent" apart from "a
+        precondition was sent but doesn't parse" -- SEC-CMS-EDITOR-OCC-
+        BYPASS-001 requires rejecting both the same as a stale value, not
+        treating either as "no check requested"."""
+        body_version = request.data.get("version") if hasattr(request.data, "get") else None
+        if body_version is not None:
+            try:
+                return int(body_version), True
+            except (TypeError, ValueError):
+                return None, True
+        if_match = request.headers.get("If-Match")
+        if if_match:
+            match = self._IF_MATCH_VERSION_RE.search(if_match)
+            return (int(match.group(1)), True) if match else (None, True)
+        return None, False
+
+    def _check_version_or_conflict(self, request, kind, item):
+        """FE-CMS-EDITOR-CONCURRENT-SAVE-LOSS-001: the frontend has sent
+        the item's last-known version back on every save/workflow-action/
+        delete call for a long time (panel-service.ts's
+        contentWriteHeaders(), editorial-workspace.tsx's persist()/
+        contentAction() calls) -- this closes the other half that was
+        never implemented: actually comparing it against the row's
+        current version before applying a write, so two tabs saving from
+        the same stale snapshot no longer silently clobber each other.
+
+        SEC-CMS-EDITOR-OCC-BYPASS-001: the first version of this check
+        treated a request with no `version` in its JSON body as "no check
+        requested" and let it through -- Codex's adjacent probe correctly
+        called that out as a live bypass of the whole guarantee (a stale
+        If-Match-only request, a request with the version field simply
+        omitted, and a malformed version value all sailed through
+        untouched). A precondition is now mandatory: missing, malformed,
+        AND stale are all rejected identically as a 409 conflict -- none
+        of the three is distinguishable from the others in the response,
+        deliberately, since telling a caller "you forgot the precondition"
+        vs. "yours is stale" leaks the same information a stale value
+        would. Bumps `item.version` in place and returns None when the
+        submitted value matches, so the caller still must `item.save()`/
+        `item.delete()` and the NEW version becomes what the next
+        write has to know. Must be called on an item fetched under
+        `select_for_update()` inside the same still-open transaction, or
+        two genuinely concurrent requests could both pass this check
+        before either commits."""
+        submitted, provided = self._submitted_version(request)
+        if not provided or submitted != item.version:
+            return self._conflict_response(kind, item)
+        item.version += 1
+        return None
+
     def _update(self, request, pk, partial):
         kind, object_id = _parse_content_id(pk)
         model, category_model = CONTENT_MODELS[kind]
-        item = model.objects.filter(pk=object_id).first()
-        if item is None:
-            raise NotFound("محتوا یافت نشد.")
+        with transaction.atomic():
+            item = model.objects.select_for_update().filter(pk=object_id).first()
+            if item is None:
+                raise NotFound("محتوا یافت نشد.")
 
-        values = self._validated_values(
-            request,
-            model,
-            category_model,
-            instance=item,
-            partial=partial,
-        )
-        for field_name, value in values.items():
-            setattr(item, field_name, value)
-        item.updated_by = request.user
-        if item.status == model.Status.PUBLISHED and not item.published_by_id:
-            item.published_by = request.user
+            # Permission/workflow-state checks (inside _validated_values())
+            # run before the version-conflict check: a 403 must never be
+            # masked by a 409, since which one a caller with no legitimate
+            # write access gets back would otherwise leak whether their
+            # stale guess at the version happened to be right.
+            values = self._validated_values(
+                request,
+                model,
+                category_model,
+                instance=item,
+                partial=partial,
+            )
 
-        try:
-            item.save()
-        except DjangoValidationError as exc:
-            self._raise_validation(exc)
+            conflict = self._check_version_or_conflict(request, kind, item)
+            if conflict is not None:
+                return conflict
 
-        self._record_revision(
-            kind,
-            item,
-            request.user,
-            autosave=bool(request.data.get("autosave")),
-            note="ذخیره خودکار" if request.data.get("autosave") else "ویرایش محتوا",
-        )
+            for field_name, value in values.items():
+                setattr(item, field_name, value)
+            item.updated_by = request.user
+            if item.status == model.Status.PUBLISHED and not item.published_by_id:
+                item.published_by = request.user
+
+            try:
+                item.save()
+            except DjangoValidationError as exc:
+                self._raise_validation(exc)
+
+            self._record_revision(
+                kind,
+                item,
+                request.user,
+                autosave=bool(request.data.get("autosave")),
+                note="ذخیره خودکار" if request.data.get("autosave") else "ویرایش محتوا",
+            )
 
         return Response(serialize_content_item(request, kind, item))
 
     def _workflow_item(self, request, pk, review=False):
+        # select_for_update() requires an open transaction -- every action
+        # method calling this (submit_review/approve/reject/publish/
+        # schedule/archive/restore) is decorated with @transaction.atomic
+        # for exactly that reason (and so the fetch-check-save sequence
+        # spanning this method and _workflow_response() below is one
+        # uninterrupted transaction for FE-CMS-EDITOR-CONCURRENT-SAVE-
+        # LOSS-001's version check). A new workflow action must carry the
+        # same decorator or this raises TransactionManagementError.
         kind, object_id = _parse_content_id(pk)
         model, _ = CONTENT_MODELS[kind]
-        item = model.objects.filter(pk=object_id).first()
+        item = model.objects.select_for_update().filter(pk=object_id).first()
         if item is None:
             raise NotFound("محتوا یافت نشد.")
 
@@ -523,14 +811,25 @@ class CMSContentViewSet(GenericViewSet):
         return kind, item
 
     def _workflow_response(self, request, kind, item, note):
+        conflict = self._check_version_or_conflict(request, kind, item)
+        if conflict is not None:
+            return conflict
+
         try:
             item.save()
         except DjangoValidationError as exc:
             self._raise_validation(exc)
-        self._record_revision(kind, item, request.user, note=note)
+        # The editor always requires a written comment before "reject" and
+        # offers the field optionally for every other action -- prefer the
+        # reviewer's actual words over the generic action label so the
+        # revision (and, for rejections, the author-facing feedback banner)
+        # shows what was actually said instead of just "رد محتوا".
+        comment = str(request.data.get("comment") or "").strip()
+        self._record_revision(kind, item, request.user, note=comment or note)
         return Response(serialize_content_item(request, kind, item))
 
     @action(detail=True, methods=("post",), url_path="submit-review")
+    @transaction.atomic
     def submit_review(self, request, pk=None):
         kind, item = self._workflow_item(request, pk)
         if item.status not in (item.Status.DRAFT, item.Status.REJECTED):
@@ -542,6 +841,7 @@ class CMSContentViewSet(GenericViewSet):
         return self._workflow_response(request, kind, item, "ارسال برای بررسی")
 
     @action(detail=True, methods=("post",), url_path="approve")
+    @transaction.atomic
     def approve(self, request, pk=None):
         kind, item = self._workflow_item(request, pk, review=True)
         if item.status != item.Status.WAITING_REVIEW:
@@ -553,6 +853,7 @@ class CMSContentViewSet(GenericViewSet):
         return self._workflow_response(request, kind, item, "تأیید محتوا")
 
     @action(detail=True, methods=("post",), url_path="reject")
+    @transaction.atomic
     def reject(self, request, pk=None):
         kind, item = self._workflow_item(request, pk, review=True)
         if item.status not in (item.Status.WAITING_REVIEW, item.Status.APPROVED):
@@ -564,6 +865,7 @@ class CMSContentViewSet(GenericViewSet):
         return self._workflow_response(request, kind, item, "رد محتوا")
 
     @action(detail=True, methods=("post",), url_path="publish")
+    @transaction.atomic
     def publish(self, request, pk=None):
         if not is_general_manager(request.user):
             raise PermissionDenied("فقط مدیر کل اجازه انتشار محتوا را دارد.")
@@ -577,6 +879,7 @@ class CMSContentViewSet(GenericViewSet):
         return self._workflow_response(request, kind, item, "انتشار محتوا")
 
     @action(detail=True, methods=("post",), url_path="schedule")
+    @transaction.atomic
     def schedule(self, request, pk=None):
         if not is_general_manager(request.user):
             raise PermissionDenied("فقط مدیر کل اجازه زمان‌بندی محتوا را دارد.")
@@ -599,6 +902,26 @@ class CMSContentViewSet(GenericViewSet):
         item.published_by = request.user
         item.updated_by = request.user
         return self._workflow_response(request, kind, item, "زمان‌بندی انتشار")
+
+    @action(detail=True, methods=("post",), url_path="archive")
+    @transaction.atomic
+    def archive(self, request, pk=None):
+        kind, item = self._workflow_item(request, pk)
+        if item.status != item.Status.PUBLISHED:
+            raise ValidationError({"status": "فقط محتوای منتشرشده قابل بایگانی است."})
+        item.status = item.Status.ARCHIVED
+        item.updated_by = request.user
+        return self._workflow_response(request, kind, item, "بایگانی محتوا")
+
+    @action(detail=True, methods=("post",), url_path="restore")
+    @transaction.atomic
+    def restore(self, request, pk=None):
+        kind, item = self._workflow_item(request, pk)
+        if item.status != item.Status.ARCHIVED:
+            raise ValidationError({"status": "فقط محتوای بایگانی‌شده قابل بازگردانی است."})
+        item.status = item.Status.DRAFT
+        item.updated_by = request.user
+        return self._workflow_response(request, kind, item, "بازگردانی محتوا از بایگانی")
 
     @action(detail=True, methods=("get",), url_path="revisions")
     def revisions(self, request, pk=None):
@@ -639,10 +962,20 @@ class CMSContentViewSet(GenericViewSet):
         methods=("post",),
         url_path=r"revisions/(?P<revision_id>[^/.]+)/restore",
     )
+    @transaction.atomic
     def restore_revision(self, request, pk=None, revision_id=None):
+        # SEC-CMS-EDITOR-OCC-BYPASS-001: this action fetched the item with a
+        # plain (non-locking) query and never called
+        # _check_version_or_conflict() at all -- unlike _update()/
+        # _workflow_response()/destroy(), a restore with a missing or stale
+        # version silently reverted the row to the older snapshot instead of
+        # being rejected as a 409. Brought in line with the same guarded
+        # fetch-check-save sequence used everywhere else: select_for_update()
+        # inside this @transaction.atomic action, then the same mandatory
+        # precondition check, before any snapshot field is applied.
         kind, object_id = _parse_content_id(pk)
         model, category_model = CONTENT_MODELS[kind]
-        item = model.objects.filter(pk=object_id).first()
+        item = model.objects.select_for_update().filter(pk=object_id).first()
         if item is None:
             raise NotFound("محتوا یافت نشد.")
         self._ensure_write_access(request.user, item.scope, item.unit_id)
@@ -653,6 +986,10 @@ class CMSContentViewSet(GenericViewSet):
         ).first()
         if revision is None:
             raise NotFound("نسخه موردنظر یافت نشد.")
+
+        conflict = self._check_version_or_conflict(request, kind, item)
+        if conflict is not None:
+            return conflict
 
         snapshot = revision.snapshot if isinstance(revision.snapshot, dict) else {}
         scope = snapshot.get("scope", item.scope)
@@ -675,8 +1012,10 @@ class CMSContentViewSet(GenericViewSet):
             "cover_image_url",
             "is_featured",
             "is_active",
+            "is_important",
+            "priority",
         ):
-            if field_name in snapshot:
+            if field_name in snapshot and hasattr(item, field_name):
                 setattr(item, field_name, snapshot[field_name])
         snapshot_seo = snapshot.get("seo")
         if isinstance(snapshot_seo, dict):
@@ -748,6 +1087,38 @@ class CMSContentViewSet(GenericViewSet):
         if errors:
             raise ValidationError(errors)
 
+        if instance is not None:
+            # Authorize against the object's ACTUAL current scope/unit
+            # first, before looking at anything the request body claims --
+            # otherwise a unit manager/media user could touch an object
+            # outside their own units simply by fetching it by ID and
+            # supplying their own (legitimate) unit_id in the payload,
+            # since the check below this one only validates the
+            # *requested* target state, not who was allowed to start
+            # editing this object in the first place.
+            self._ensure_write_access(request.user, instance.scope, instance.unit_id)
+
+            # AUTH-CMS-PUBLISHED-MUTATION-001: once content has left the
+            # draft/review workflow (approved, published, or archived),
+            # only a general manager may touch it further -- the status-
+            # transition table further below already forces an *explicit*
+            # non-GM status change into one of these states back to
+            # WAITING_REVIEW, but that table is only consulted when the
+            # request body actually includes a "status" key. Omitting
+            # "status" entirely (the frontend's own save payload always
+            # does, per this finding's own evidence) skipped that check
+            # completely, silently persisting any other field edit --
+            # including, for an ARCHIVED item, is_active flipping back to
+            # True as an ordinary side effect of item.save() elsewhere in
+            # this same method, effectively reactivating archived public
+            # content with no review step at all.
+            if not is_general_manager(request.user) and instance.status in (
+                model.Status.APPROVED,
+                model.Status.PUBLISHED,
+                model.Status.ARCHIVED,
+            ):
+                raise PermissionDenied("این محتوا منتشر یا آرشیو شده و فقط توسط مدیر کل قابل ویرایش است.")
+
         scope = data.get("scope", current("scope", model.Scope.SCHOOL))
         unit_id = data.get("unit_id", current("unit_id"))
         if unit_id in ("", None):
@@ -763,6 +1134,9 @@ class CMSContentViewSet(GenericViewSet):
             if len(accessible_unit_ids) == 1:
                 unit_id = accessible_unit_ids[0]
 
+        # Also authorize the requested TARGET state, so a unit manager
+        # cannot reassign their own content into a unit they don't manage
+        # either.
         self._ensure_write_access(request.user, scope, unit_id)
 
         status_value = data.get("status", current("status", model.Status.DRAFT))
@@ -889,17 +1263,32 @@ class CMSContentViewSet(GenericViewSet):
             "is_active": True,
             **_validated_seo_values(data, current),
         }
+        # is_important/priority only exist on News (the homepage's "important
+        # news" rail keys off them) -- Announcement has no such concept.
+        if model is News:
+            values["is_important"] = data.get("is_important", current("is_important", False))
+            priority = data.get("priority", current("priority", 0))
+            try:
+                values["priority"] = max(0, int(priority))
+            except (TypeError, ValueError):
+                raise ValidationError({"priority": "اولویت نمایش باید عدد صحیح باشد."})
         return values
 
     @staticmethod
     def _revision_snapshot(kind, item):
-        body_json = item.editor_json or _editorjs_to_tiptap(item.content_json)
+        # CMS-TABLE-FORGED-COLWIDTH-001-R1: a revision snapshot is a
+        # historical record a "view/restore revision" UI can read back
+        # into the editor later, so it must never capture a forged
+        # colwidth verbatim from a legacy/bypassed item.editor_json any
+        # more than a live read of the item itself should.
+        sanitized_editor_json = sanitize_stored_tiptap_document(item.editor_json)
+        body_json = sanitized_editor_json or _editorjs_to_tiptap(item.content_json)
         body_html = (
             render_tiptap_html(item.editor_json)
             if item.editor_json is not None
             else _editorjs_to_html(item.content_json)
         )
-        return {
+        snapshot = {
             "kind": kind,
             "title": item.title,
             "slug": item.slug,
@@ -907,7 +1296,7 @@ class CMSContentViewSet(GenericViewSet):
             "body_html": body_html,
             "body_json": body_json,
             "content_json": item.content_json,
-            "editor_json": item.editor_json,
+            "editor_json": sanitized_editor_json,
             "cover_image_url": item.cover_image_url,
             "scope": item.scope,
             "unit_id": item.unit_id,
@@ -918,6 +1307,10 @@ class CMSContentViewSet(GenericViewSet):
             "is_active": item.is_active,
             "seo": _serialize_seo_fields(item),
         }
+        if hasattr(item, "is_important"):
+            snapshot["is_important"] = item.is_important
+            snapshot["priority"] = item.priority
+        return snapshot
 
     def _record_revision(self, kind, item, actor, autosave=False, note=None):
         snapshot = self._revision_snapshot(kind, item)

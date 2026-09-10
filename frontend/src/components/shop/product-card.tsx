@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BookOpen, GraduationCap, MapPin, PackageX } from "lucide-react";
+import { safePublicMediaUrl } from "@/lib/media/safe-url";
 import { formatPrice } from "@/lib/shop/money";
 import type { ProductListItem } from "@/types/shop";
 
@@ -32,7 +33,7 @@ function AvailabilityNote({ product }: { product: ProductListItem }) {
       );
     }
     if (availability === "low_stock") {
-      return <span className="text-xs font-bold text-amber-600">موجودی محدود</span>;
+      return <span className="text-xs font-bold text-amber-800">موجودی محدود</span>;
     }
     return null;
   }
@@ -43,7 +44,12 @@ function AvailabilityNote({ product }: { product: ProductListItem }) {
       return <span className="text-xs font-bold text-rose-600">ظرفیت تکمیل</span>;
     }
     if (seats_left !== null && seats_left <= 5) {
-      return <span className="text-xs font-bold text-amber-600">{seats_left} صندلی باقی‌مانده</span>;
+      // FE-A11Y-CONTRAST-SHOP-COURSE-001: text-amber-600 (#d97706) on white
+      // measured 3.1858:1, below WCAG AA's 4.5:1. text-amber-800 is the
+      // already-correct shade this exact component uses two lines above
+      // for "موجودی محدود" (and product-detail-view.tsx's own low-seats
+      // indicator) -- 7.09:1, comfortably passing.
+      return <span className="text-xs font-bold text-amber-800">{seats_left} صندلی باقی‌مانده</span>;
     }
     if (start_date) {
       return (
@@ -63,6 +69,7 @@ export function ProductCard({ product }: { product: ProductListItem }) {
       (product.physical_detail?.availability === "out_of_stock" ||
         product.physical_detail?.availability === "discontinued")) ||
     (product.course_detail?.enrollment_status === "full" && product.product_type !== "physical");
+  const image = safePublicMediaUrl(product.featured_image);
 
   return (
     <Link
@@ -70,10 +77,10 @@ export function ProductCard({ product }: { product: ProductListItem }) {
       className="besat-shop-card group flex flex-col overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_1px_3px_rgba(15,37,58,.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(15,37,58,.14)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#c98c3d]/30 motion-reduce:hover:translate-y-0"
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#f4f1ea]">
-        {product.featured_image ? (
+        {image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={product.featured_image}
+            src={image}
             alt=""
             loading="lazy"
             className="size-full object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
@@ -86,7 +93,7 @@ export function ProductCard({ product }: { product: ProductListItem }) {
         <div className="absolute right-3 top-3 flex flex-wrap gap-1.5">
           <TypeBadge type={product.product_type} />
           {product.is_on_sale ? (
-            <span className="inline-flex items-center rounded-full bg-[#c98c3d] px-3 py-1 text-[11px] font-black text-white shadow-sm">
+            <span className="inline-flex items-center rounded-full bg-[#8a641f] px-3 py-1 text-[11px] font-black text-white shadow-sm">
               تخفیف‌دار
             </span>
           ) : null}
@@ -103,13 +110,13 @@ export function ProductCard({ product }: { product: ProductListItem }) {
       <div className="flex flex-1 flex-col gap-2 p-4">
         <h3 className="line-clamp-2 text-[15px] font-black leading-7 text-[#0a2848]">{product.title}</h3>
         {product.category ? (
-          <span className="text-xs font-bold text-[#0a2848]/55">{product.category.title}</span>
+          <span className="text-xs font-bold text-[#0a2848]/70">{product.category.title}</span>
         ) : null}
 
         <div className="mt-auto flex items-end justify-between gap-2 pt-2">
           <div className="flex flex-col">
             {product.is_on_sale ? (
-              <span className="text-xs font-bold tabular-nums text-[#0a2848]/45 line-through">
+              <span className="text-xs font-bold tabular-nums text-[#0a2848]/70 line-through">
                 {formatPrice(product.price_amount)}
               </span>
             ) : null}

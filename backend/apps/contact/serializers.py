@@ -33,7 +33,7 @@ class ContactInfoSerializer(serializers.ModelSerializer):
 
 class ContactMessageCreateSerializer(serializers.ModelSerializer):
     related_unit = serializers.PrimaryKeyRelatedField(
-        queryset=SchoolUnit.objects.filter(is_active=True),
+        queryset=SchoolUnit.objects.real(),
         required=False,
         allow_null=True,
     )

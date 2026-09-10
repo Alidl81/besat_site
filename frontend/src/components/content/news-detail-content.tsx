@@ -60,8 +60,9 @@ export function NewsDetailContent({ slug }: { slug: string }) {
   if (item === null) {
     return (
       <section className="bg-[#f8fafc] py-14">
-        <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-8">
+        <div role="alert" className="mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-8">
           <EmptyState
+            as="h1"
             title={failed ? "دریافت خبر با خطا روبه‌رو شد." : "خبر مورد نظر پیدا نشد."}
           />
           {failed ? (
@@ -89,7 +90,7 @@ export function NewsDetailContent({ slug }: { slug: string }) {
     <section className="bg-[#f8fafc] py-14">
       <article className="mx-auto w-full max-w-4xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white text-right shadow-sm">
         {coverImage ? (
-          <div className="aspect-[16/9] overflow-hidden bg-slate-100">
+          <div className="besat-article-in aspect-[16/9] overflow-hidden bg-slate-100">
             <img
               src={coverImage}
               alt={item.title}
@@ -99,7 +100,10 @@ export function NewsDetailContent({ slug }: { slug: string }) {
         ) : null}
 
         <div className="p-5 sm:p-8">
-          <div className="mb-5 flex flex-wrap items-center gap-3">
+          <div
+            className="besat-article-in mb-5 flex flex-wrap items-center gap-3"
+            style={{ animationDelay: "80ms" }}
+          >
             {item.category ? (
               <span className="rounded-xl bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
                       {item.category.title}
@@ -107,27 +111,35 @@ export function NewsDetailContent({ slug }: { slug: string }) {
             ) : null}
 
             {dateLabel ? (
-              <span className="text-xs font-black text-slate-400">
+              <span className="text-xs font-black text-slate-500">
                 {dateLabel}
               </span>
             ) : null}
           </div>
 
-          <h1 className="text-2xl font-black leading-[1.6] text-[#062452] sm:text-4xl">
+          <h1
+            className="besat-article-in text-2xl font-black leading-[1.6] text-[#062452] sm:text-4xl"
+            style={{ animationDelay: "140ms" }}
+          >
             {item.title}
           </h1>
 
           {item.summary ? (
-            <p className="mt-5 text-base font-bold leading-9 text-slate-500">
+            <p
+              className="besat-article-in mt-5 text-base font-bold leading-9 text-slate-500"
+              style={{ animationDelay: "200ms" }}
+            >
               {item.summary}
             </p>
           ) : null}
 
-          {item.body_html ? (
-            <RichContentRenderer html={item.body_html} />
-          ) : (
-            <EditorJsContentRenderer content={item.content_json} />
-          )}
+          <div className="besat-article-in" style={{ animationDelay: "260ms" }}>
+            {item.body_html ? (
+              <RichContentRenderer html={item.body_html} />
+            ) : (
+              <EditorJsContentRenderer content={item.content_json} />
+            )}
+          </div>
 
           <div className="mt-10 border-t border-slate-100 pt-5">
             <Link

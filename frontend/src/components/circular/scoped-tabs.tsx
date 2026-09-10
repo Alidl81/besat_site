@@ -6,6 +6,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type KeyboardEvent,
   type ReactNode,
 } from "react";
 
@@ -20,6 +21,8 @@ type ScopedTabsProps = {
   activeKey: string;
   onChange: (key: string) => void;
   children: ReactNode;
+  /** Accessible name for the tablist -- e.g. "بخش‌های محتوای واحد". */
+  label: string;
 };
 
 /**
@@ -27,7 +30,7 @@ type ScopedTabsProps = {
  * - نشانگر متحرک که با ResizeObserver به‌روز می‌شود (responsive)
  * - انیمیشن جمع/پهن محتوا
  */
-export function ScopedTabs({ tabs, activeKey, onChange, children }: ScopedTabsProps) {
+export function ScopedTabs({ tabs, activeKey, onChange, children, label }: ScopedTabsProps) {
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const [indicator, setIndicator] = useState<{ right: number; width: number }>({
@@ -82,11 +85,33 @@ export function ScopedTabs({ tabs, activeKey, onChange, children }: ScopedTabsPr
     };
   }, [children]);
 
+  const activeIndex = tabs.findIndex((tab) => tab.key === activeKey);
+
+  // RTL reading direction: left is "forward" (next), right is "back" --
+  // same convention already used for the home hero slider's own keyboard
+  // handler. Automatic activation model: arrow keys both move focus and
+  // select, matching pointer/Enter behavior instead of a separate
+  // "focus vs. select" distinction this UI doesn't otherwise have.
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowLeft") nextIndex = (activeIndex + 1) % tabs.length;
+    else if (event.key === "ArrowRight") nextIndex = (activeIndex - 1 + tabs.length) % tabs.length;
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = tabs.length - 1;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const nextTab = tabs[nextIndex];
+    onChange(nextTab.key);
+    tabRefs.current[nextTab.key]?.focus();
+  }
+
   return (
     <div>
       {/* نوار تب */}
       <div
         ref={containerRef}
+        role="tablist"
+        aria-label={label}
         className="relative flex gap-1 rounded-[1.5rem] border border-slate-200 bg-white p-2 shadow-sm"
       >
         {/* نشانگر متحرک */}
@@ -104,12 +129,18 @@ export function ScopedTabs({ tabs, activeKey, onChange, children }: ScopedTabsPr
                 tabRefs.current[tab.key] = el;
               }}
               type="button"
+              role="tab"
+              id={`besat-tab-${tab.key}`}
+              aria-selected={isActive}
+              aria-controls={`besat-tabpanel-${tab.key}`}
+              tabIndex={isActive ? 0 : -1}
               onClick={() => onChange(tab.key)}
-              className={`relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 text-xs font-black transition-colors duration-400 sm:gap-2 sm:px-4 sm:text-sm ${
+              onKeyDown={handleTabKeyDown}
+              className={`relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 text-xs font-black transition-colors duration-400 focus:outline-none focus:ring-4 focus:ring-[#c98c3d]/40 sm:gap-2 sm:px-4 sm:text-sm ${
                 isActive ? "text-white" : "text-[#062452] hover:text-blue-700"
               }`}
             >
-              <span className="text-base">{tab.icon}</span>
+              <span aria-hidden="true" className="text-base">{tab.icon}</span>
               <span className="hidden sm:inline">{tab.label}</span>
               <span className="sm:hidden">{tab.label.split("‌")[0]}</span>
             </button>
@@ -119,7 +150,11 @@ export function ScopedTabs({ tabs, activeKey, onChange, children }: ScopedTabsPr
 
       {/* محتوا */}
       <div
-        className="mt-5 transition-all duration-250 ease-out"
+        role="tabpanel"
+        id={`besat-tabpanel-${activeKey}`}
+        aria-labelledby={`besat-tab-${activeKey}`}
+        tabIndex={0}
+        className="mt-5 transition-all duration-250 ease-out focus:outline-none"
         style={{
           opacity: phase === "in" ? 1 : 0,
           transform: phase === "in" ? "translateY(0)" : "translateY(6px)",

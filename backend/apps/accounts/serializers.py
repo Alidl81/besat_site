@@ -5,7 +5,9 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
+from rest_framework_simplejwt.settings import api_settings as simplejwt_api_settings
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.contrib.auth.password_validation import validate_password
 
@@ -23,6 +25,55 @@ from .validators import validate_avatar_image_file
 
 
 logger = logging.getLogger(__name__)
+
+
+def revoke_all_outstanding_tokens(user) -> None:
+    """Blacklists every refresh token this user has ever been issued that
+    SIMPLE_JWT is still tracking as outstanding. Must be called on every
+    password change/reset path (self-service and invitation-based) --
+    without this, a session stolen before the change survives it: its
+    still-valid refresh token can keep minting new access tokens
+    indefinitely, and rotation/blacklist-on-refresh alone does nothing to
+    cure an already-compromised chain that was never actually used to
+    refresh. This does NOT invalidate that session's current *access*
+    token (SIMPLE_JWT doesn't track/blacklist access tokens by default,
+    only refresh tokens) -- a stolen access token remains usable for the
+    remainder of its own short lifetime (ACCESS_TOKEN_LIFETIME); that
+    residual window is an accepted, explicit limitation, not solved here.
+
+    CONCURRENCY (AUTH-001): this function, by itself, reads an unlocked
+    snapshot of OutstandingToken rows, then inserts blacklist rows for
+    that snapshot. On its own, a holder of an old refresh token who
+    refreshes in the narrow window between the snapshot query and the
+    blacklist insert would get a newly rotated replacement token
+    (rotation is enabled) that isn't in that snapshot and would survive
+    indefinitely. This is closed NOT inside this function but by its
+    callers: every caller below acquires
+    `UserProfile.objects.select_for_update()` on the target user's
+    profile row, inside the same `transaction.atomic()` block, BEFORE
+    calling this function -- and `RefreshTokenSerializer.validate()`
+    (this module) acquires the identical row lock, inside its own
+    `transaction.atomic()`, before running the real (fully verified)
+    refresh/rotation logic. That forces the two operations to serialize
+    on that row: whichever side acquires the lock first fully completes
+    (commits) before the other's blacklist-check/rotation logic runs, so
+    a concurrent refresh either lands inside this function's snapshot
+    (if the refresh committed its rotation first) or sees the old token
+    as already blacklisted when it re-verifies under the lock (if the
+    password change committed first). A caller that invokes this
+    function WITHOUT already holding that lock reintroduces the race --
+    this function has no way to enforce that its caller is already
+    inside such a transaction.
+    """
+    outstanding_tokens = OutstandingToken.objects.filter(user=user)
+    BlacklistedToken.objects.bulk_create(
+        (
+            BlacklistedToken(token=token)
+            for token in outstanding_tokens
+            if not hasattr(token, "blacklistedtoken")
+        ),
+        ignore_conflicts=True,
+    )
 
 
 def raise_drf_validation_error(error: DjangoValidationError):
@@ -57,6 +108,47 @@ class LoginSerializer(TokenObtainPairSerializer):
         data["redirect_path"] = get_role_redirect_path(profile.role)
 
         return data
+
+
+class RefreshTokenSerializer(TokenRefreshSerializer):
+    """Wraps the stock SIMPLE_JWT refresh/rotation logic in a per-user row
+    lock on UserProfile so it can never interleave with
+    revoke_all_outstanding_tokens()'s snapshot-then-blacklist sequence in
+    ChangePasswordSerializer.save() / SetPasswordSerializer.save() --
+    see AUTH-001 and the docstring on revoke_all_outstanding_tokens().
+
+    A refresh request cannot authenticate itself before it has decoded
+    the token, so we can't lock the row "properly" (via an authenticated
+    user) before touching the token at all. Instead: peek at the
+    unverified `user_id` claim (signature/expiry/blacklist NOT checked
+    yet -- see _peek_user_id) purely to pick which profile row to lock,
+    then run the real, fully-verified validation (which re-decodes the
+    same token from scratch, checking signature/expiry/blacklist exactly
+    as the stock serializer always has) inside that lock. The peek is
+    never itself trusted for any authorization decision -- a forged or
+    garbage `user_id` claim only causes us to (harmlessly) lock the
+    wrong/a nonexistent profile row; the subsequent real validation still
+    rejects the token normally.
+    """
+
+    def validate(self, attrs):
+        user_id = self._peek_user_id(attrs.get("refresh", ""))
+
+        if user_id is None:
+            return super().validate(attrs)
+
+        with transaction.atomic():
+            UserProfile.objects.select_for_update().filter(user_id=user_id).first()
+            return super().validate(attrs)
+
+    @staticmethod
+    def _peek_user_id(raw_token):
+        try:
+            token = RefreshToken(raw_token, verify=False)
+        except TokenError:
+            return None
+
+        return token.payload.get(simplejwt_api_settings.USER_ID_CLAIM)
 
 
 class LogoutSerializer(serializers.Serializer):
@@ -251,11 +343,20 @@ class ChangePasswordSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         user = self.context["request"].user
-        user.set_password(self.validated_data["new_password"])
-        user.save(update_fields=["password"])
+        with transaction.atomic():
+            # AUTH-001: lock this user's profile row for the whole
+            # revoke sequence so a concurrent refresh (see
+            # RefreshTokenSerializer.validate()) can't slip a
+            # newly-rotated descendant token past the snapshot taken
+            # inside revoke_all_outstanding_tokens() below.
+            UserProfile.objects.select_for_update().filter(user=user).first()
+
+            user.set_password(self.validated_data["new_password"])
+            user.save(update_fields=["password"])
+            revoke_all_outstanding_tokens(user)
 
         return user
-    
+
 class SetPasswordSerializer(serializers.Serializer):
     token = serializers.CharField(write_only=True, trim_whitespace=False)
     password = serializers.CharField(write_only=True, trim_whitespace=False)
@@ -294,10 +395,16 @@ class SetPasswordSerializer(serializers.Serializer):
         user = invitation.user
 
         with transaction.atomic():
+            # AUTH-001: same per-user row lock as ChangePasswordSerializer
+            # -- see the comment there and revoke_all_outstanding_tokens()'s
+            # docstring.
+            UserProfile.objects.select_for_update().filter(user=user).first()
+
             user.set_password(self.validated_data["password"])
             user.save(update_fields=["password"])
             invitation.used_at = timezone.now()
             invitation.save(update_fields=["used_at"])
+            revoke_all_outstanding_tokens(user)
 
         logger.info(
             "user invitation consumed: invitation_id=%s user_id=%s", invitation.id, user.id,

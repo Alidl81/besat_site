@@ -1,4 +1,4 @@
-import { ApiError, normalizeEndpoint, type ApiFieldErrors } from "@/lib/api/client";
+import { ApiError, normalizeEndpoint, resolveRequestSignal, type ApiFieldErrors } from "@/lib/api/client";
 
 /**
  * Cart endpoints exchange a guest-cart token via response/request headers
@@ -33,9 +33,17 @@ function normalizeFieldErrors(payload: unknown): ApiFieldErrors {
 
 export async function cartApiRequest<T>(
   endpoint: string,
-  options: RequestInit & { guestToken?: string | null } = {},
+  // REL-FE-CART-TIMEOUT-001: this raw `fetch()` had no `AbortSignal` at
+  // all, so a slow/unreachable backend held cart refresh/add/update/
+  // remove/merge open indefinitely (or until the platform's own
+  // uncontrolled connection-level default) -- the exact same defect
+  // REL-FE-BACKEND-TIMEOUT-001 fixed in `apiRequest`/`apiDownload`, just in
+  // this separate cart-specific transport (see the file header comment for
+  // why cart has its own transport). `timeoutMs`/`signal` mirror
+  // `ApiRequestOptions` for the same reason.
+  options: RequestInit & { guestToken?: string | null; timeoutMs?: number } = {},
 ): Promise<CartTransportResult<T>> {
-  const { guestToken, headers, ...requestOptions } = options;
+  const { guestToken, headers, timeoutMs, signal, ...requestOptions } = options;
 
   const response = await fetch(normalizeEndpoint(endpoint), {
     ...requestOptions,
@@ -45,6 +53,7 @@ export async function cartApiRequest<T>(
       ...(guestToken ? { [GUEST_CART_TOKEN_HEADER]: guestToken } : {}),
       ...headers,
     },
+    signal: resolveRequestSignal(signal, timeoutMs),
   });
 
   if (!response.ok) {

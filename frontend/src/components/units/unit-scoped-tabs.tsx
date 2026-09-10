@@ -14,7 +14,7 @@ const tabs = [
 export function UnitScopedTabs({ slug, active }: UnitScopedTabsProps) {
   return (
     <div className="rounded-[1.75rem] border border-slate-200 bg-white p-2 shadow-sm">
-      <nav className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <nav aria-label="ناوبری واحد" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {tabs.map((tab) => {
           const isActive = tab.key === active;
 

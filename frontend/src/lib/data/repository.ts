@@ -25,15 +25,25 @@ type RepositoryConfig<T extends BaseRecord> = {
   seed?: T[];
 };
 
+const MAX_LIST_PAGES = 50;
+
 export function createRepository<T extends BaseRecord>(
   config: RepositoryConfig<T>,
 ): Repository<T> {
   const endpoint = config.endpoint;
+  const separator = endpoint.includes("?") ? "&" : "?";
   return {
     async list() {
-      const response = await apiRequest<T[] | { results: T[] }>(endpoint, {
-      });
-      return Array.isArray(response) ? response : response.results;
+      const all: T[] = [];
+      for (let page = 1; page <= MAX_LIST_PAGES; page += 1) {
+        const response = await apiRequest<T[] | { results: T[]; next: string | null }>(
+          `${endpoint}${separator}page=${page}`,
+        );
+        if (Array.isArray(response)) return response;
+        all.push(...response.results);
+        if (!response.next) break;
+      }
+      return all;
     },
     async get(id) {
       return apiRequest<T>(`${endpoint}${encodeURIComponent(id)}/`, {

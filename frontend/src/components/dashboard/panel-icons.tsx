@@ -23,6 +23,7 @@ import graduationCap from "@iconify-icons/tabler/school";
 import heart from "@iconify-icons/tabler/heart";
 import image from "@iconify-icons/tabler/photo";
 import link from "@iconify-icons/tabler/link";
+import logout from "@iconify-icons/tabler/logout";
 import mail from "@iconify-icons/tabler/mail";
 import media from "@iconify-icons/tabler/video";
 import megaphone from "@iconify-icons/tabler/speakerphone";
@@ -73,6 +74,7 @@ export type PanelIconName =
   | "heart"
   | "image"
   | "link"
+  | "logout"
   | "mail"
   | "media"
   | "megaphone"
@@ -123,6 +125,7 @@ const icons: Record<PanelIconName, IconifyIcon> = {
   heart,
   image,
   link,
+  logout,
   mail,
   media,
   megaphone,

@@ -194,6 +194,14 @@ class News(TimeStampedModel, ActiveModel, SEOFieldsModel):
         db_index=True,
         verbose_name="وضعیت",
     )
+    # FE-CMS-EDITOR-CONCURRENT-SAVE-LOSS-001: a plain integer optimistic-
+    # concurrency counter. The frontend editor has already sent this value
+    # back on every save/workflow-action call for a long time (see
+    # panel-service.ts's contentWriteHeaders()/editorial-workspace.tsx's
+    # persist()) -- the missing half was ever validating it here, so two
+    # tabs saving from the same stale snapshot silently clobbered each
+    # other instead of the second save being rejected as a conflict.
+    version = models.PositiveIntegerField(default=1, verbose_name="نسخه")
     published_at = models.DateField(
         null=True,
         blank=True,

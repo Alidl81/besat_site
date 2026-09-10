@@ -72,3 +72,31 @@ frontend/.env*.local
 
 # Local agent skills
 .agents/
+
+# Local audit evidence and exported audit bundle (never source-controlled).
+.audit/
+.audit.zip
+
+# Generated browser/coverage traces and reports.
+*.trace
+*.har
+coverage/
+.nyc_output/
+lighthouse*.html
+
+# OPS-ACCIDENTAL-QA-ARTIFACTS-001: generated QA/dev-testing trees at the
+# repo root, produced by the frontend QA pipeline's own runtime tooling --
+# not meant to be version-controlled (some contain dev-only seed
+# credentials, route traces, and screenshot data that must never be
+# committed, even accidentally via a broad `git add`/archive).
+.qg_runtime_tests/
+frontend-artifacts/
+
+# Stray empty directories from a one-off Windows-path shell-quoting issue
+# in QA tooling (a literal Windows path/semicolon ended up as a directory
+# name on this Linux checkout). Harmless (empty) but must never be tracked.
+# Backslashes are gitignore escape characters, not literal path separators,
+# so each one here must itself be escaped to match the literal directory
+# name this filesystem actually has.
+C:\\Users\\Ali\\AppData\\Local\\Temp\\besat-qg-qg-20260827/
+frontend;D/

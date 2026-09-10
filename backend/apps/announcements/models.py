@@ -115,6 +115,11 @@ class Announcement(
     ContentWorkflowModel,
     SEOFieldsModel,
 ):
+    # FE-CMS-EDITOR-CONCURRENT-SAVE-LOSS-001: see the identical field on
+    # News for the full rationale -- added directly here rather than on
+    # the shared ContentWorkflowModel mixin, since that mixin is also used
+    # by models this finding never implicated (e.g. Event).
+    version = models.PositiveIntegerField(default=1, verbose_name="نسخه")
     title = models.CharField(
         max_length=255,
         verbose_name="عنوان اطلاعیه",

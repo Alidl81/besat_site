@@ -2,10 +2,13 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type DragEvent } from "react";
 import { createPortal } from "react-dom";
 import { EditorIcon } from "@/components/editor/editor-icons";
+import { lockBodyScroll } from "@/lib/body-scroll-lock";
+import { isTopDialog, popDialog, pushDialog } from "@/lib/dialog-stack";
 import { getApiErrorMessage } from "@/lib/api/client";
+import { isSafeExternalHttpUrl, isSafeRelativePath } from "@/lib/url-safety";
 import { panelService } from "@/services/panel-service";
 import type { MediaAsset } from "@/types/panel-api";
 
@@ -31,11 +34,12 @@ const SUPPORTED_MEDIA_TYPES = new Set([
 ]);
 
 
+// The confirmed selection is only ever a URL -- its filename segment is a
+// meaningless generated UUID, not a friendly name, and the raw URL exposes
+// implementation detail (host/path) for no benefit. A fixed, honest
+// "selected" confirmation reads better than either.
 function getMediaSourceLabel(src: string) {
-  if (!src) return "No media selected";
-  if (src.length <= 80) return src;
-
-  return `${src.slice(0, 44)}...${src.slice(-20)}`;
+  return isVideoSource(src) ? "ویدیوی انتخاب‌شده" : "تصویر انتخاب‌شده";
 }
 function isVideoSource(src: string) {
   const normalized = src.toLowerCase();
@@ -49,19 +53,26 @@ function isVideoSource(src: string) {
   );
 }
 
+// SEC-FE-MEDIA-PICKER-URL-001: this used to be a hand-rolled check here
+// (an absolute-http(s) branch plus a local "starts with one '/'" branch).
+// Codex's adjacent retest found three more vectors it didn't cover --
+// "/\n/evil.example" (a literal newline the WHATWG parser strips before
+// resolving, collapsing to "//evil.example"), and the absolute-URL branch
+// accepting backslash-scheme forms like "http:\\evil.example" or
+// "http:/\/evil.example" that parse identically to the forward-slash
+// form. Both shared `@/lib/url-safety` helpers now reject a backslash or
+// ASCII tab/newline/CR up front and (for the relative-path helper)
+// authoritatively resolve against a sentinel base to catch any further
+// normalization tricks -- reusing them here closes this class of bug in
+// one place instead of re-auditing this component's own copy again.
 function isSafeMediaUrl(url: string) {
-  try {
-    const parsed = new URL(url, window.location.origin);
-    return parsed.protocol === "https:" || parsed.protocol === "http:";
-  } catch {
-    return false;
-  }
+  return isSafeExternalHttpUrl(url) || isSafeRelativePath(url);
 }
 
 function MediaPreview({ src, title }: { src: string; title: string }) {
   if (!src) {
     return (
-      <div className="flex h-40 items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 text-sm font-bold text-slate-400">
+      <div className="flex h-40 items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 text-sm font-bold text-slate-600">
         هنوز مدیایی انتخاب نشده است.
       </div>
     );
@@ -93,6 +104,7 @@ export function MediaPickerDialog({
   onSelect,
   onClose,
 }: MediaPickerDialogProps) {
+  const linkInputId = useId();
   const [activeTab, setActiveTab] = useState<MediaTab>("upload");
   const [libraryItems, setLibraryItems] = useState<MediaAsset[] | null>(null);
   const [selectedUrl, setSelectedUrl] = useState(value);
@@ -100,6 +112,11 @@ export function MediaPickerDialog({
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [errorText, setErrorText] = useState("");
+  // FE-CMS-MEDIA-PICKER-UPLOAD-DOUBLE-SUBMIT-001: `isUploading` is
+  // state-backed, so two same-tick file-input changes both read it as
+  // `false` before either update commits -- a synchronous ref guard closes
+  // that race.
+  const uploadingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -139,12 +156,17 @@ export function MediaPickerDialog({
     };
   }, [open, unitId, value]);
 
+  // FE-MODAL-FOCUS-STACK-ORDER-001: lockBodyScroll()'s reference count
+  // (not a capture-and-restore-the-prior-value scheme, this component's
+  // previous approach per FE-MODAL-SCROLL-STACK-001) stays correct
+  // regardless of the order concurrently open modals close in -- this
+  // picker is commonly opened from inside another already-open editor
+  // modal, and either one may close first.
   useEffect(() => {
-    if (open) document.body.style.overflow = "hidden";
-    else document.body.style.overflow = "";
-
+    if (!open) return;
+    const releaseScrollLock = lockBodyScroll();
     return () => {
-      document.body.style.overflow = "";
+      releaseScrollLock();
     };
   }, [open]);
 
@@ -153,9 +175,15 @@ export function MediaPickerDialog({
     openerRef.current = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;
+    const token = pushDialog();
     const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        // This picker is commonly opened from inside another already-open
+        // dialog (e.g. the gallery "new item" modal); that dialog has its
+        // own Escape listener on the same document target, so without this
+        // check one Escape press would close both at once.
+        if (!isTopDialog(token)) return;
         event.preventDefault();
         dismiss();
         return;
@@ -181,6 +209,7 @@ export function MediaPickerDialog({
     return () => {
       window.clearTimeout(focusTimer);
       document.removeEventListener("keydown", onKeyDown);
+      popDialog(token);
     };
   }, [dismiss, open]);
 
@@ -202,6 +231,8 @@ export function MediaPickerDialog({
       return;
     }
 
+    if (uploadingRef.current) return;
+    uploadingRef.current = true;
     setIsUploading(true);
     try {
       const asset = await panelService.uploadMedia(file, {
@@ -215,6 +246,7 @@ export function MediaPickerDialog({
       setErrorText(getApiErrorMessage(reason));
     } finally {
       setIsUploading(false);
+      uploadingRef.current = false;
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
@@ -247,7 +279,9 @@ export function MediaPickerDialog({
       dir="rtl"
       className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm sm:p-8"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) dismiss();
+        if (event.target !== event.currentTarget) return;
+        event.preventDefault();
+        dismiss();
       }}
     >
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="media-picker-dialog-title" tabIndex={-1} className="flex max-h-[90dvh] w-full max-w-5xl flex-col overflow-hidden rounded-[2.25rem] border border-slate-200 bg-white shadow-2xl">
@@ -312,6 +346,8 @@ export function MediaPickerDialog({
                   type="file"
                   accept="image/*,video/*"
                   className="hidden"
+                  tabIndex={-1}
+                  aria-hidden="true"
                   onChange={(event) => void handleFile(event.target.files?.[0] ?? null)}
                 />
 
@@ -345,16 +381,17 @@ export function MediaPickerDialog({
 
             {activeTab === "url" ? (
               <div className="space-y-4 rounded-[2rem] border border-slate-200 bg-slate-50 p-5">
-                <label className="block text-right text-sm font-black text-[#062452]">
+                <label htmlFor={linkInputId} className="block text-right text-sm font-black text-[#062452]">
                   لینک عکس یا ویدیو
                 </label>
                 <input
+                  id={linkInputId}
                   value={selectedUrl}
                   onChange={(event) => setSelectedUrl(event.target.value)}
                   dir="ltr"
                   className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-left text-sm font-bold text-slate-700 outline-none transition focus:border-blue-400"
                 />
-                <p className="text-right text-xs font-bold leading-6 text-slate-400">
+                <p className="text-right text-xs font-bold leading-6 text-slate-600">
                   لینک می‌تواند مسیر داخلی سایت یا URL کامل باشد.
                 </p>
               </div>
@@ -392,7 +429,7 @@ export function MediaPickerDialog({
                             <p className="line-clamp-1 text-sm font-black text-[#062452]">
                               {item.title}
                             </p>
-                            <p className="mt-1 text-xs font-bold text-slate-400">
+                            <p className="mt-1 text-xs font-bold text-slate-600">
                               {item.media_type === "video" ? "ویدیو" : "تصویر"}
                             </p>
                           </div>
@@ -413,13 +450,15 @@ export function MediaPickerDialog({
 
           <aside className="border-t border-slate-100 bg-slate-50 p-5 lg:border-r lg:border-t-0 sm:p-7">
             <p className="mb-4 text-sm font-black text-[#062452]">پیش‌نمایش انتخاب</p>
-            <MediaPreview src={selectedUrl} title="پیش‌نمایش مدیا" />
+            <MediaPreview src={isSafeMediaUrl(selectedUrl.trim()) ? selectedUrl.trim() : ""} title="پیش‌نمایش مدیا" />
 
-            <div className="mt-5 rounded-2xl bg-white p-4">
-              <p className="break-all text-left text-xs font-bold leading-6 text-slate-500" dir="ltr">
-                {getMediaSourceLabel(selectedUrl)}
-              </p>
-            </div>
+            {selectedUrl ? (
+              <div className="mt-5 rounded-2xl bg-white p-4">
+                <p className="text-xs font-bold leading-6 text-slate-500">
+                  {getMediaSourceLabel(selectedUrl)}
+                </p>
+              </div>
+            ) : null}
 
             <div className="mt-6 grid gap-3">
               <button

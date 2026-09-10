@@ -41,7 +41,7 @@ class RegistrationUnitBriefSerializer(serializers.ModelSerializer):
 
 class RegistrationRequestCreateSerializer(serializers.ModelSerializer):
     requested_unit = serializers.PrimaryKeyRelatedField(
-        queryset=SchoolUnit.objects.filter(is_active=True),
+        queryset=SchoolUnit.objects.real(),
     )
 
     class Meta:
@@ -73,7 +73,20 @@ class RegistrationRequestCreateSerializer(serializers.ModelSerializer):
 
         active_info = RegistrationInfo.objects.filter(is_active=True).first()
 
-        if active_info is not None and not active_info.is_open:
+        # REG-REGISTRATION-CLOSED-BYPASS-001: the public GET contract
+        # (views.empty_registration_payload()) already reports is_open=False
+        # when there is no active RegistrationInfo row at all -- this
+        # validator must reject a create for the identical reason, not just
+        # when an active-but-explicitly-closed row exists. Without this, a
+        # deployment with registration universally unconfigured (zero active
+        # rows) silently accepted submissions the public page itself already
+        # advertised as closed.
+        if active_info is None:
+            raise serializers.ValidationError(
+                {"registration": "در حال حاضر اطلاعات ثبت‌نام فعال نیست."}
+            )
+
+        if not active_info.is_open:
             raise serializers.ValidationError(
                 {
                     "registration": active_info.closed_message or "در حال حاضر ثبت‌نام بسته است.",

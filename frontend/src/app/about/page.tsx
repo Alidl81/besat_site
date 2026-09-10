@@ -19,11 +19,11 @@ export default function AboutPage() {
           </h1>
         </Container>
       </header>
-      <main className="bg-slate-50 py-14 md:py-16">
+      <div className="bg-slate-50 py-14 md:py-16">
         <Container>
           <AboutContent />
         </Container>
-      </main>
+      </div>
     </PublicPageLayout>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { readBesatSession } from "@/lib/auth/auth-session";
 import { UnitsManager } from "@/components/crud/units-manager";
+import { DepartmentsManager } from "@/components/crud/departments-manager";
 import { UsersManager } from "@/components/crud/users-manager";
 import { GalleryManager } from "@/components/crud/gallery-manager";
 import { VirtualTourManager } from "@/components/virtual-tour/virtual-tour-manager";
@@ -29,6 +30,7 @@ import type { AccountRole } from "@/lib/data/domain-types";
 import {
   ParentRegistrationWorkspace,
   ServicesWorkspace,
+  SettingsWorkspace,
 } from "@/components/dashboard/supplementary-workspaces";
 
 type DashboardSectionContentProps = {
@@ -65,6 +67,7 @@ export function DashboardSectionContent({
     userRole === "unit_manager" || userRole === "unit_media" ? unitId : null
   );
   const canPublishContent = userRole === "general_manager";
+  const canReviewGallery = userRole === "general_manager" || userRole === "unit_manager";
   const tourManagerRole: "general_manager" | "unit_manager" | "unit_media" =
     userRole === "general_manager" || userRole === "unit_manager" ? userRole : "unit_media";
 
@@ -78,11 +81,17 @@ export function DashboardSectionContent({
       case "announcements":
         return <EditorialWorkspace unitId={scopedUnitId} authorRole="general_manager" canPublish={canPublishContent} initialKind="announcement" />;
       case "settings":
-        return (
-          <PanelEmpty title="تنظیمات مدیریتی تا زمان ارائه API نوشتنیِ تأییدشده در دسترس نیست." />
-        );
+        // FE-PANEL-ADMIN-SETTINGS-UNWIRED-001: this rendered a hardcoded
+        // PanelEmpty stub even though SettingsWorkspace (organization-wide
+        // school name/academic-year/notification settings) was already
+        // fully implemented in supplementary-workspaces.tsx -- the menu
+        // entry (dashboard-data.ts) always advertised this route as real,
+        // it was simply never wired to its own component.
+        return <SettingsWorkspace />;
       case "units":
         return <UnitsManager />;
+      case "departments":
+        return <DepartmentsManager />;
       case "services":
         return <ServicesWorkspace />;
       case "content":
@@ -124,7 +133,7 @@ export function DashboardSectionContent({
         return <EventsCalendar />;
       case "media":
       case "albums":
-        return <GalleryManager unitId={scopedUnitId} canPublish={false} />;
+        return <GalleryManager unitId={scopedUnitId} canPublish={false} canReview={canReviewGallery} />;
       case "virtualTour":
         return <VirtualTourManager unitId={scopedUnitId} role={tourManagerRole} />;
       case "review":

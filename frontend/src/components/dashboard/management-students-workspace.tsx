@@ -11,6 +11,7 @@ import {
 } from "@/components/dashboard/panel-request-state";
 import { usePanelRequest } from "@/hooks/use-panel-request";
 import { getApiErrorMessage } from "@/lib/api/client";
+import { handleSelectableRowKeyDown } from "@/lib/dashboard/selectable-table-row";
 import { panelService } from "@/services/panel-service";
 import type { StudentItem, StudentSummary } from "@/types/panel-api";
 
@@ -114,6 +115,11 @@ export function ManagementStudentsWorkspace({
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
+  // FE-DASH-STUDENTS-CREATE-DOUBLE-SUBMIT-001 + FE-DASH-STUDENTS-IMPORT-DOUBLE-SUBMIT-001:
+  // `saving` is state-backed and importExcel had no guard at all, so
+  // two same-tick submits/file-input changes both reached the mutation.
+  const savingRef = useRef(false);
+  const importingRef = useRef(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -164,6 +170,8 @@ export function ManagementStudentsWorkspace({
       major: String(form.get("major") ?? "") || null,
       unit_id: String(form.get("unit_id") ?? "") || null,
     };
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setActionError(null);
     try {
@@ -180,10 +188,13 @@ export function ManagementStudentsWorkspace({
       setActionError(getApiErrorMessage(reason));
     } finally {
       setSaving(false);
+      savingRef.current = false;
     }
   }
 
   async function importExcel(file: File) {
+    if (importingRef.current) return;
+    importingRef.current = true;
     setActionError(null);
     try {
       const result = await panelService.importStudents(file, unitId);
@@ -194,6 +205,7 @@ export function ManagementStudentsWorkspace({
     } catch (reason) {
       setActionError(getApiErrorMessage(reason));
     } finally {
+      importingRef.current = false;
       if (importRef.current) importRef.current.value = "";
     }
   }
@@ -230,6 +242,8 @@ export function ManagementStudentsWorkspace({
           type="file"
           accept=".xlsx,.xls,.csv"
           className="sr-only"
+          tabIndex={-1}
+          aria-hidden="true"
           onChange={(event) => {
             const file = event.target.files?.[0];
             if (file) void importExcel(file);
@@ -317,8 +331,17 @@ export function ManagementStudentsWorkspace({
                 <table className="panel-table min-w-[70rem]">
                   <thead><tr><th>نام و نام خانوادگی</th><th>کد دانش‌آموزی</th><th>کد ملی</th><th>پایه</th><th>کلاس</th><th>رشته/گرایش</th><th>وضعیت پرونده</th><th>وضعیت تحصیلی</th><th>تاریخ ثبت‌نام</th></tr></thead>
                   <tbody>
-                    {students.map((student) => (
-                      <tr key={student.id} onClick={() => setSelectedId(student.id)} className={String(student.id) === String(effectiveSelectedId) ? "is-selected" : ""}>
+                    {students.map((student) => {
+                      const isSelected = String(student.id) === String(effectiveSelectedId);
+                      return (
+                      <tr
+                        key={student.id}
+                        onClick={() => setSelectedId(student.id)}
+                        onKeyDown={(event) => handleSelectableRowKeyDown(event, () => setSelectedId(student.id))}
+                        tabIndex={0}
+                        aria-selected={isSelected}
+                        className={isSelected ? "is-selected" : ""}
+                      >
                         <td className="font-black text-[#172b43]">{student.full_name}</td>
                         <td>{student.student_code}</td><td>{student.national_code ?? "—"}</td>
                         <td>{student.grade?.title ?? "—"}</td><td>{student.class_room?.title ?? "—"}</td><td>{student.major ?? "—"}</td>
@@ -326,7 +349,8 @@ export function ManagementStudentsWorkspace({
                         <td>{student.education_status === "active" ? "مشغول به تحصیل" : student.education_status === "graduated" ? "فارغ‌التحصیل" : "غیرفعال"}</td>
                         <td>{formatDate(student.enrolled_at)}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

@@ -1,7 +1,15 @@
 import type { MetadataRoute } from "next";
+import { resolveSiteUrl } from "@/lib/site-url";
 import { getShopCategories, getShopProducts } from "@/services/shop-service";
 
-const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://besat.example.com").replace(/\/$/, "");
+// FE-SEO-PROD-ORIGIN-001: see the identical reasoning in robots.ts -- this
+// route also has no request-time API by itself, so it would otherwise be
+// prerendered once at build time with whatever NEXT_PUBLIC_SITE_URL was (or
+// wasn't) set inside the build container, before the production image's
+// runtime env_file is ever applied. resolveSiteUrl() is called inside the
+// function body (per request), not at module scope, so a misconfiguration
+// fails this specific request rather than at import time.
+export const dynamic = "force-dynamic";
 
 // Static, low-churn public routes. This repo has no prior sitemap.ts at
 // all -- this file is new infrastructure the shop's own SEO requirement
@@ -23,8 +31,9 @@ const STATIC_ROUTES = [
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const siteUrl = resolveSiteUrl();
   const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map((path) => ({
-    url: `${SITE_URL}${path}`,
+    url: `${siteUrl}${path}`,
     changeFrequency: path === "" || path === "/shop" ? "daily" : "weekly",
     priority: path === "" ? 1 : path === "/shop" ? 0.9 : 0.6,
   }));
@@ -37,13 +46,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
 
   const categoryEntries: MetadataRoute.Sitemap = categories.map((category) => ({
-    url: `${SITE_URL}/shop?category=${encodeURIComponent(category.slug)}`,
+    url: `${siteUrl}/shop?category=${encodeURIComponent(category.slug)}`,
     changeFrequency: "weekly",
     priority: 0.7,
   }));
 
   const productEntries: MetadataRoute.Sitemap = products.map((product) => ({
-    url: `${SITE_URL}/shop/${encodeURIComponent(product.slug)}`,
+    url: `${siteUrl}/shop/${encodeURIComponent(product.slug)}`,
     changeFrequency: "weekly",
     priority: 0.8,
   }));

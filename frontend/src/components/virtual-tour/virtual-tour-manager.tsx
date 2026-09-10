@@ -2,8 +2,9 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ConfirmDialog,
   CrudSection,
   EmptyState,
   Field,
@@ -20,7 +21,7 @@ import { PanoramaViewer } from "@/components/virtual-tour/panorama-viewer";
 import { TourHotspotEditor } from "@/components/virtual-tour/tour-hotspot-editor";
 import { usePanelRequest } from "@/hooks/use-panel-request";
 import { getApiErrorMessage } from "@/lib/api/client";
-import { getPublicDepartments, getPublicUnits } from "@/services/public-content-service";
+import { departmentsRepository, unitsRepository } from "@/lib/data/repositories";
 import {
   cmsCreateTourScene,
   cmsCreateTourSceneWithProgress,
@@ -31,7 +32,7 @@ import {
   cmsUpdateTourSceneWithProgress,
   type TourSceneWorkflowAction,
 } from "@/services/virtual-tour-cms-service";
-import type { PublicDepartment, PublicSchoolUnit } from "@/types/public-content";
+import type { DepartmentRecord, SchoolUnitRecord } from "@/lib/data/domain-types";
 import type { CMSTourScene, CMSTourSceneWritePayload, TourSceneDetail, TourSceneStatus } from "@/types/virtual-tour";
 
 type ManagerRole = "general_manager" | "unit_manager" | "unit_media";
@@ -86,16 +87,123 @@ function canEditScene(scene: CMSTourScene, role: ManagerRole) {
   return scene.status !== "approved" && scene.status !== "published";
 }
 
+// Shared between the desktop table and mobile card layout below so reorder,
+// workflow, hotspot, edit, and delete controls have exactly one
+// implementation each instead of two copies that could drift apart.
+function SceneActions({
+  scene,
+  group,
+  index,
+  role,
+  busyId,
+  onReorder,
+  onWorkflowAction,
+  onHotspot,
+  onEdit,
+  onDelete,
+}: {
+  scene: CMSTourScene;
+  group: DoorGroup;
+  index: number;
+  role: ManagerRole;
+  busyId: number | null;
+  onReorder: (group: DoorGroup, index: number, direction: -1 | 1) => void;
+  onWorkflowAction: (scene: CMSTourScene, action: TourSceneWorkflowAction) => void;
+  onHotspot: (scene: CMSTourScene) => void;
+  onEdit: (scene: CMSTourScene) => void;
+  onDelete: (scene: CMSTourScene) => void;
+}) {
+  const availableActions = WORKFLOW_ACTIONS.filter(
+    (item) => item.from.includes(scene.status) && item.roles.includes(role),
+  );
+  const editable = canEditScene(scene, role);
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <button
+        type="button"
+        disabled={!editable || busyId === scene.id || index === 0}
+        onClick={() => onReorder(group, index, -1)}
+        className="panel-icon-button disabled:opacity-30"
+        aria-label="جابه‌جایی به بالا"
+      >
+        <PanelIcon name="chevron" className="size-4 rotate-90" />
+      </button>
+      <button
+        type="button"
+        disabled={!editable || busyId === scene.id || index === group.scenes.length - 1}
+        onClick={() => onReorder(group, index, 1)}
+        className="panel-icon-button disabled:opacity-30"
+        aria-label="جابه‌جایی به پایین"
+      >
+        <PanelIcon name="chevron" className="size-4 -rotate-90" />
+      </button>
+      {availableActions.map((item) => (
+        <button
+          key={item.action}
+          type="button"
+          disabled={busyId === scene.id}
+          onClick={() => onWorkflowAction(scene, item.action)}
+          className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+        >
+          {item.label}
+        </button>
+      ))}
+      <button
+        type="button"
+        disabled={group.scenes.length < 2}
+        onClick={() => onHotspot(scene)}
+        className="panel-icon-button disabled:opacity-30"
+        aria-label={`نقاط اتصال ${scene.title}`}
+        title={group.scenes.length < 2 ? "برای افزودن نقطه اتصال به حداقل ۲ صحنه در این در نیاز است." : "نقاط اتصال"}
+      >
+        <PanelIcon name="link" className="size-4" />
+      </button>
+      {editable ? (
+        <button
+          type="button"
+          onClick={() => onEdit(scene)}
+          className="panel-icon-button"
+          aria-label={`ویرایش ${scene.title}`}
+        >
+          <PanelIcon name="edit" className="size-4" />
+        </button>
+      ) : null}
+      <button
+        type="button"
+        onClick={() => onDelete(scene)}
+        disabled={busyId === scene.id}
+        className="panel-icon-button hover:bg-rose-50 hover:text-rose-600"
+        aria-label={`حذف ${scene.title}`}
+      >
+        <PanelIcon name="trash" className="size-4" />
+      </button>
+    </div>
+  );
+}
+
 export function VirtualTourManager({ unitId = null, role }: VirtualTourManagerProps) {
   const { data, loading, error, reload } = usePanelRequest(() => cmsGetTourScenes(), []);
   const [editingScene, setEditingScene] = useState<CMSTourScene | "new" | null>(null);
   const [hotspotScene, setHotspotScene] = useState<CMSTourScene | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<CMSTourScene | null>(null);
+  // FE-TOUR-MANAGER-ACTION-DOUBLE-SUBMIT-001 / FE-TOUR-MANAGER-DELETE-
+  // DOUBLE-SUBMIT-001 / FE-TOUR-MANAGER-REORDER-DOUBLE-SUBMIT-001: same
+  // guard/rationale as login-card.tsx's AUTH-UI-DOUBLE-SUBMIT-001, but
+  // keyed per scene id (a Set, not one boolean) rather than a single
+  // global flag -- `busyId` state already only visually disables the ONE
+  // busy scene's own buttons (other scenes' controls stay enabled and
+  // genuinely can run concurrently), so the guard needs the same per-scene
+  // granularity, not a global lock that would block unrelated scenes too.
+  const busyIdsRef = useRef<Set<number>>(new Set());
 
   const doorGroups = useMemo(() => buildDoorGroups(data?.results ?? [], unitId), [data, unitId]);
 
   async function handleWorkflowAction(scene: CMSTourScene, action: TourSceneWorkflowAction) {
+    if (busyIdsRef.current.has(scene.id)) return;
+    busyIdsRef.current.add(scene.id);
     setBusyId(scene.id);
     setActionError(null);
     try {
@@ -105,11 +213,14 @@ export function VirtualTourManager({ unitId = null, role }: VirtualTourManagerPr
       setActionError(getApiErrorMessage(reason));
     } finally {
       setBusyId(null);
+      busyIdsRef.current.delete(scene.id);
     }
   }
 
   async function handleDelete(scene: CMSTourScene) {
-    if (!window.confirm(`آیا از حذف صحنه «${scene.title}» مطمئن هستید؟`)) return;
+    if (busyIdsRef.current.has(scene.id)) return;
+    busyIdsRef.current.add(scene.id);
+    setPendingDelete(null);
     setBusyId(scene.id);
     setActionError(null);
     try {
@@ -119,6 +230,7 @@ export function VirtualTourManager({ unitId = null, role }: VirtualTourManagerPr
       setActionError(getApiErrorMessage(reason));
     } finally {
       setBusyId(null);
+      busyIdsRef.current.delete(scene.id);
     }
   }
 
@@ -127,18 +239,50 @@ export function VirtualTourManager({ unitId = null, role }: VirtualTourManagerPr
     if (neighborIndex < 0 || neighborIndex >= group.scenes.length) return;
     const current = group.scenes[index];
     const neighbor = group.scenes[neighborIndex];
+    // A reorder swap touches BOTH scenes -- guarding only `current.id`
+    // would still let a second same-tick click race in on `neighbor`'s
+    // half of the swap.
+    if (busyIdsRef.current.has(current.id) || busyIdsRef.current.has(neighbor.id)) return;
+    busyIdsRef.current.add(current.id);
+    busyIdsRef.current.add(neighbor.id);
     setBusyId(current.id);
     setActionError(null);
     try {
-      await Promise.all([
+      // FE-VIRTUAL-TOUR-REORDER-PARTIAL-FAILURE-001: the backend has no
+      // transactional pair-reorder endpoint, so this is two independent
+      // PATCHes -- Promise.all() only reported whether *either* rejected,
+      // with no way to tell which one, and the catch block neither
+      // reverted the half that DID succeed nor reloaded, leaving the
+      // server with a duplicate/inconsistent order value while the UI
+      // kept showing the pre-swap order as if nothing had happened.
+      // Promise.allSettled() identifies exactly which half succeeded, so
+      // that half can be explicitly reverted back to its original order
+      // (best-effort) when its pair fails, and the list is always
+      // reloaded afterward so the UI matches whatever the server actually
+      // ended up with.
+      const [currentResult, neighborResult] = await Promise.allSettled([
         cmsUpdateTourScene(current.id, { order: neighbor.order }),
         cmsUpdateTourScene(neighbor.id, { order: current.order }),
       ]);
+
+      if (currentResult.status === "rejected" || neighborResult.status === "rejected") {
+        const compensations: Promise<unknown>[] = [];
+        if (currentResult.status === "fulfilled") {
+          compensations.push(cmsUpdateTourScene(current.id, { order: current.order }).catch(() => undefined));
+        }
+        if (neighborResult.status === "fulfilled") {
+          compensations.push(cmsUpdateTourScene(neighbor.id, { order: neighbor.order }).catch(() => undefined));
+        }
+        await Promise.all(compensations);
+        setActionError("جابه‌جایی در بک‌اند ناقص انجام شد؛ ترتیب قبلی بازگردانده شد. لطفاً دوباره تلاش کنید.");
+      }
       reload();
     } catch (reason) {
       setActionError(getApiErrorMessage(reason));
     } finally {
       setBusyId(null);
+      busyIdsRef.current.delete(current.id);
+      busyIdsRef.current.delete(neighbor.id);
     }
   }
 
@@ -160,9 +304,14 @@ export function VirtualTourManager({ unitId = null, role }: VirtualTourManagerPr
       ) : null}
 
       {loading ? (
-        <p className="py-6 text-center text-sm font-bold text-slate-400">در حال بارگذاری…</p>
+        <p className="py-6 text-center text-sm font-bold text-slate-600">در حال بارگذاری…</p>
       ) : error ? (
-        <p role="alert" className="py-6 text-center text-sm font-bold text-rose-600">{error}</p>
+        <p role="alert" className="py-6 text-center text-sm font-bold text-rose-600">
+          {error}{" "}
+          <button type="button" onClick={reload} className="underline">
+            تلاش دوباره
+          </button>
+        </p>
       ) : doorGroups.length === 0 ? (
         <EmptyState text="هنوز صحنه‌ای برای تور مجازی ثبت نشده است." />
       ) : (
@@ -176,111 +325,99 @@ export function VirtualTourManager({ unitId = null, role }: VirtualTourManagerPr
                 <h3 className="text-base font-black text-[#062452]">{group.label}</h3>
               </div>
 
-              <div className="overflow-x-auto">
+              {/* Mobile: each scene as a self-contained card so every control
+                  (reorder, workflow, hotspots, edit, delete) sits in normal
+                  vertical flow with the row's own full width, instead of
+                  competing for space in a horizontally-scrolling table row. */}
+              <div className="grid grid-cols-1 gap-3 md:hidden">
+                {group.scenes.map((scene, index) => (
+                  <article key={scene.id} className="rounded-xl border border-slate-200 p-3">
+                    <div className="flex items-start gap-3">
+                      {scene.thumbnail || scene.panorama ? (
+                        <img src={scene.thumbnail ?? scene.panorama ?? ""} alt={scene.title} className="size-12 shrink-0 rounded-xl object-cover" />
+                      ) : (
+                        <div className="size-12 shrink-0 rounded-xl bg-slate-100" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h4 className="break-words font-black text-[#062452]">{scene.title}</h4>
+                          <StatusBadge status={scene.status} />
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {scene.is_default ? (
+                            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">پیش‌فرض</span>
+                          ) : null}
+                          {!scene.is_active ? (
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-600">غیرفعال</span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <SceneActions
+                        scene={scene}
+                        group={group}
+                        index={index}
+                        role={role}
+                        busyId={busyId}
+                        onReorder={handleReorder}
+                        onWorkflowAction={handleWorkflowAction}
+                        onHotspot={setHotspotScene}
+                        onEdit={setEditingScene}
+                        onDelete={setPendingDelete}
+                      />
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              {/* Desktop: the original table, with room for every column. */}
+              <div className="hidden overflow-x-auto md:block">
                 <table className="panel-table w-full">
                   <thead>
                     <tr>
                       <th>پانوراما</th>
                       <th>عنوان</th>
                       <th>وضعیت</th>
-                      <th>ترتیب</th>
-                      <th></th>
+                      <th>عملیات</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {group.scenes.map((scene, index) => {
-                      const availableActions = WORKFLOW_ACTIONS.filter(
-                        (item) => item.from.includes(scene.status) && item.roles.includes(role),
-                      );
-                      const editable = canEditScene(scene, role);
-                      return (
-                        <tr key={scene.id}>
-                          <td>
-                            {scene.thumbnail || scene.panorama ? (
-                              <img src={scene.thumbnail ?? scene.panorama ?? ""} alt={scene.title} className="size-12 rounded-xl object-cover" />
-                            ) : (
-                              <div className="size-12 rounded-xl bg-slate-100" />
-                            )}
-                          </td>
-                          <td className="font-black">
-                            {scene.title}
-                            {scene.is_default ? (
-                              <span className="mr-2 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">پیش‌فرض</span>
-                            ) : null}
-                            {!scene.is_active ? (
-                              <span className="mr-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">غیرفعال</span>
-                            ) : null}
-                          </td>
-                          <td><StatusBadge status={scene.status} /></td>
-                          <td>
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                disabled={!editable || busyId === scene.id || index === 0}
-                                onClick={() => handleReorder(group, index, -1)}
-                                className="panel-icon-button disabled:opacity-30"
-                                aria-label="جابه‌جایی به بالا"
-                              >
-                                <PanelIcon name="chevron" className="size-4 rotate-90" />
-                              </button>
-                              <button
-                                type="button"
-                                disabled={!editable || busyId === scene.id || index === group.scenes.length - 1}
-                                onClick={() => handleReorder(group, index, 1)}
-                                className="panel-icon-button disabled:opacity-30"
-                                aria-label="جابه‌جایی به پایین"
-                              >
-                                <PanelIcon name="chevron" className="size-4 -rotate-90" />
-                              </button>
-                            </div>
-                          </td>
-                          <td>
-                            <div className="flex flex-wrap items-center justify-end gap-1.5">
-                              {availableActions.map((item) => (
-                                <button
-                                  key={item.action}
-                                  type="button"
-                                  disabled={busyId === scene.id}
-                                  onClick={() => handleWorkflowAction(scene, item.action)}
-                                  className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-                                >
-                                  {item.label}
-                                </button>
-                              ))}
-                              <button
-                                type="button"
-                                disabled={group.scenes.length < 2}
-                                onClick={() => setHotspotScene(scene)}
-                                className="panel-icon-button disabled:opacity-30"
-                                aria-label={`نقاط اتصال ${scene.title}`}
-                                title={group.scenes.length < 2 ? "برای افزودن نقطه اتصال به حداقل ۲ صحنه در این در نیاز است." : "نقاط اتصال"}
-                              >
-                                <PanelIcon name="link" className="size-4" />
-                              </button>
-                              {editable ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingScene(scene)}
-                                  className="panel-icon-button"
-                                  aria-label={`ویرایش ${scene.title}`}
-                                >
-                                  <PanelIcon name="edit" className="size-4" />
-                                </button>
-                              ) : null}
-                              <button
-                                type="button"
-                                onClick={() => handleDelete(scene)}
-                                disabled={busyId === scene.id}
-                                className="panel-icon-button hover:bg-rose-50 hover:text-rose-600"
-                                aria-label={`حذف ${scene.title}`}
-                              >
-                                <PanelIcon name="trash" className="size-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {group.scenes.map((scene, index) => (
+                      <tr key={scene.id}>
+                        <td>
+                          {scene.thumbnail || scene.panorama ? (
+                            <img src={scene.thumbnail ?? scene.panorama ?? ""} alt={scene.title} className="size-12 rounded-xl object-cover" />
+                          ) : (
+                            <div className="size-12 rounded-xl bg-slate-100" />
+                          )}
+                        </td>
+                        <td className="font-black">
+                          {scene.title}
+                          {scene.is_default ? (
+                            <span className="mr-2 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">پیش‌فرض</span>
+                          ) : null}
+                          {!scene.is_active ? (
+                            <span className="mr-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-600">غیرفعال</span>
+                          ) : null}
+                        </td>
+                        <td><StatusBadge status={scene.status} /></td>
+                        <td>
+                          <SceneActions
+                            scene={scene}
+                            group={group}
+                            index={index}
+                            role={role}
+                            busyId={busyId}
+                            onReorder={handleReorder}
+                            onWorkflowAction={handleWorkflowAction}
+                            onHotspot={setHotspotScene}
+                            onEdit={setEditingScene}
+                            onDelete={setPendingDelete}
+                          />
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -322,6 +459,14 @@ export function VirtualTourManager({ unitId = null, role }: VirtualTourManagerPr
           />
         ) : null}
       </Modal>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="حذف صحنه"
+        description={pendingDelete ? `آیا از حذف صحنه «${pendingDelete.title}» مطمئن هستید؟ این عملیات قابل بازگشت نیست.` : ""}
+        onConfirm={() => pendingDelete && handleDelete(pendingDelete)}
+        onCancel={() => setPendingDelete(null)}
+      />
     </CrudSection>
   );
 }
@@ -342,11 +487,13 @@ function TourSceneForm({
   const [doorType, setDoorType] = useState<"unit" | "department">(scene?.department ? "department" : "unit");
   const [selectedUnitId, setSelectedUnitId] = useState<string>(scene?.unit ? String(scene.unit.id) : unitId ?? "");
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>(scene?.department ? String(scene.department.id) : "");
-  const [units, setUnits] = useState<PublicSchoolUnit[]>([]);
-  const [departments, setDepartments] = useState<PublicDepartment[]>([]);
+  const [units, setUnits] = useState<SchoolUnitRecord[]>([]);
+  const [departments, setDepartments] = useState<DepartmentRecord[]>([]);
 
   const [panoramaFile, setPanoramaFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const panoramaInputRef = useRef<HTMLInputElement>(null);
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
   const [initialYaw, setInitialYaw] = useState(scene?.initial_yaw ?? 0);
   const [initialPitch, setInitialPitch] = useState(scene?.initial_pitch ?? 0);
@@ -359,12 +506,17 @@ function TourSceneForm({
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // FE-TOUR-SCENE-FORM-DOUBLE-SUBMIT-001: same guard/rationale as
+  // login-card.tsx's AUTH-UI-DOUBLE-SUBMIT-001 -- `disabled={submitting}`
+  // only takes effect after React re-renders, so two clicks dispatched
+  // before that render both start handleSubmit.
+  const submittingRef = useRef(false);
 
   const isDoorLocked = Boolean(scene) || unitId !== null;
 
   useEffect(() => {
     if (isDoorLocked) return;
-    Promise.all([getPublicUnits(), getPublicDepartments()])
+    Promise.all([unitsRepository.list(), departmentsRepository.list()])
       .then(([unitList, departmentList]) => {
         setUnits(unitList);
         setDepartments(departmentList);
@@ -417,6 +569,8 @@ function TourSceneForm({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setError(null);
     setProgress(null);
@@ -439,6 +593,18 @@ function TourSceneForm({
         payload.department = selectedDepartmentId ? Number(selectedDepartmentId) : null;
         payload.unit = null;
       }
+    } else if (!scene && unitId) {
+      // Locked page context (a fixed unit chosen in the page's own filter,
+      // not an existing scene being edited) hides the scope pickers since
+      // there's nothing left to choose -- but the backend still requires
+      // exactly one of unit/department on create, and omitting both here
+      // isn't "no scope selected," it's "the scope was implied by the page
+      // and never actually sent." Editing an existing scene is unaffected:
+      // the backend's write serializer already falls back to the
+      // instance's current unit/department when those fields are omitted
+      // from a partial update, so nothing needs to be resent there.
+      payload.unit = Number(unitId);
+      payload.department = null;
     }
 
     if (panoramaFile) payload.panorama = panoramaFile;
@@ -466,6 +632,7 @@ function TourSceneForm({
     } finally {
       setSubmitting(false);
       setProgress(null);
+      submittingRef.current = false;
     }
   }
 
@@ -499,6 +666,11 @@ function TourSceneForm({
                   <option key={unit.id} value={unit.id}>{unit.title}</option>
                 ))}
               </Select>
+              {units.length === 0 ? (
+                <p role="alert" className="mt-2 text-xs font-bold text-rose-600">
+                  هیچ واحد آموزشی‌ای ثبت نشده است؛ برای ساخت صحنه ابتدا یک واحد ایجاد کنید یا نوع در را به دپارتمان تغییر دهید.
+                </p>
+              ) : null}
             </Field>
           ) : (
             <Field label="دپارتمان" required>
@@ -508,6 +680,11 @@ function TourSceneForm({
                   <option key={department.id} value={department.id}>{department.title}</option>
                 ))}
               </Select>
+              {departments.length === 0 ? (
+                <p role="alert" className="mt-2 text-xs font-bold text-rose-600">
+                  هیچ دپارتمانی ثبت نشده است؛ برای ساخت صحنه ابتدا یک دپارتمان ایجاد کنید یا نوع در را به واحد آموزشی تغییر دهید.
+                </p>
+              ) : null}
             </Field>
           )}
         </div>
@@ -515,23 +692,45 @@ function TourSceneForm({
 
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="space-y-4">
-          <Field label="تصویر پانورامای ۳۶۰ درجه">
+          <Field label="تصویر پانورامای ۳۶۰ درجه" as="div">
             <input
+              ref={panoramaInputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
               onChange={(e) => setPanoramaFile(e.target.files?.[0] ?? null)}
-              className="block w-full text-sm font-bold text-slate-500 file:ml-3 file:rounded-xl file:border-0 file:bg-[#12395b] file:px-4 file:py-2 file:text-sm file:font-black file:text-white"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
             />
-            <p className="mt-1 text-xs font-bold text-slate-400">فرمت JPG، PNG یا WebP — حداکثر ۲۰ مگابایت.</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <GhostButton type="button" onClick={() => panoramaInputRef.current?.click()}>
+                انتخاب تصویر پانوراما
+              </GhostButton>
+              <span className="text-xs font-bold text-slate-500">
+                {panoramaFile ? panoramaFile.name : "فایلی انتخاب نشده است."}
+              </span>
+            </div>
+            <p className="mt-1 text-xs font-bold text-slate-600">فرمت JPG، PNG یا WebP — حداکثر ۲۰ مگابایت.</p>
           </Field>
 
-          <Field label="تصویر بندانگشتی (اختیاری)">
+          <Field label="تصویر بندانگشتی (اختیاری)" as="div">
             <input
+              ref={thumbnailInputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
               onChange={(e) => setThumbnailFile(e.target.files?.[0] ?? null)}
-              className="block w-full text-sm font-bold text-slate-500 file:ml-3 file:rounded-xl file:border-0 file:bg-slate-600 file:px-4 file:py-2 file:text-sm file:font-black file:text-white"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
             />
+            <div className="flex flex-wrap items-center gap-3">
+              <GhostButton type="button" onClick={() => thumbnailInputRef.current?.click()}>
+                انتخاب تصویر بندانگشتی
+              </GhostButton>
+              <span className="text-xs font-bold text-slate-500">
+                {thumbnailFile ? thumbnailFile.name : "فایلی انتخاب نشده است."}
+              </span>
+            </div>
           </Field>
 
           {progress !== null ? (
@@ -571,7 +770,7 @@ function TourSceneForm({
               <PanoramaViewer scenes={[previewScene]} title={previewScene.title} />
             </div>
           ) : (
-            <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-sm font-bold text-slate-400 lg:h-full lg:min-h-[320px]">
+            <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-sm font-bold text-slate-600 lg:h-full lg:min-h-[320px]">
               پس از انتخاب تصویر پانوراما، پیش‌نمایش اینجا نمایش داده می‌شود.
             </div>
           )}

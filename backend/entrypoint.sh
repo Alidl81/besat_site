@@ -22,6 +22,13 @@ if [ "${RUN_MIGRATIONS:-1}" = "1" ]; then
   python manage.py migrate --noinput
 fi
 
+# Cheap, always-correct: fails loudly here (aborting the deploy, thanks to
+# `set -eu` above) if SHOP_PAYMENT_PROVIDER doesn't resolve to an actually
+# registered provider, instead of surfacing as an uncaught 500 the first
+# time a real customer starts checkout. The local-dev default ("mock") is
+# always registered, so this is a no-op for the normal dev workflow.
+python manage.py validate_payment_provider
+
 if [ "${SEED_PUBLIC_DATA:-0}" = "1" ]; then
   python manage.py seed_public_data
 fi

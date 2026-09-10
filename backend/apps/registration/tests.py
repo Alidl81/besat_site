@@ -94,6 +94,45 @@ class RegistrationPublicAPITests(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(RegistrationRequest.objects.get().submitted_by, parent)
 
+    def test_cannot_create_registration_request_when_no_active_info_exists(self):
+        # REG-REGISTRATION-CLOSED-BYPASS-001: GET /api/registration/ already
+        # reports is_open=False when there is no active RegistrationInfo row
+        # at all (see test_registration_info_returns_empty_payload_when_no_
+        # active_info_exists above) -- a create must be rejected for the
+        # identical reason, not only when an active-but-explicitly-closed
+        # row exists.
+        payload = {
+            "student_full_name": "محمد رضایی",
+            "parent_full_name": "علی رضایی",
+            "parent_phone": "09120000000",
+            "requested_unit": self.unit.id,
+        }
+
+        response = self.client.post("/api/registration-requests/", payload, format="json")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("registration", response.data)
+        self.assertEqual(RegistrationRequest.objects.count(), 0)
+
+    def test_cannot_create_registration_request_via_compat_alias_when_no_active_info_exists(self):
+        # Same defect, exercised through the other public POST alias
+        # (/api/registration/, RegistrationInfoAPIView's POST) -- both
+        # aliases route through the identical shared serializer/validate(),
+        # but this confirms the fix actually covers both entry points, not
+        # just the one the sibling test above happens to use.
+        payload = {
+            "student_full_name": "محمد رضایی",
+            "parent_full_name": "علی رضایی",
+            "parent_phone": "09120000000",
+            "requested_unit": self.unit.id,
+        }
+
+        response = self.client.post("/api/registration/", payload, format="json")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("registration", response.data)
+        self.assertEqual(RegistrationRequest.objects.count(), 0)
+
     def test_cannot_create_registration_request_when_registration_is_closed(self):
         RegistrationInfo.objects.create(
             title="ثبت‌نام",
@@ -141,6 +180,32 @@ class RegistrationPublicAPITests(TestCase):
             "parent_full_name": "علی رضایی",
             "parent_phone": "09120000000",
             "requested_unit": inactive_unit.id,
+        }
+
+        response = self.client.post("/api/registration-requests/", payload, format="json")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("requested_unit", response.data)
+
+    def test_registration_request_rejects_internal_unit(self):
+        RegistrationInfo.objects.create(
+            title="ثبت‌نام",
+            is_open=True,
+            is_active=True,
+        )
+
+        internal_unit = SchoolUnit.objects.create(
+            title="واحد آزمایشی حساب‌های توسعه",
+            slug="dev-accounts-unit",
+            is_active=True,
+            is_internal=True,
+        )
+
+        payload = {
+            "student_full_name": "محمد رضایی",
+            "parent_full_name": "علی رضایی",
+            "parent_phone": "09120000000",
+            "requested_unit": internal_unit.id,
         }
 
         response = self.client.post("/api/registration-requests/", payload, format="json")

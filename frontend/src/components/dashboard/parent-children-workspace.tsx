@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
 import {
   PanelEmpty,
@@ -11,8 +10,8 @@ import {
   PanelLoading,
 } from "@/components/dashboard/panel-request-state";
 import { usePanelRequest } from "@/hooks/use-panel-request";
+import { isExternalMediaUrl, safePublicMediaUrl } from "@/lib/media/safe-url";
 import { panelService } from "@/services/panel-service";
-import type { ParentChildDetail } from "@/types/panel-api";
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -34,11 +33,6 @@ export function ParentChildrenWorkspace() {
     () => panelService.parentChildren(),
     [],
   );
-  const [detail, setDetail] = useState<ParentChildDetail | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState<string | null>(null);
-  const [detailVersion, setDetailVersion] = useState(0);
-
   const items = childrenRequest.data ?? [];
   const effectiveSelectedId = items.some(
     (item) => String(item.id) === String(selectedId),
@@ -52,36 +46,27 @@ export function ParentChildrenWorkspace() {
     router.replace(`${pathname}?${next.toString()}`, { scroll: false });
   }
 
-  useEffect(() => {
-    if (effectiveSelectedId === null) return;
-    let active = true;
-    Promise.resolve()
-      .then(() => {
-        if (active) {
-          setDetailLoading(true);
-          setDetailError(null);
-        }
-        return panelService.parentChild(effectiveSelectedId, {
-          academic_year: academicYear,
-        });
-      })
-      .then((result) => {
-        if (active) setDetail(result);
-      })
-      .catch((reason: unknown) => {
-        if (active) {
-          setDetailError(
-            reason instanceof Error ? reason.message : "دریافت پرونده فرزند انجام نشد.",
-          );
-        }
-      })
-      .finally(() => {
-        if (active) setDetailLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [academicYear, detailVersion, effectiveSelectedId]);
+  // FE-PANEL-PARENT-CHILDREN-DETAIL-RETRY-DEAD-001: this used to be a
+  // hand-rolled effect with its own local detail/detailLoading/detailError/
+  // detailVersion state and a manually-wired `onRetry={() =>
+  // setDetailVersion((value) => value + 1)}` -- Codex's evidence showed
+  // real click, keyboard and direct-handler activation of that retry all
+  // produced no follow-up request at any width. Replaced with the same
+  // shared, independently-guarded usePanelRequest hook already used for
+  // `childrenRequest` above (and every other panel retry in this codebase),
+  // which comes with its own reload()-level single-flight ref guard and
+  // PanelError's own disabled-button guard for free, instead of a second,
+  // parallel hand-rolled implementation of the same pattern.
+  const detailRequest = usePanelRequest(
+    () =>
+      effectiveSelectedId === null
+        ? Promise.resolve(null)
+        : panelService.parentChild(effectiveSelectedId, { academic_year: academicYear }),
+    [academicYear, effectiveSelectedId],
+  );
+  const detail = detailRequest.data;
+  const detailLoading = detailRequest.loading;
+  const detailError = detailRequest.error;
 
   if (childrenRequest.loading) return <PanelLoading label="در حال دریافت فرزندان..." />;
   if (childrenRequest.error) return <PanelError message={childrenRequest.error} onRetry={childrenRequest.reload} />;
@@ -111,6 +96,10 @@ export function ParentChildrenWorkspace() {
         selectedDetail.counselor_message ||
         selectedDetail.exams.length),
   );
+  // FE-DASH-AVATAR-MEDIA-ORIGIN-001: see the children.map() avatar above --
+  // identical fix for the selected child's own detail-card avatar.
+  const safeDetailAvatar = safePublicMediaUrl(selectedDetail?.avatar_url);
+  const detailAvatarExternal = isExternalMediaUrl(selectedDetail?.avatar_url);
 
   return (
     <div className="space-y-5">
@@ -118,10 +107,18 @@ export function ParentChildrenWorkspace() {
         <article className="panel-card">
           <h2 className="mb-4 text-sm font-black text-[#173652]">انتخاب فرزند</h2>
           <div className="grid gap-3 sm:grid-cols-3">
-            {children.map((child) => (
+            {children.map((child) => {
+              // FE-DASH-AVATAR-MEDIA-ORIGIN-001: avatar_url is a backend-
+              // served media URL, subject to the same possibly-wrong-host
+              // issue already fixed elsewhere (FE-PUBLIC-MEDIA-ORIGIN-001)
+              // -- next/image's optimizer 404s on a host outside
+              // next.config.ts's images.remotePatterns.
+              const safeChildAvatar = safePublicMediaUrl(child.avatar_url);
+              const childAvatarExternal = isExternalMediaUrl(child.avatar_url);
+              return (
               <button key={child.id} type="button" onClick={() => selectChild(child.id)} aria-pressed={String(child.id) === String(effectiveSelectedId)} className={`rounded-lg border p-4 text-center transition-colors ${String(child.id) === String(effectiveSelectedId) ? "border-[#dda34a] bg-[#fffaf2]" : "border-slate-200 hover:bg-slate-50"}`}>
-                {child.avatar_url ? (
-                  <Image src={child.avatar_url} alt="" width={56} height={56} className="mx-auto size-14 rounded-full object-cover" />
+                {safeChildAvatar ? (
+                  <Image src={safeChildAvatar} alt="" width={56} height={56} unoptimized={childAvatarExternal} className="mx-auto size-14 rounded-full object-cover" />
                 ) : (
                   <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-[#eaf0f5] text-lg font-black text-[#0c3a66]">{child.full_name.slice(0, 1)}</span>
                 )}
@@ -129,16 +126,17 @@ export function ParentChildrenWorkspace() {
                 <span className="mt-1 block text-xs font-bold text-slate-500">{child.grade_title ?? "پایه ثبت نشده"}</span>
                 <i className={`mx-auto mt-3 block size-2 rounded-full ${child.is_active ? "bg-emerald-500" : "bg-slate-300"}`} />
               </button>
-            ))}
+              );
+            })}
           </div>
         </article>
 
         <article className="panel-card">
-          {detailLoading ? <PanelLoading label="در حال دریافت پرونده تحصیلی..." /> : detailError ? <PanelError message={detailError} onRetry={() => setDetailVersion((value) => value + 1)} /> : detail && String(detail.id) === String(effectiveSelectedId) ? (
+          {detailLoading ? <PanelLoading label="در حال دریافت پرونده تحصیلی..." /> : detailError ? <PanelError message={detailError} onRetry={detailRequest.reload} /> : detail && String(detail.id) === String(effectiveSelectedId) ? (
             <>
               <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                {detail.avatar_url ? (
-                  <Image src={detail.avatar_url} alt="" width={96} height={96} className="size-24 shrink-0 rounded-full object-cover" />
+                {safeDetailAvatar ? (
+                  <Image src={safeDetailAvatar} alt="" width={96} height={96} unoptimized={detailAvatarExternal} className="size-24 shrink-0 rounded-full object-cover" />
                 ) : (
                   <span className="flex size-24 shrink-0 items-center justify-center rounded-full bg-[#eaf0f5] text-3xl font-black text-[#0c3a66]">{detail.full_name.slice(0, 1)}</span>
                 )}
@@ -163,7 +161,13 @@ export function ParentChildrenWorkspace() {
           {hasAcademicDetails ? <section className="grid gap-5 xl:grid-cols-3">
             {detail.teachers.length ? <article className="panel-card">
               <header className="mb-4 flex items-center gap-2"><PanelIcon name="students" className="size-5 text-[#0c4479]" /><h2 className="font-black text-[#173652]">دبیران</h2></header>
-              <div className="divide-y divide-slate-100">{detail.teachers.map((teacher) => <div key={teacher.id} className="flex items-center gap-3 py-2.5">{teacher.avatar_url ? <Image src={teacher.avatar_url} alt="" width={32} height={32} className="size-8 rounded-full object-cover" /> : <span className="flex size-8 items-center justify-center rounded-full bg-[#edf2f5] text-[10px] font-black">{teacher.full_name.slice(0, 1)}</span>}<b className="min-w-0 flex-1 text-xs text-[#172b43]">{teacher.full_name}<small className="mt-1 block font-bold text-slate-500">{teacher.subject}</small></b></div>)}</div>
+              <div className="divide-y divide-slate-100">{detail.teachers.map((teacher) => {
+                // FE-DASH-AVATAR-MEDIA-ORIGIN-001: same fix as the child
+                // avatars above.
+                const safeTeacherAvatar = safePublicMediaUrl(teacher.avatar_url);
+                const teacherAvatarExternal = isExternalMediaUrl(teacher.avatar_url);
+                return <div key={teacher.id} className="flex items-center gap-3 py-2.5">{safeTeacherAvatar ? <Image src={safeTeacherAvatar} alt="" width={32} height={32} unoptimized={teacherAvatarExternal} className="size-8 rounded-full object-cover" /> : <span className="flex size-8 items-center justify-center rounded-full bg-[#edf2f5] text-[10px] font-black">{teacher.full_name.slice(0, 1)}</span>}<b className="min-w-0 flex-1 text-xs text-[#172b43]">{teacher.full_name}<small className="mt-1 block font-bold text-slate-500">{teacher.subject}</small></b></div>;
+              })}</div>
             </article> : null}
 
             {detail.attendance ? <article className="panel-card">
@@ -187,7 +191,7 @@ export function ParentChildrenWorkspace() {
             </article> : null}
             {detail.counselor_message ? <article className="panel-card">
               <header className="mb-4 flex items-center gap-2"><PanelIcon name="message" className="size-5 text-[#0c4479]" /><h2 className="font-black text-[#173652]">پیام مشاور</h2></header>
-              <><h3 className="text-sm font-black text-[#172b43]">{detail.counselor_message.title}</h3><p className="mt-2 text-xs font-bold leading-7 text-slate-600">{detail.counselor_message.description}</p><time className="mt-3 block text-[11px] text-slate-400">{detail.counselor_message.timestamp ? formatDate(detail.counselor_message.timestamp) : "—"}</time></>
+              <><h3 className="text-sm font-black text-[#172b43]">{detail.counselor_message.title}</h3><p className="mt-2 text-xs font-bold leading-7 text-slate-600">{detail.counselor_message.description}</p><time className="mt-3 block text-[11px] text-slate-500">{detail.counselor_message.timestamp ? formatDate(detail.counselor_message.timestamp) : "—"}</time></>
               <Link href="/dashboard/parents/messages" className="panel-primary-button mt-6">پیام‌ها</Link>
             </article> : null}
             {detail.exams.length ? <article className="panel-card">

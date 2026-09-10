@@ -4,6 +4,15 @@ import { useRef, useState } from "react";
 
 type CsvRow = Record<string, string>;
 
+// FE-IMPORT-CSV-MALFORMED-QUOTE-001 + FE-IMPORT-CSV-ROW-WIDTH-001: a
+// structurally invalid CSV (an unterminated quoted field, or a row whose
+// cell count doesn't match the header) was previously previewed as if it
+// were valid -- silently merging/dropping/blanking data instead of
+// stopping the operator before an import. parseCsv() throws this instead
+// so handleFile() can surface a localized error and refuse to show the
+// preview/import step.
+class CsvStructureError extends Error {}
+
 type ExcelImportProps<T extends { id: string; created_at: string; updated_at: string }> = {
   /** ستون‌های مورد انتظار در CSV — برای راهنمای کاربر */
   columns: { key: string; label: string; required?: boolean }[];
@@ -13,12 +22,77 @@ type ExcelImportProps<T extends { id: string; created_at: string; updated_at: st
   onImport: (rows: Omit<T, "id" | "created_at" | "updated_at">[]) => Promise<void>;
 };
 
+// FE-IMPORT-CSV-PARSER-001 + FE-IMPORT-CSV-EMBEDDED-NEWLINE-001: a naive
+// `line.split(",")` broke on quoted fields containing commas (e.g.
+// `"Smith, John"`), splitting them into extra columns instead of
+// preserving the field. Splitting the whole text into physical lines
+// *before* parsing (the first attempt at this fix) has the same root
+// cause one level up: a quoted field containing an embedded newline (RFC
+// 4180 allows this) got cut into two rows because the line-split happened
+// before quote state was tracked. This parses the entire text in one pass
+// with a quote-aware state machine (`""` inside a quoted field is an
+// escaped literal quote) and only treats `\n`/`\r\n` as a row separator
+// when it occurs outside a quoted field.
+function parseCsvRows(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cell += char;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      row.push(cell.trim());
+      cell = "";
+    } else if (char === "\r") {
+      continue;
+    } else if (char === "\n") {
+      row.push(cell.trim());
+      cell = "";
+      if (row.length > 1 || row[0] !== "") rows.push(row);
+      row = [];
+    } else {
+      cell += char;
+    }
+  }
+  if (inQuotes) {
+    throw new CsvStructureError("فایل CSV دارای نقل‌قول ناتمام است. لطفاً ساختار فایل را بررسی کنید.");
+  }
+  if (cell !== "" || row.length > 0) {
+    row.push(cell.trim());
+    if (row.length > 1 || row[0] !== "") rows.push(row);
+  }
+  return rows;
+}
+
 function parseCsv(text: string): CsvRow[] {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
-  return lines.slice(1).map((line) => {
-    const cells = line.split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+  const rows = parseCsvRows(text);
+  if (rows.length < 2) return [];
+  const headers = rows[0];
+  const dataRows = rows.slice(1);
+  const mismatchIndex = dataRows.findIndex((cells) => cells.length !== headers.length);
+  if (mismatchIndex !== -1) {
+    throw new CsvStructureError(
+      `تعداد ستون‌های ردیف ${mismatchIndex + 2} فایل با تعداد سرستون‌ها مطابقت ندارد.`,
+    );
+  }
+  return dataRows.map((cells) => {
     const row: CsvRow = {};
     headers.forEach((h, i) => { row[h] = cells[i] ?? ""; });
     return row;
@@ -34,6 +108,10 @@ export function ExcelImport<T extends { id: string; created_at: string; updated_
   const [state, setState] = useState<"idle" | "preview" | "importing" | "done" | "error">("idle");
   const [rows, setRows] = useState<CsvRow[]>([]);
   const [message, setMessage] = useState("");
+  // FE-IMPORT-DOUBLE-SUBMIT-001: the button's `disabled` prop only takes
+  // effect after React re-renders `state`, so two same-tick clicks both
+  // reached handleImport/onImport before either `setState` call committed.
+  const importingRef = useRef(false);
 
   function handleFile(files: FileList | null) {
     const file = files?.[0];
@@ -49,7 +127,18 @@ export function ExcelImport<T extends { id: string; created_at: string; updated_
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      const parsed = parseCsv(text);
+      let parsed: CsvRow[];
+      try {
+        parsed = parseCsv(text);
+      } catch (reason) {
+        setState("error");
+        setMessage(
+          reason instanceof CsvStructureError
+            ? reason.message
+            : "فایل خالی است یا ساختار درستی ندارد.",
+        );
+        return;
+      }
       if (parsed.length === 0) {
         setState("error");
         setMessage("فایل خالی است یا ساختار درستی ندارد.");
@@ -63,11 +152,14 @@ export function ExcelImport<T extends { id: string; created_at: string; updated_
   }
 
   async function handleImport() {
+    if (importingRef.current) return;
+    importingRef.current = true;
     setState("importing");
     const valid = rows.map(mapRow).filter((r): r is Omit<T, "id" | "created_at" | "updated_at"> => r !== null);
     if (valid.length === 0) {
       setState("error");
       setMessage("هیچ ردیف معتبری در فایل یافت نشد. ستون‌های اجباری را بررسی کنید.");
+      importingRef.current = false;
       return;
     }
     try {
@@ -78,6 +170,8 @@ export function ExcelImport<T extends { id: string; created_at: string; updated_
     } catch {
       setState("error");
       setMessage("خطا در وارد کردن داده‌ها.");
+    } finally {
+      importingRef.current = false;
     }
   }
 

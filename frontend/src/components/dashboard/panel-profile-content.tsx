@@ -1,12 +1,13 @@
 ﻿"use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import {
   changePassword,
   loadProfile,
   saveProfile,
 } from "@/lib/profile/profile-service";
 import type { AccountProfile } from "@/lib/api/account-api";
+import { safePublicMediaUrl } from "@/lib/media/safe-url";
 
 type PanelProfileContentProps = {
   roleTitle: string;
@@ -20,6 +21,23 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [profileMessage, setProfileMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [passwordMessage, setPasswordMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [passwordFieldErrors, setPasswordFieldErrors] = useState<{
+    currentPassword?: string;
+    newPassword?: string;
+    confirmPassword?: string;
+  }>({});
+  const currentPasswordRef = useRef<HTMLInputElement>(null);
+  const newPasswordRef = useRef<HTMLInputElement>(null);
+  const confirmPasswordRef = useRef<HTMLInputElement>(null);
+  // FE-AUTH-PROFILE-UPDATE-DOUBLE-SUBMIT-001 + AUTH-UI-PASSWORD-CHANGE-DOUBLE-SUBMIT-001:
+  // `isSaving`/`isChangingPassword` are state-backed, so two same-tick
+  // submits both read them as `false` before either update commits --
+  // synchronous ref guards close that race.
+  const savingRef = useRef(false);
+  const changingPasswordRef = useRef(false);
+  const currentPasswordErrorId = useId();
+  const newPasswordErrorId = useId();
+  const confirmPasswordErrorId = useId();
 
   useEffect(() => {
     loadProfile().then((data) => {
@@ -37,42 +55,89 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
 
   async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (savingRef.current) return;
+    savingRef.current = true;
     const formData = new FormData(event.currentTarget);
     setIsSaving(true);
     setProfileMessage(null);
 
-    const result = await saveProfile({
-      fullName: String(formData.get("fullName") ?? ""),
-      phone: String(formData.get("phone") ?? ""),
-      email: String(formData.get("email") ?? ""),
-      description: String(formData.get("description") ?? ""),
-      avatar: selectedAvatar,
-    });
+    try {
+      const result = await saveProfile({
+        fullName: String(formData.get("fullName") ?? ""),
+        phone: String(formData.get("phone") ?? ""),
+        email: String(formData.get("email") ?? ""),
+        description: String(formData.get("description") ?? ""),
+        avatar: selectedAvatar,
+      });
 
-    setProfileMessage({ ok: result.ok, text: result.message });
-    setIsSaving(false);
+      setProfileMessage({ ok: result.ok, text: result.message });
+    } finally {
+      setIsSaving(false);
+      savingRef.current = false;
+    }
   }
 
   async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    setIsChangingPassword(true);
+    const currentPassword = String(formData.get("currentPassword") ?? "");
+    const newPassword = String(formData.get("newPassword") ?? "");
+    const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
     setPasswordMessage(null);
+    setPasswordFieldErrors({});
 
-    const result = await changePassword({
-      currentPassword: String(formData.get("currentPassword") ?? ""),
-      newPassword: String(formData.get("newPassword") ?? ""),
-      confirmPassword: String(formData.get("confirmPassword") ?? ""),
-    });
+    const nextFieldErrors: typeof passwordFieldErrors = {};
+    if (!currentPassword) nextFieldErrors.currentPassword = "رمز عبور فعلی الزامی است.";
+    if (!newPassword) nextFieldErrors.newPassword = "رمز عبور جدید الزامی است.";
+    if (!confirmPassword) nextFieldErrors.confirmPassword = "تکرار رمز عبور جدید الزامی است.";
 
-    setPasswordMessage({ ok: result.ok, text: result.message });
-
-    if (result.ok) {
-      (event.target as HTMLFormElement).reset();
+    if (Object.keys(nextFieldErrors).length) {
+      setPasswordFieldErrors(nextFieldErrors);
+      setPasswordMessage({ ok: false, text: "لطفاً خطاهای مشخص‌شده را اصلاح کنید." });
+      const target = (
+        nextFieldErrors.currentPassword
+          ? currentPasswordRef
+          : nextFieldErrors.newPassword
+            ? newPasswordRef
+            : confirmPasswordRef
+      ).current;
+      // The dashboard's sticky topbar has a different height than the
+      // public site header (besat-focus-scroll-offset's scroll-margin-top
+      // is calibrated for the latter), so an explicit scrollIntoView is
+      // used here instead -- deterministic regardless of chrome height.
+      target?.focus();
+      target?.scrollIntoView({ block: "center" });
+      return;
     }
 
-    setIsChangingPassword(false);
+    if (newPassword !== confirmPassword) {
+      setPasswordFieldErrors({ confirmPassword: "رمز عبور جدید و تکرار آن یکسان نیستند." });
+      setPasswordMessage({ ok: false, text: "رمز عبور جدید و تکرار آن یکسان نیستند." });
+      confirmPasswordRef.current?.focus();
+      confirmPasswordRef.current?.scrollIntoView({ block: "center" });
+      return;
+    }
+
+    if (changingPasswordRef.current) return;
+    changingPasswordRef.current = true;
+    setIsChangingPassword(true);
+
+    try {
+      const result = await changePassword({ currentPassword, newPassword, confirmPassword });
+
+      setPasswordMessage({ ok: result.ok, text: result.message });
+
+      if (result.ok) {
+        (event.target as HTMLFormElement).reset();
+      }
+    } finally {
+      setIsChangingPassword(false);
+      changingPasswordRef.current = false;
+    }
   }
+
+  const safeAvatar = safePublicMediaUrl(profile?.avatar);
 
   return (
     <div className="space-y-6">
@@ -89,8 +154,13 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
             <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-[1.4rem] border border-slate-200 bg-white text-[#062452] shadow-sm">
               {avatarPreview ? (
                 <img src={avatarPreview} alt="تصویر پروفایل" className="h-full w-full object-cover" />
-              ) : profile?.avatar ? (
-                <img src={profile.avatar} alt="تصویر پروفایل" className="h-full w-full object-cover" />
+              ) : safeAvatar ? (
+                // FE-PUBLIC-MEDIA-ORIGIN-001 (dashboard sink): profile.avatar
+                // is a backend-served media URL (unlike avatarPreview above,
+                // a local blob: object URL), subject to the same possibly
+                // wrong-host origin this helper already normalizes for every
+                // other media sink.
+                <img src={safeAvatar} alt="تصویر پروفایل" className="h-full w-full object-cover" />
               ) : (
                 <svg
                   viewBox="0 0 24 24"
@@ -127,7 +197,7 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
           </div>
         </div>
 
-        <form onSubmit={handleProfileSubmit} className="mt-6 grid gap-5 md:grid-cols-2">
+        <form onSubmit={handleProfileSubmit} method="post" className="mt-6 grid gap-5 md:grid-cols-2">
           <label className="block text-right">
             <span className="mb-2 block text-sm font-black text-[#062452]">نام و نام خانوادگی</span>
             <input
@@ -168,7 +238,7 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
               name="role"
               value={profile?.role_display ?? roleTitle}
               readOnly
-              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 text-right text-sm font-black text-slate-500 outline-none"
+              className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 text-right text-sm font-black text-slate-600 outline-none"
             />
           </label>
 
@@ -185,6 +255,7 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
 
           {profileMessage ? (
             <p
+              role={profileMessage.ok ? "status" : "alert"}
               className={`rounded-2xl px-4 py-3 text-right text-sm font-black md:col-span-2 ${
                 profileMessage.ok
                   ? "bg-blue-50 text-blue-700"
@@ -215,39 +286,67 @@ export function PanelProfileContent({ roleTitle }: PanelProfileContentProps) {
           </p>
         </div>
 
-        <form onSubmit={handlePasswordSubmit} className="mt-6 grid gap-5 md:grid-cols-3">
+        <form onSubmit={handlePasswordSubmit} method="post" noValidate className="mt-6 grid gap-5 md:grid-cols-3">
           <label className="block text-right">
             <span className="mb-2 block text-sm font-black text-[#062452]">رمز عبور فعلی</span>
             <input
+              ref={currentPasswordRef}
               type="password"
               name="currentPassword"
               required
+              aria-invalid={Boolean(passwordFieldErrors.currentPassword)}
+              aria-describedby={passwordFieldErrors.currentPassword ? currentPasswordErrorId : undefined}
+              onChange={() => setPasswordFieldErrors((prev) => ({ ...prev, currentPassword: undefined }))}
               className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
             />
+            {passwordFieldErrors.currentPassword ? (
+              <p id={currentPasswordErrorId} className="mt-1.5 text-xs font-bold text-rose-600">
+                {passwordFieldErrors.currentPassword}
+              </p>
+            ) : null}
           </label>
 
           <label className="block text-right">
             <span className="mb-2 block text-sm font-black text-[#062452]">رمز عبور جدید</span>
             <input
+              ref={newPasswordRef}
               type="password"
               name="newPassword"
               required
+              aria-invalid={Boolean(passwordFieldErrors.newPassword)}
+              aria-describedby={passwordFieldErrors.newPassword ? newPasswordErrorId : undefined}
+              onChange={() => setPasswordFieldErrors((prev) => ({ ...prev, newPassword: undefined }))}
               className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
             />
+            {passwordFieldErrors.newPassword ? (
+              <p id={newPasswordErrorId} className="mt-1.5 text-xs font-bold text-rose-600">
+                {passwordFieldErrors.newPassword}
+              </p>
+            ) : null}
           </label>
 
           <label className="block text-right">
             <span className="mb-2 block text-sm font-black text-[#062452]">تکرار رمز عبور جدید</span>
             <input
+              ref={confirmPasswordRef}
               type="password"
               name="confirmPassword"
               required
+              aria-invalid={Boolean(passwordFieldErrors.confirmPassword)}
+              aria-describedby={passwordFieldErrors.confirmPassword ? confirmPasswordErrorId : undefined}
+              onChange={() => setPasswordFieldErrors((prev) => ({ ...prev, confirmPassword: undefined }))}
               className="h-[3.25rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
             />
+            {passwordFieldErrors.confirmPassword ? (
+              <p id={confirmPasswordErrorId} className="mt-1.5 text-xs font-bold text-rose-600">
+                {passwordFieldErrors.confirmPassword}
+              </p>
+            ) : null}
           </label>
 
           {passwordMessage ? (
             <p
+              role={passwordMessage.ok ? "status" : "alert"}
               className={`rounded-2xl px-4 py-3 text-right text-sm font-black md:col-span-3 ${
                 passwordMessage.ok
                   ? "bg-blue-50 text-blue-700"

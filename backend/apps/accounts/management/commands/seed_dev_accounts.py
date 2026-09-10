@@ -1,5 +1,6 @@
 import os
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -51,6 +52,15 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        if not settings.DEBUG:
+            raise CommandError(
+                "seed_dev_accounts is development-only and refuses to run "
+                "when settings.DEBUG is False (i.e. under "
+                "config.settings.production) -- this command exists to "
+                "seed known-guessable-username test accounts, which must "
+                "never be created against a production database."
+            )
+
         passwords: dict[str, str] = {}
         for account in ACCOUNTS:
             value = os.environ.get(account["password_env"])
@@ -69,9 +79,14 @@ class Command(BaseCommand):
                 "kind": SchoolUnit.Kind.ELEMENTARY,
                 "gender": SchoolUnit.Gender.MIXED,
                 "is_active": True,
+                "is_internal": True,
                 "order": 998,
             },
         )
+
+        if not unit.is_internal:
+            unit.is_internal = True
+            unit.save(update_fields=["is_internal"])
 
         created_summary = []
         for account in ACCOUNTS:

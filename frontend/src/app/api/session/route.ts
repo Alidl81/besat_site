@@ -1,10 +1,12 @@
 import { requestBackend } from "@/lib/server/backend-client";
+import { isCrossOriginMutation } from "@/lib/server/cross-origin-guard";
 import {
   appendSessionCookies,
   clearSessionCookies,
   readCookie,
   sessionCookieNames,
 } from "@/lib/server/session-cookies";
+import { isNonEmptyToken } from "@/lib/server/token-validation";
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,6 +20,17 @@ function errorResponse(message: string, status: number) {
   return Response.json({ detail: message }, { status });
 }
 
+// SEC-FE-AUTH-LOGIN-CSRF-001: this route issues (POST) and clears (DELETE)
+// the session cookie directly, but never checked Origin before doing
+// either -- a cross-origin page could submit a same-site-cookie-carrying
+// login or logout request here (text/plain is a CORS-simple content type,
+// so this doesn't even need a preflight). See
+// lib/server/cross-origin-guard.ts for the full rationale.
+function rejectCrossOrigin(request: Request) {
+  if (!isCrossOriginMutation(request)) return null;
+  return errorResponse('درخواست از مبدأ نامعتبر پذیرفته نشد.', 403);
+}
+
 async function responseJson(response: Response) {
   try {
     return await response.json();
@@ -27,6 +40,9 @@ async function responseJson(response: Response) {
 }
 
 export async function POST(request: Request) {
+  const rejected = rejectCrossOrigin(request);
+  if (rejected) return rejected;
+
   let payload: LoginPayload;
   try {
     payload = await request.json();
@@ -64,9 +80,13 @@ export async function POST(request: Request) {
       user?: unknown;
       redirect_path?: unknown;
     };
+    // AUTH-FE-SESSION-EMPTY-TOKENS-001: a mere typeof check accepts an
+    // empty or whitespace-only string just as readily as a real token --
+    // see lib/server/token-validation.ts for the full rationale (shared
+    // with the BFF refresh path and customer-registration).
     if (
-      typeof result.access !== 'string' ||
-      typeof result.refresh !== 'string' ||
+      !isNonEmptyToken(result.access) ||
+      !isNonEmptyToken(result.refresh) ||
       !result.user
     ) {
       return errorResponse('پاسخ ورود بک‌اند کامل نیست.', 502);
@@ -114,6 +134,9 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const rejected = rejectCrossOrigin(request);
+  if (rejected) return rejected;
+
   const access = readCookie(request.headers.get('cookie'), sessionCookieNames.access);
   const refresh = readCookie(request.headers.get('cookie'), sessionCookieNames.refresh);
 

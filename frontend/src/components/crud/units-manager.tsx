@@ -1,8 +1,9 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useId, useRef, useState } from "react";
 import { CrudManager, FormActions, type Column } from "@/components/crud/crud-manager";
 import { Field, Select, StatusBadge, TextArea, TextInput } from "@/components/crud/crud-ui";
+import { getApiErrorMessage } from "@/lib/api/client";
 import { unitsRepository } from "@/lib/data/repositories";
 import type {
   SchoolUnitRecord,
@@ -48,6 +49,7 @@ export function UnitsManager() {
       columns={columns}
       emptyText="واحدی ثبت نشده است."
       addLabel="واحد جدید"
+      rowLabel={(i) => i.title}
       renderForm={({ initial, onSubmit, onCancel, submitting }) => (
         <UnitForm initial={initial} onSubmit={onSubmit} onCancel={onCancel} submitting={submitting} />
       )}
@@ -73,25 +75,63 @@ function UnitForm({
   const [coverImage, setCoverImage] = useState(initial?.cover_image ?? "");
   const [order, setOrder] = useState(initial?.order ?? 0);
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
+  const [formError, setFormError] = useState("");
+  const [titleError, setTitleError] = useState("");
+  const titleRef = useRef<HTMLInputElement>(null);
+  const titleErrorId = useId();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await onSubmit({
-      title,
-      slug: initial?.slug || slugify(title) || `unit-${Date.now()}`,
-      kind,
-      gender,
-      description: description || null,
-      cover_image: coverImage || null,
-      is_active: isActive,
-      order: Number(order) || 0,
-    });
+    setFormError("");
+    setTitleError("");
+
+    if (!title.trim()) {
+      setTitleError("نام واحد الزامی است.");
+      setFormError("لطفاً خطاهای مشخص‌شده را اصلاح کنید.");
+      titleRef.current?.focus();
+      return;
+    }
+
+    try {
+      await onSubmit({
+        title,
+        slug: initial?.slug || slugify(title) || `unit-${Date.now()}`,
+        kind,
+        gender,
+        description: description || null,
+        cover_image: coverImage || null,
+        is_active: isActive,
+        order: Number(order) || 0,
+      });
+    } catch (reason) {
+      setFormError(getApiErrorMessage(reason));
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} noValidate className="space-y-5">
+      {formError ? (
+        <p role="alert" className="rounded-2xl bg-rose-50 px-4 py-3 text-right text-sm font-black text-rose-700">
+          {formError}
+        </p>
+      ) : null}
       <Field label="نام واحد" required>
-        <TextInput value={title} onChange={(e) => setTitle(e.target.value)} required />
+        <TextInput
+          ref={titleRef}
+          value={title}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setTitleError("");
+          }}
+          required
+          aria-invalid={Boolean(titleError)}
+          aria-describedby={titleError ? titleErrorId : undefined}
+        />
+        {titleError ? (
+          <p id={titleErrorId} className="mt-1.5 text-xs font-bold text-rose-600">
+            {titleError}
+          </p>
+        ) : null}
       </Field>
 
       <div className="grid gap-5 md:grid-cols-2">

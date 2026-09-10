@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { BookOpen, FilePenLine, Newspaper, Play } from "lucide-react";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { useHeroVisibility } from "@/lib/home/hero-visibility-context";
 import { safePublicMediaUrl } from "@/lib/media/safe-url";
+import { isSafeExternalHttpUrl, isSafeRelativePath } from "@/lib/url-safety";
 import {
   getPublicHomeSlides,
   getPublicNews,
@@ -20,8 +22,23 @@ type Slide = {
   href?: string;
   title?: string;
   subtitle?: string;
-  kind?: "news";
 };
+
+// FE-HOME-SLIDE-HREF-001: a CMS-authored slide's `href` (backend/apps/home/
+// models.py's own help_text: "می‌تواند مسیر داخلی مثل /about یا لینک کامل
+// باشد" -- "can be an internal path like /about or a full link") is
+// admin-entered free text, not a value this frontend can trust by
+// construction -- an unsafe value (`javascript:`, `data:`, a protocol-
+// relative bypass) must never reach a real `<Link href>`. Validating once
+// here, at slide-mapping time, mirrors how `imageSrc` is already validated
+// via `safePublicMediaUrl()` two lines below -- the rest of the component
+// only ever sees an `href` that's already known-safe (or `undefined`),
+// exactly like `imageSrc` is only ever a known-safe URL or excluded
+// entirely.
+function safeSlideHref(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  return isSafeRelativePath(value) || isSafeExternalHttpUrl(value) ? value : undefined;
+}
 
 export function HomeSliderSection() {
   const [slides, setSlides] = useState<Slide[] | null>(null);
@@ -29,6 +46,16 @@ export function HomeSliderSection() {
   const [paused, setPaused] = useState(false);
   const reducedMotion = useReducedMotion();
   const visibleSlides = slides ?? [];
+  const { setHasVisibleHero } = useHeroVisibility();
+
+  useEffect(() => {
+    // Tell SiteHeader whether there's an actual dark hero behind it.
+    // `slides === null` (still loading) is deliberately left as the
+    // existing default (true) rather than flipped to false here, so the
+    // header doesn't flash solid-then-transparent while the initial
+    // request is in flight.
+    if (slides !== null) setHasVisibleHero(visibleSlides.length > 0);
+  }, [slides, visibleSlides.length, setHasVisibleHero]);
 
   useEffect(() => {
     let mounted = true;
@@ -57,7 +84,6 @@ export function HomeSliderSection() {
                   href: `/news/${encodeURIComponent(item.slug)}`,
                   title: item.title,
                   subtitle: item.summary ?? undefined,
-                  kind: "news",
                 }
               : null;
           })
@@ -65,23 +91,30 @@ export function HomeSliderSection() {
         const cmsSlides = all
           .filter((slide) => slide.is_active && slide.image)
           .sort((a, b) => a.order - b.order)
-          .map((slide) => ({
-            id: String(slide.id),
-            imageSrc: slide.image,
-            imageAlt: slide.alt_text ?? slide.title ?? settings.school_name ?? "",
-            href: slide.href ?? undefined,
-            title: slide.title ?? undefined,
-            subtitle: slide.subtitle ?? undefined,
-          }));
+          .map((slide): Slide | null => {
+            const imageSrc = safePublicMediaUrl(slide.image);
+            return imageSrc
+              ? {
+                  id: String(slide.id),
+                  imageSrc,
+                  imageAlt: slide.alt_text ?? slide.title ?? settings.school_name ?? "",
+                  href: safeSlideHref(slide.href),
+                  title: slide.title ?? undefined,
+                  subtitle: slide.subtitle ?? undefined,
+                }
+              : null;
+          })
+          .filter((slide): slide is Slide => slide !== null);
         const mapped = [...newsSlides, ...cmsSlides];
+        const heroImageSrc = safePublicMediaUrl(settings.hero_image);
         setSlides(
           mapped.length > 0
             ? mapped
-            : settings.hero_image
+            : heroImageSrc
               ? [
                   {
                     id: "site-hero",
-                    imageSrc: settings.hero_image,
+                    imageSrc: heroImageSrc,
                     imageAlt: settings.school_name ?? "",
                     title: settings.hero_title ?? undefined,
                     subtitle: settings.hero_subtitle ?? undefined,
@@ -139,8 +172,37 @@ export function HomeSliderSection() {
 
   if (visibleSlides.length === 0) {
     return (
-      <section className="flex min-h-80 items-center justify-center bg-[#071b31] px-5 text-center text-white">
-        <p className="text-sm font-bold">تصویر اصلی هنوز در مدیریت محتوا تنظیم نشده است.</p>
+      <section
+        dir="rtl"
+        className="flex min-h-[660px] flex-col items-center justify-center bg-[#071b31] px-5 py-16 text-center text-white sm:min-h-[700px] lg:min-h-[720px]"
+      >
+        <p className="mb-4 flex items-center gap-3 text-xs font-black tracking-wide text-[#e7b665] sm:text-sm">
+          <span className="h-px w-9 bg-[#e7b665]" />
+          مجتمع آموزشی، تربیتی و فرهنگی بعثت
+          <span className="h-px w-9 bg-[#e7b665]" />
+        </p>
+        <h1 className="max-w-[700px] text-[2.25rem] font-black leading-[1.45] text-white drop-shadow-sm sm:text-5xl lg:text-[3.55rem] lg:leading-[1.35]">
+          پیوند آموزش و بصیرت دینی
+        </h1>
+        <p className="mt-5 max-w-[610px] text-sm font-bold leading-8 text-white/82 sm:text-base sm:leading-9">
+          به وب‌سایت رسمی مجتمع آموزشی، تربیتی و فرهنگی بعثت خوش آمدید.
+        </p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+          <Link
+            href="/registration"
+            className="inline-flex h-13 items-center justify-center gap-2 rounded-xl bg-[#e2ae5b] px-6 text-sm font-black text-[#0b213c] shadow-[0_15px_35px_rgba(226,174,91,0.2)] transition hover:-translate-y-0.5 hover:bg-[#edc57f]"
+          >
+            <FilePenLine className="size-5" aria-hidden="true" />
+            پیش‌ثبت‌نام آنلاین
+          </Link>
+          <Link
+            href="/about"
+            className="inline-flex h-13 items-center justify-center gap-2 rounded-xl border border-white/65 bg-white/[0.04] px-6 text-sm font-black text-white backdrop-blur-sm transition hover:bg-white/12"
+          >
+            <BookOpen className="size-5" aria-hidden="true" />
+            آشنایی با بعثت
+          </Link>
+        </div>
       </section>
     );
   }
@@ -193,7 +255,7 @@ export function HomeSliderSection() {
           </p>
 
           <div className="besat-hero-line besat-hero-line-4 mt-8 flex flex-wrap items-center gap-3 sm:gap-4">
-            {visibleSlides[activeIndex]?.kind === "news" ? (
+            {visibleSlides[activeIndex]?.href ? (
               <Link
                 href={visibleSlides[activeIndex]?.href ?? "/news"}
                 className="inline-flex h-13 items-center justify-center gap-2 rounded-xl bg-[#e2ae5b] px-6 text-sm font-black text-[#0b213c] shadow-[0_15px_35px_rgba(226,174,91,0.2)] transition hover:-translate-y-0.5 hover:bg-[#edc57f]"
@@ -231,17 +293,22 @@ export function HomeSliderSection() {
       </div>
 
       {visibleSlides.length > 1 ? (
-        <div className="absolute bottom-8 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/15 bg-[#06182b]/42 px-3 py-2 backdrop-blur-md">
+        <div className="absolute bottom-8 left-1/2 z-20 flex -translate-x-1/2 items-center rounded-full border border-white/15 bg-[#06182b]/42 px-1 py-1 backdrop-blur-md">
           {visibleSlides.map((slide, index) => (
             <button
               key={slide.id}
               type="button"
               aria-label={`نمایش اسلاید ${index + 1}`}
               onClick={() => setActiveIndex(index)}
-              className={`h-2 rounded-full transition-all duration-500 ${
-                index === activeIndex ? "w-8 bg-[#e2ae5b]" : "w-2 bg-white/55 hover:bg-white"
-              }`}
-            />
+              className="flex h-6 w-6 shrink-0 items-center justify-center"
+            >
+              <span
+                aria-hidden="true"
+                className={`block h-2 rounded-full transition-all duration-500 ${
+                  index === activeIndex ? "w-8 bg-[#e2ae5b]" : "w-2 bg-white/55 hover:bg-white"
+                }`}
+              />
+            </button>
           ))}
         </div>
       ) : null}

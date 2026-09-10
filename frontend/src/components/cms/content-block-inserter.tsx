@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { EditorIcon, type EditorIconName } from "@/components/editor/editor-icons";
 import { getApiErrorMessage } from "@/lib/api/client";
+import { lockBodyScroll } from "@/lib/body-scroll-lock";
+import { isTopDialog, popDialog, pushDialog } from "@/lib/dialog-stack";
 import {
   buildCalloutBlockHtml,
   buildEmbedBlockHtml,
@@ -125,10 +127,16 @@ export function ContentBlockInserter({
   const [embedCaption, setEmbedCaption] = useState("");
   const [errorText, setErrorText] = useState("");
   const [uploading, setUploading] = useState(false);
+  // FE-CMS-BLOCK-UPLOAD-DOUBLE-SUBMIT-001: same guard/rationale as
+  // login-card.tsx's AUTH-UI-DOUBLE-SUBMIT-001 -- `disabled={uploading}`
+  // only takes effect after React re-renders, so two same-tick file-input
+  // change events both start handleFiles.
+  const uploadingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
+  const dialogTokenRef = useRef<symbol | null>(null);
 
   const resetDialogState = useCallback(() => {
     setSelectedIds([]);
@@ -179,12 +187,23 @@ export function ContentBlockInserter({
 
   const allMediaItems = [...customItems, ...(libraryItems ?? [])];
 
+  // FE-RICH-GALLERY-MANUAL-STACK-001 (same defect pattern, proactively
+  // applied here too -- found while auditing every remaining hand-rolled
+  // `document.body.style.overflow` call site after Codex's finding):
+  // lockBodyScroll()'s shared reference count stays correct regardless of
+  // the order concurrently open modals close in, unlike a capture-and-
+  // restore-the-prior-value scheme (this component's previous approach --
+  // this dialog is commonly opened from inside another already-open editor
+  // modal, and either one may close first).
   useEffect(() => {
     if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const releaseScrollLock = lockBodyScroll();
+    const dialogToken = pushDialog();
+    dialogTokenRef.current = dialogToken;
     return () => {
-      document.body.style.overflow = previousOverflow;
+      popDialog(dialogToken);
+      dialogTokenRef.current = null;
+      releaseScrollLock();
     };
   }, [open]);
 
@@ -194,6 +213,7 @@ export function ContentBlockInserter({
     const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        if (!dialogTokenRef.current || !isTopDialog(dialogTokenRef.current)) return;
         event.preventDefault();
         closeDialog();
         return;
@@ -290,6 +310,8 @@ export function ContentBlockInserter({
     setErrorText("");
 
     if (!files || files.length === 0) return;
+    if (uploadingRef.current) return;
+    uploadingRef.current = true;
 
     const fileArray = Array.from(files);
     setUploading(true);
@@ -342,6 +364,7 @@ export function ContentBlockInserter({
     }
 
     setUploading(false);
+    uploadingRef.current = false;
     onUploadState?.(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
@@ -407,35 +430,61 @@ export function ContentBlockInserter({
   const insertDisabled =
     (activeType === "gallery" || activeType === "media") && selectedIds.length === 0;
 
+  // The "sidebar" variant renders as bare buttons meant to be passed as
+  // EditorDocumentOutline's children -- so the outline's block list and
+  // every insertable block type (structural and media/dialog-driven alike)
+  // live in one "افزودن بلوک" grid under one heading, instead of two
+  // separately-titled, overlapping insert panels.
   return (
     <>
-      <div className={variant === "sidebar" ? "besat-editor-media-blocks" : "rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 p-4 text-right"}>
-        <div>
-          <p className="text-sm font-black text-[#062452]">{variant === "sidebar" ? "بلوک‌های رسانه‌ای" : "بلوک‌های محتوا"}</p>
-          <p className={variant === "sidebar" ? "mt-1 text-[11px] font-bold leading-5 text-slate-500" : "mt-1 text-xs font-bold leading-6 text-slate-500"}>
-            می‌توانید به متن، بلوک‌های گالری، مدیا، نقل‌قول یا متن برجسته اضافه کنید.
-          </p>
-        </div>
-
-        <div className={variant === "sidebar" ? "mt-3 grid gap-2" : "mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4"}>
+      {variant === "sidebar" ? (
+        <>
           {blockTypes.map((type) => (
             <button
               key={type.key}
               type="button"
               onClick={() => openDialog(type.key)}
-              className={variant === "sidebar" ? "besat-editor-media-block-button" : "rounded-2xl border border-slate-200 bg-white p-4 text-right transition hover:border-blue-300 hover:bg-blue-50"}
+              className="besat-editor-media-block-button"
             >
               <EditorIcon name={type.icon} className="size-4 shrink-0" />
               <span>
                 <span className="block text-sm font-black text-[#062452]">{type.title}</span>
-                <span className={variant === "sidebar" ? "mt-0.5 block text-[10px] font-bold leading-5 text-slate-500" : "mt-1 block text-xs font-bold leading-6 text-slate-500"}>
+                <span className="mt-0.5 block text-[10px] font-bold leading-5 text-slate-500">
                   {type.description}
                 </span>
               </span>
             </button>
           ))}
+        </>
+      ) : (
+        <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 p-4 text-right">
+          <div>
+            <p className="text-sm font-black text-[#062452]">بلوک‌های محتوا</p>
+            <p className="mt-1 text-xs font-bold leading-6 text-slate-500">
+              می‌توانید به متن، بلوک‌های گالری، مدیا، نقل‌قول یا متن برجسته اضافه کنید.
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {blockTypes.map((type) => (
+              <button
+                key={type.key}
+                type="button"
+                onClick={() => openDialog(type.key)}
+                className="rounded-2xl border border-slate-200 bg-white p-4 text-right transition hover:border-blue-300 hover:bg-blue-50"
+              >
+                <EditorIcon name={type.icon} className="size-4 shrink-0" />
+                <span>
+                  <span className="block text-sm font-black text-[#062452]">{type.title}</span>
+                  <span className="mt-1 block text-xs font-bold leading-6 text-slate-500">
+                    {type.description}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {open
         ? createPortal(
@@ -443,7 +492,9 @@ export function ContentBlockInserter({
               dir="rtl"
               className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm sm:p-8"
               onMouseDown={(event) => {
-                if (event.target === event.currentTarget) closeDialog();
+                if (event.target !== event.currentTarget) return;
+                event.preventDefault();
+                closeDialog();
               }}
             >
               <div
@@ -461,7 +512,7 @@ export function ContentBlockInserter({
                   افزودن بلوک {blockTypes.find((item) => item.key === activeType)?.title}
                 </h2>
                 <p className="mt-2 text-sm font-bold leading-7 text-slate-500">
-                  بلوک انتخاب‌شده به انتهای متن فعلی اضافه می‌شود.
+                  بلوک انتخاب‌شده در محل مکان‌نما به متن اضافه می‌شود.
                 </p>
               </div>
 
@@ -493,6 +544,8 @@ export function ContentBlockInserter({
                       accept="image/*,video/*"
                       multiple
                       className="hidden"
+                      tabIndex={-1}
+                      aria-hidden="true"
                       onChange={(event) => handleFiles(event.target.files)}
                     />
 
@@ -611,7 +664,7 @@ export function ContentBlockInserter({
                                   <span className="block line-clamp-1 text-sm font-black text-[#062452]">
                                     {item.title}
                                   </span>
-                                  <span className="mt-1 block line-clamp-1 text-xs font-bold text-slate-400">
+                                  <span className="mt-1 block line-clamp-1 text-xs font-bold text-slate-600">
                                     {getMediaLabel(item.src)}
                                   </span>
                                 </span>

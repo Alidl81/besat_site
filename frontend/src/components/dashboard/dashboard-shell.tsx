@@ -31,7 +31,7 @@ function SidebarMenu({
       className={
         mobile
           ? "grid max-h-[65vh] gap-1 overflow-y-auto p-3"
-          : "besat-panel-menu-scroll min-h-0 flex-1 space-y-1 overflow-y-visible px-3 pb-3"
+          : "besat-panel-menu-scroll min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 pb-3"
       }
       aria-label="منوی پنل"
     >
@@ -104,7 +104,7 @@ export function DashboardShell({ data, activeKey = "overview", panel }: Dashboar
       <a href="#dashboard-content" className="sr-only z-50 rounded-md bg-white px-4 py-3 text-sm font-black text-[#102b4a] focus:not-sr-only focus:fixed focus:right-4 focus:top-4">
         رفتن به محتوای اصلی
       </a>
-      <div className="grid min-h-screen lg:grid-cols-[17rem_minmax(0,1fr)]">
+      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[17rem_minmax(0,1fr)]">
         <Sidebar data={visibleData} activeKey={isUnavailable ? "" : displayedItem.key} />
 
         <section className="min-w-0">

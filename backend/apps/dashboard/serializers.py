@@ -47,6 +47,10 @@ class DashboardResponseSerializer(serializers.Serializer):
         child=serializers.DictField(),
         required=False,
     )
+    units = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+    )
     stats = serializers.DictField()
     cards = DashboardCardSerializer(many=True)
     content_status = serializers.DictField(

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { EventFormModal } from "@/components/dashboard/event-form-modal";
-import { StatusBadge } from "@/components/crud/crud-ui";
+import { ConfirmDialog, StatusBadge } from "@/components/crud/crud-ui";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
 import {
   PanelEmpty,
@@ -29,6 +29,7 @@ import {
 } from "@/lib/date/jalali";
 import { panelService } from "@/services/panel-service";
 import type { CalendarEventItem } from "@/types/panel-api";
+import type { ApiId } from "@/types/api";
 import type { QueryValue } from "@/lib/api/query";
 
 type EventAction = "submit-review" | "approve" | "reject" | "publish" | "archive" | "restore";
@@ -136,6 +137,13 @@ function EventAgendaRow({
 }) {
   const canEdit = canEditEvent(event, isGeneralManager, fixedUnitId);
   const actions = availableActions(event, isGeneralManager, isUnitManagerRole, fixedUnitId);
+  // Publishing requires summary + description server-side
+  // (apps/events/models.py's clean(), only enforced at the published
+  // transition -- draft/review/approved stages intentionally allow
+  // saving without them). Disabling the button here instead of letting
+  // the click 400 surfaces the real prerequisite up front.
+  const missingPublishFields = !event.summary || !event.description;
+  const publishHintId = useId();
 
   return (
     <article className="rounded-lg border border-slate-200 p-4">
@@ -162,25 +170,39 @@ function EventAgendaRow({
       </div>
 
       {canEdit ? (
-        <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-          <button type="button" onClick={() => onEdit(event)} className="panel-text-link">
-            <PanelIcon name="edit" className="ml-1 inline size-3.5" />
-            ویرایش
-          </button>
-          <button type="button" onClick={() => onDelete(event)} className="panel-text-link !text-rose-600 hover:!text-rose-700">
-            <PanelIcon name="trash" className="ml-1 inline size-3.5" />
-            حذف
-          </button>
-          {actions.map((action) => (
-            <button
-              key={action}
-              type="button"
-              onClick={() => onAction(event, action)}
-              className={`panel-text-link ${action === "reject" ? "!text-rose-600 hover:!text-rose-700" : ""}`}
-            >
-              {ACTION_LABELS[action]}
+        <div className="mt-3 border-t border-slate-100 pt-3">
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => onEdit(event)} className="panel-text-link">
+              <PanelIcon name="edit" className="ml-1 inline size-3.5" />
+              ویرایش
             </button>
-          ))}
+            <button type="button" onClick={() => onDelete(event)} className="panel-text-link !text-rose-600 hover:!text-rose-700">
+              <PanelIcon name="trash" className="ml-1 inline size-3.5" />
+              حذف
+            </button>
+            {actions.map((action) => (
+              <button
+                key={action}
+                type="button"
+                disabled={action === "publish" && missingPublishFields}
+                onClick={() => onAction(event, action)}
+                aria-describedby={action === "publish" && missingPublishFields ? publishHintId : undefined}
+                className={`panel-text-link disabled:cursor-not-allowed disabled:opacity-50 ${action === "reject" ? "!text-rose-600 hover:!text-rose-700" : ""}`}
+              >
+                {ACTION_LABELS[action]}
+              </button>
+            ))}
+          </div>
+          {actions.includes("publish") && missingPublishFields ? (
+            // A disabled button's own title/aria-describedby is invisible to
+            // touch and keyboard users -- browsers exclude disabled elements
+            // from the tab order entirely, so there's no way to focus or
+            // hover it to reveal a tooltip. This has to be a persistently
+            // visible line instead, not a hover-only hint.
+            <p id={publishHintId} role="alert" className="mt-2 text-xs font-bold text-amber-700">
+              برای انتشار، افزودن خلاصه و توضیحات الزامی است — از دکمهٔ «ویرایش» بالا استفاده کنید.
+            </p>
+          ) : null}
         </div>
       ) : null}
     </article>
@@ -207,8 +229,12 @@ export function EventsCalendar() {
   });
   const [actionError, setActionError] = useState("");
   const [actionMessage, setActionMessage] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<CalendarEventItem | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
-  const focusTargetKey = useRef<string | null>(null);
+  const monthHeadingRef = useRef<HTMLHeadingElement>(null);
+  const pendingMonthFocus = useRef(false);
+  const deletingEventIdsRef = useRef<Set<ApiId>>(new Set());
+  const actingEventIdsRef = useRef<Set<ApiId>>(new Set());
 
   const cells = useMemo(() => buildJalaaliMonthGrid(viewJy, viewJm), [viewJy, viewJm]);
   const weeks = useMemo(() => {
@@ -245,12 +271,36 @@ export function EventsCalendar() {
     return map;
   }, [eventsRequest.data]);
 
+  // REOPEN history on this exact interaction (FE-A11Y-EVENTS-DAY-FOCUS-001,
+  // 4 rounds): selecting an inactive day changes viewJy/viewJm, which
+  // re-keys eventsRequest and swaps the ENTIRE grid (every day button, not
+  // just the changed ones) for a <PanelLoading> skeleton while it
+  // refetches, then remounts a brand-new button for the same key once the
+  // fetch resolves. Three different attempts to restore focus onto that
+  // *recreated* button all failed specifically for Enter (letting Enter
+  // fall through to native activation; guarding the restore effect on
+  // eventsRequest.loading; defensively re-asserting focus across multiple
+  // animation frames) even after confirming Enter and Space run through
+  // byte-identical code -- Codex's own conclusion was that this is a
+  // Chrome-internal behavior around Enter-activation on an element being
+  // replaced, not something interceptable from outside, and that the fix
+  // needs to target a stable element instead of fighting to refocus a
+  // node that's being torn down and rebuilt.
+  //
+  // This redesigns the target rather than the retry mechanism: the
+  // month/year heading below (h2, tabIndex=-1) is rendered in the
+  // calendar's <header>, entirely OUTSIDE the loading-gated grid section,
+  // so it is never unmounted by the eventsRequest loading swap regardless
+  // of which key or pointer path triggered the month change. Whenever
+  // selecting an inactive day moves the visible month, focus goes there
+  // instead of trying to land back on the specific (recreated) day
+  // button -- trading exact-cell focus retention for a target that is
+  // structurally guaranteed to still exist by the time this effect runs.
   useEffect(() => {
-    if (!focusTargetKey.current) return;
-    const node = gridRef.current?.querySelector<HTMLElement>(`[data-key="${focusTargetKey.current}"]`);
-    node?.focus();
-    focusTargetKey.current = null;
-  }, [cells]);
+    if (!pendingMonthFocus.current) return;
+    pendingMonthFocus.current = false;
+    monthHeadingRef.current?.focus();
+  }, [viewJy, viewJm]);
 
   const selectedCell = useMemo(
     () => cells.find((cell) => cell.key === selectedKey) ?? cells.find((cell) => cell.isToday) ?? cells[0],
@@ -274,7 +324,7 @@ export function EventsCalendar() {
   function selectCell(cell: CalendarDayCell) {
     setSelectedKey(cell.key);
     if (!cell.isCurrentMonth) {
-      focusTargetKey.current = cell.key;
+      pendingMonthFocus.current = true;
       setViewJy(cell.jy);
       setViewJm(cell.jm);
     }
@@ -283,6 +333,17 @@ export function EventsCalendar() {
   function handleGridKeyDown(keyboardEvent: KeyboardEvent<HTMLButtonElement>, index: number) {
     const key = keyboardEvent.key;
 
+    // REOPEN history on this exact interaction (FE-A11Y-EVENTS-DAY-FOCUS-001):
+    // a first attempt removed Enter from manual interception, betting the
+    // defect was in how Enter was handled here -- fresh evidence showed
+    // that made no difference (still lost focus) and additionally surfaced
+    // a transient full-grid loading-state replacement during Enter. The
+    // real mechanism was elsewhere: selecting an inactive day changes the
+    // viewed month, which re-keys eventsRequest and swaps the ENTIRE grid
+    // for a <PanelLoading> skeleton while it refetches -- the focus-
+    // restoration effect below now accounts for that (see its own
+    // comment). Restored Enter to the same manual-interception branch as
+    // Space, since the original difference wasn't the real cause.
     if (key === "Enter" || key === " ") {
       keyboardEvent.preventDefault();
       selectCell(cells[index]);
@@ -295,7 +356,7 @@ export function EventsCalendar() {
       const next = addJalaaliMonths(viewJy, viewJm, delta);
       const clampedDay = Math.min(selectedCell.jd, jalaaliMonthLength(next.jy, next.jm));
       const nextKey = jalaaliKey(next.jy, next.jm, clampedDay);
-      focusTargetKey.current = nextKey;
+      pendingMonthFocus.current = true;
       setSelectedKey(nextKey);
       setViewJy(next.jy);
       setViewJm(next.jm);
@@ -335,7 +396,14 @@ export function EventsCalendar() {
   }
 
   async function handleDelete(event: CalendarEventItem) {
-    if (!window.confirm(`رویداد «${event.title}» حذف شود؟`)) return;
+    // FE-DASH-EVENT-DELETE-DOUBLE-SUBMIT-001: two same-tick confirmations
+    // on the shared ConfirmDialog both reached removeCalendarEvent since
+    // this had no synchronous in-flight guard. A Set keyed by event id
+    // (not one boolean) so a delete in flight for one event doesn't block
+    // a delete/action on a different event.
+    if (deletingEventIdsRef.current.has(event.id)) return;
+    deletingEventIdsRef.current.add(event.id);
+    setPendingDelete(null);
     setActionError("");
     setActionMessage("");
     try {
@@ -344,10 +412,16 @@ export function EventsCalendar() {
       eventsRequest.setData((current) => current?.filter((item) => item.id !== event.id) ?? current);
     } catch (reason) {
       setActionError(getApiErrorMessage(reason));
+    } finally {
+      deletingEventIdsRef.current.delete(event.id);
     }
   }
 
   async function handleAction(event: CalendarEventItem, action: EventAction) {
+    // FE-DASH-EVENT-ACTION-DOUBLE-SUBMIT-001: same rationale as
+    // handleDelete's guard above -- a Set keyed by event id.
+    if (actingEventIdsRef.current.has(event.id)) return;
+    actingEventIdsRef.current.add(event.id);
     setActionError("");
     setActionMessage("");
     try {
@@ -358,6 +432,8 @@ export function EventsCalendar() {
       );
     } catch (reason) {
       setActionError(formatFieldErrorMessage(reason));
+    } finally {
+      actingEventIdsRef.current.delete(event.id);
     }
   }
 
@@ -393,7 +469,11 @@ export function EventsCalendar() {
               >
                 <PanelIcon name="chevron" className="size-4" />
               </button>
-              <h2 className="min-w-[9rem] text-center text-base font-black text-[#172b43]">
+              <h2
+                ref={monthHeadingRef}
+                tabIndex={-1}
+                className="min-w-[9rem] text-center text-base font-black text-[#172b43] outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              >
                 {jalaaliMonthLabel(viewJy, viewJm)}
               </h2>
               <button
@@ -479,7 +559,7 @@ export function EventsCalendar() {
                             onClick={() => selectCell(cell)}
                             onKeyDown={(keyboardEvent) => handleGridKeyDown(keyboardEvent, index)}
                             className={`flex h-20 w-full flex-col items-center justify-start gap-1.5 border-b border-l border-slate-100 p-1.5 text-center transition last:border-l-0 hover:bg-[#fff8ec] focus-visible:relative focus-visible:z-10 sm:h-24 ${
-                              !cell.isCurrentMonth ? "bg-slate-50/70 text-slate-300" : "text-[#172b43]"
+                              !cell.isCurrentMonth ? "bg-slate-50/70 text-slate-500" : "text-[#172b43]"
                             } ${isSelected ? "!bg-[#fdecc8]" : ""}`}
                           >
                             <span
@@ -545,7 +625,7 @@ export function EventsCalendar() {
                       isUnitManagerRole={isUnitManagerRole}
                       fixedUnitId={fixedUnitId}
                       onEdit={openEditModal}
-                      onDelete={handleDelete}
+                      onDelete={setPendingDelete}
                       onAction={handleAction}
                     />
                   ))}
@@ -569,6 +649,14 @@ export function EventsCalendar() {
         fixedUnitId={fixedUnitId}
         units={units}
         defaultStart={jalaaliToDateTimeLocalValue(selectedCell.jy, selectedCell.jm, selectedCell.jd, 9, 0)}
+      />
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="حذف رویداد"
+        description={pendingDelete ? `آیا از حذف رویداد «${pendingDelete.title}» مطمئن هستید؟ این عملیات قابل بازگشت نیست.` : ""}
+        onConfirm={() => pendingDelete && handleDelete(pendingDelete)}
+        onCancel={() => setPendingDelete(null)}
       />
     </div>
   );

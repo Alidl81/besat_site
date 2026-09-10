@@ -28,7 +28,7 @@ def get_user_units_payload(user) -> list[dict]:
     profile = get_or_create_user_profile(user)
 
     if user.is_superuser or profile.role == UserProfile.Role.GENERAL_MANAGER:
-        units = SchoolUnit.objects.filter(is_active=True).order_by("order", "id")
+        units = SchoolUnit.objects.real().order_by("order", "id")
 
         return [
             {

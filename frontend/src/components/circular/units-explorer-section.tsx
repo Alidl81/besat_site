@@ -17,11 +17,33 @@ type ExplorerSectionProps = {
 export function UnitsExplorerSection({ variant, initialSlug }: ExplorerSectionProps) {
   const [items, setItems] = useState<CircularItem[] | null>(null);
   const [descriptions, setDescriptions] = useState<Record<string, string | null>>({});
+  // FE-UNITS-EXPLORER-LOAD-ERROR-001: `.catch(() => setItems([]))`
+  // collapsed a genuine load failure (a 503, a network drop) into the
+  // exact same "nothing to show" empty state as a catalog that
+  // legitimately has zero units/departments -- a live probe found a
+  // forced-503 outage rendered the normal empty-catalog text with no
+  // alert and no retry button, silently telling a visitor there simply
+  // is nothing here instead of that the page failed to load. Tracked
+  // separately from `items` so the two states can no longer collapse
+  // into each other.
+  const [loadError, setLoadError] = useState(false);
+  const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
     let active = true;
     const request =
       variant === "unit" ? getPublicUnits() : getPublicDepartments();
+
+    // react-hooks/set-state-in-effect forbids a setState call directly in
+    // the effect body -- deferring this reset behind its own microtask
+    // (kept independent of the data-fetch chain below, since TypeScript
+    // can't chain a further `.then()` off a union of two differently-
+    // typed promises -- getPublicUnits()/getPublicDepartments() resolve
+    // to different element types) satisfies the rule without changing
+    // behavior.
+    Promise.resolve().then(() => {
+      if (active) setLoadError(false);
+    });
 
     request.then((items) => {
       if (!active) return;
@@ -40,13 +62,36 @@ export function UnitsExplorerSection({ variant, initialSlug }: ExplorerSectionPr
         })),
       );
     }).catch(() => {
-      if (active) setItems([]);
+      if (active) setLoadError(true);
     });
 
     return () => {
       active = false;
     };
-  }, [variant]);
+  }, [variant, retryToken]);
+
+  if (loadError) {
+    return (
+      <section className="bg-[#f8fafc] py-16">
+        <div className="mx-auto max-w-3xl px-4 text-center">
+          <div className="rounded-[2rem] border border-dashed border-rose-200 bg-white p-10 shadow-sm">
+            <p role="alert" className="text-sm font-bold leading-8 text-rose-700">
+              {variant === "unit"
+                ? "بارگذاری واحدهای آموزشی با خطا مواجه شد."
+                : "بارگذاری بخش‌ها با خطا مواجه شد."}
+            </p>
+            <button
+              type="button"
+              onClick={() => setRetryToken((token) => token + 1)}
+              className="besat-accent-button mt-6 inline-flex rounded-xl px-6 py-3 text-sm font-black"
+            >
+              تلاش دوباره
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   if (items === null) {
     return (

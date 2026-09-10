@@ -248,9 +248,7 @@ class HomePageAPIView(APIView):
             Q(image__isnull=False) | Q(image_url__isnull=False)
         ).order_by("order", "-id")
 
-        units = SchoolUnit.objects.filter(
-            is_active=True,
-        ).order_by("order", "id")[:10]
+        units = SchoolUnit.objects.real().order_by("order", "id")[:10]
 
         departments = Department.objects.filter(
             is_active=True,

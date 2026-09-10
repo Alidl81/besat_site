@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
-import { Field, GhostButton, PrimaryButton, Select, TextInput } from "@/components/crud/crud-ui";
+import { ConfirmDialog, Field, GhostButton, PrimaryButton, Select, TextInput } from "@/components/crud/crud-ui";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
 import { getApiErrorMessage } from "@/lib/api/client";
 import {
@@ -26,10 +26,18 @@ export function TourHotspotEditor({ scene, doorScenes, onClose }: TourHotspotEdi
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingPoint, setPendingPoint] = useState<{ yaw: number; pitch: number } | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [targetSceneId, setTargetSceneId] = useState<number | "">("");
   const [label, setLabel] = useState("");
   const [saving, setSaving] = useState(false);
   const [placing, setPlacing] = useState(false);
+  // FE-TOUR-HOTSPOT-DOUBLE-SUBMIT-001: same guard/rationale as
+  // login-card.tsx's AUTH-UI-DOUBLE-SUBMIT-001 -- `disabled={saving}` only
+  // takes effect after React re-renders, so two clicks dispatched before
+  // that render both start the mutation. handleDeleteHotspot had no guard
+  // of any kind (not even state-backed).
+  const savingRef = useRef(false);
+  const deletingRef = useRef(false);
 
   const targets = doorScenes.filter((s) => s.id !== scene.id);
 
@@ -94,6 +102,8 @@ export function TourHotspotEditor({ scene, doorScenes, onClose }: TourHotspotEdi
 
   async function handleSaveHotspot() {
     if (!pendingPoint || targetSceneId === "") return;
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setError(null);
     try {
@@ -112,17 +122,22 @@ export function TourHotspotEditor({ scene, doorScenes, onClose }: TourHotspotEdi
       setError(getApiErrorMessage(reason));
     } finally {
       setSaving(false);
+      savingRef.current = false;
     }
   }
 
   async function handleDeleteHotspot(id: number) {
-    if (!window.confirm("این نقطه اتصال حذف شود؟")) return;
+    if (deletingRef.current) return;
+    deletingRef.current = true;
+    setPendingDeleteId(null);
     setError(null);
     try {
       await cmsDeleteTourHotspot(id);
       setHotspots((current) => current.filter((hotspot) => hotspot.id !== id));
     } catch (reason) {
       setError(getApiErrorMessage(reason));
+    } finally {
+      deletingRef.current = false;
     }
   }
 
@@ -204,9 +219,9 @@ export function TourHotspotEditor({ scene, doorScenes, onClose }: TourHotspotEdi
         <div className="space-y-2">
           <p className="text-sm font-black text-[#062452]">نقاط اتصال این صحنه</p>
           {loading ? (
-            <p className="text-xs font-bold text-slate-400">در حال بارگذاری…</p>
+            <p className="text-xs font-bold text-slate-600">در حال بارگذاری…</p>
           ) : hotspots.length === 0 ? (
-            <p className="text-xs font-bold text-slate-400">هنوز نقطه اتصالی ثبت نشده است.</p>
+            <p className="text-xs font-bold text-slate-600">هنوز نقطه اتصالی ثبت نشده است.</p>
           ) : (
             <ul className="space-y-2">
               {hotspots.map((hotspot) => {
@@ -215,11 +230,11 @@ export function TourHotspotEditor({ scene, doorScenes, onClose }: TourHotspotEdi
                   <li key={hotspot.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black text-[#062452]">{hotspot.label || target?.title || "بدون برچسب"}</p>
-                      <p className="text-xs font-bold text-slate-400">به سمت: {target?.title ?? "—"}</p>
+                      <p className="text-xs font-bold text-slate-600">به سمت: {target?.title ?? "—"}</p>
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleDeleteHotspot(hotspot.id)}
+                      onClick={() => setPendingDeleteId(hotspot.id)}
                       className="panel-icon-button hover:bg-rose-50 hover:text-rose-600"
                       aria-label={`حذف ${hotspot.label || "نقطه اتصال"}`}
                     >
@@ -236,6 +251,14 @@ export function TourHotspotEditor({ scene, doorScenes, onClose }: TourHotspotEdi
 
         <GhostButton type="button" onClick={onClose} className="w-full">بستن</GhostButton>
       </div>
+
+      <ConfirmDialog
+        open={pendingDeleteId !== null}
+        title="حذف نقطه اتصال"
+        description="آیا از حذف این نقطه اتصال مطمئن هستید؟ این عملیات قابل بازگشت نیست."
+        onConfirm={() => pendingDeleteId !== null && handleDeleteHotspot(pendingDeleteId)}
+        onCancel={() => setPendingDeleteId(null)}
+      />
     </div>
   );
 }

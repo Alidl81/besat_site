@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, GraduationCap, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
+import { BookOpen, GraduationCap, Minus, Plus, ShoppingBag, Trash2, TriangleAlert, X } from "lucide-react";
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useFocusTrap } from "@/hooks/use-focus-trap";
 import { useShopCart } from "@/lib/shop/cart-context";
 import { formatPrice } from "@/lib/shop/money";
+import { getApiErrorMessage } from "@/lib/api/client";
+import { safePublicMediaUrl } from "@/lib/media/safe-url";
 import type { CartItemIssue } from "@/types/shop";
 
 function cartIssueLabel(issue: CartItemIssue): string {
@@ -40,11 +43,34 @@ function ItemSeal({ isCourse }: { isCourse: boolean }) {
 }
 
 export function CartWidget() {
-  const { cart, loading, updateItem, removeItem } = useShopCart();
+  const { cart, loading, error, updateItem, removeItem, refresh } = useShopCart();
   const [open, setOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   useFocusTrap(drawerRef, open, () => setOpen(false), triggerRef);
+
+  // FE-CART-ERROR-SURFACE-001: mirrors the same fix in cart-page-view.tsx
+  // -- a failed mutation was silently swallowed (`.catch(() => undefined)`),
+  // and a failed initial refresh left `cart` null, indistinguishable from
+  // a genuinely empty cart.
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  // FE-SHOP-CART-CONTROLS-DOUBLE-SUBMIT-001 (mirrors the identical fix in
+  // cart-page-view.tsx -- see that file's comment for the full rationale):
+  // taking a thunk instead of an already-started promise lets this guard
+  // run before the request is dispatched, and tracking pending item ids
+  // (not one boolean) still allows concurrent mutations on different items.
+  const pendingItemIdsRef = useRef<Set<number>>(new Set());
+
+  function runMutation(itemId: number, action: () => Promise<void>) {
+    if (pendingItemIdsRef.current.has(itemId)) return;
+    pendingItemIdsRef.current.add(itemId);
+    setMutationError(null);
+    action()
+      .catch((reason) => setMutationError(getApiErrorMessage(reason)))
+      .finally(() => {
+        pendingItemIdsRef.current.delete(itemId);
+      });
+  }
 
   const itemCount = cart?.item_count ?? 0;
 
@@ -67,8 +93,9 @@ export function CartWidget() {
         ) : null}
       </button>
 
-      {open ? (
-        <div className="fixed inset-0 z-[80]">
+      {open
+        ? createPortal(
+            <div className="fixed inset-0 z-[80]">
           <button
             type="button"
             tabIndex={-1}
@@ -98,7 +125,21 @@ export function CartWidget() {
 
             <div className="flex-1 overflow-y-auto px-5 py-4">
               {loading && !cart ? (
-                <p className="py-10 text-center text-sm font-bold text-[#0a2848]/50">در حال بارگذاری…</p>
+                <p className="py-10 text-center text-sm font-bold text-[#0a2848]/70">در حال بارگذاری…</p>
+              ) : !cart && error ? (
+                <div className="flex flex-col items-center gap-3 py-14 text-center">
+                  <TriangleAlert aria-hidden="true" className="size-8 text-rose-600" />
+                  <p role="alert" className="text-sm font-bold text-rose-700">
+                    {error}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => refresh()}
+                    className="mt-1 rounded-xl border border-[#e5e7eb] px-4 py-2 text-xs font-black text-[#0a2848] transition hover:border-[#c98c3d] hover:bg-[#fbf3e7]"
+                  >
+                    تلاش دوباره
+                  </button>
+                </div>
               ) : !cart || cart.items.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 py-14 text-center">
                   <span className="flex size-14 items-center justify-center rounded-full bg-[#f4f1ea] text-[#0a2848]/30">
@@ -106,7 +147,7 @@ export function CartWidget() {
                   </span>
                   <div>
                     <p className="text-sm font-black text-[#0a2848]">سبد خرید شما خالی است</p>
-                    <p className="mt-1 text-xs font-bold text-[#0a2848]/50">کتاب یا دوره‌ای را برای شروع انتخاب کنید.</p>
+                    <p className="mt-1 text-xs font-bold text-[#0a2848]/70">کتاب یا دوره‌ای را برای شروع انتخاب کنید.</p>
                   </div>
                   <Link
                     href="/shop"
@@ -117,15 +158,22 @@ export function CartWidget() {
                   </Link>
                 </div>
               ) : (
-                <ul className="grid gap-4">
+                <>
+                  {mutationError ? (
+                    <p role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-bold text-rose-700">
+                      {mutationError}
+                    </p>
+                  ) : null}
+                  <ul className="grid gap-4">
                   {cart.items.map((item) => {
                     const isCourse = item.product.product_type !== "physical";
+                    const image = safePublicMediaUrl(item.product.featured_image);
                     return (
                       <li key={item.id} className="flex gap-3 border-b border-dashed border-[#e5e0d3] pb-4 last:border-b-0">
                         <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-[#f4f1ea]">
-                          {item.product.featured_image ? (
+                          {image ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={item.product.featured_image} alt="" className="size-full object-cover" />
+                            <img src={image} alt="" className="size-full object-cover" />
                           ) : null}
                           <ItemSeal isCourse={isCourse} />
                         </div>
@@ -138,7 +186,7 @@ export function CartWidget() {
                             {item.product.title}
                           </Link>
                           {item.variant_title ? (
-                            <p className="mt-0.5 text-xs font-bold text-[#0a2848]/50">{item.variant_title}</p>
+                            <p className="mt-0.5 text-xs font-bold text-[#0a2848]/70">{item.variant_title}</p>
                           ) : null}
                           {item.issue ? (
                             <p className="mt-1 text-xs font-black text-rose-600">{cartIssueLabel(item.issue)}</p>
@@ -149,7 +197,7 @@ export function CartWidget() {
                               <div className="flex items-center gap-1 rounded-lg border border-[#e5e7eb]">
                                 <button
                                   type="button"
-                                  onClick={() => updateItem(item.id, item.quantity - 1).catch(() => undefined)}
+                                  onClick={() => runMutation(item.id, () => updateItem(item.id, item.quantity - 1))}
                                   disabled={item.quantity <= 1}
                                   aria-label={`کاهش تعداد ${item.product.title}`}
                                   className="flex size-7 items-center justify-center text-[#0a2848] disabled:opacity-30"
@@ -161,7 +209,7 @@ export function CartWidget() {
                                 </span>
                                 <button
                                   type="button"
-                                  onClick={() => updateItem(item.id, item.quantity + 1).catch(() => undefined)}
+                                  onClick={() => runMutation(item.id, () => updateItem(item.id, item.quantity + 1))}
                                   aria-label={`افزایش تعداد ${item.product.title}`}
                                   className="flex size-7 items-center justify-center text-[#0a2848]"
                                 >
@@ -169,7 +217,7 @@ export function CartWidget() {
                                 </button>
                               </div>
                             ) : (
-                              <span className="text-xs font-bold text-[#0a2848]/50">۱ عدد</span>
+                              <span className="text-xs font-bold text-[#0a2848]/70">۱ عدد</span>
                             )}
                             <span className="text-sm font-black tabular-nums text-[#0a2848]">
                               {formatPrice(item.line_total_amount)}
@@ -178,7 +226,7 @@ export function CartWidget() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => removeItem(item.id).catch(() => undefined)}
+                          onClick={() => runMutation(item.id, () => removeItem(item.id))}
                           aria-label={`حذف ${item.product.title} از سبد خرید`}
                           className="flex size-8 shrink-0 items-center justify-center rounded-lg text-[#0a2848]/40 transition hover:bg-rose-50 hover:text-rose-600"
                         >
@@ -187,7 +235,8 @@ export function CartWidget() {
                       </li>
                     );
                   })}
-                </ul>
+                  </ul>
+                </>
               )}
             </div>
 
@@ -215,8 +264,10 @@ export function CartWidget() {
               </div>
             ) : null}
           </div>
-        </div>
-      ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }

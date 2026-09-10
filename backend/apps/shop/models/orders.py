@@ -45,6 +45,20 @@ class Address(TimeStampedModel):
         verbose_name_plural = "آدرس‌ها"
         ordering = ("-is_default", "-created_at", "-id")
         indexes = [models.Index(fields=("user", "is_default"))]
+        constraints = [
+            # Structural backstop for the "at most one default address per
+            # user" invariant: even if application-level locking around
+            # is_default writes is ever bypassed or races, the database
+            # itself refuses to hold two is_default=True rows for the same
+            # user. See AddressSerializer.create()/update() for the
+            # transaction+select_for_update() handling that keeps a
+            # concurrent request from surfacing this as a raw 500.
+            models.UniqueConstraint(
+                fields=["user"],
+                condition=models.Q(is_default=True),
+                name="unique_default_address_per_user",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.recipient_full_name} - {self.city}"

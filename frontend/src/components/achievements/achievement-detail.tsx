@@ -14,12 +14,18 @@ export function AchievementDetail({ slug }: { slug: string }) {
   const [version, setVersion] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    getPublicAchievement(slug).then((response) => { if (!cancelled) setItem(response); }).catch((reason) => { if (!cancelled) setError(getApiErrorMessage(reason)); });
+    // FE-ACHIEVEMENT-DETAIL-RETRY-STALE-ERROR-001: a successful retry used to
+    // leave `error` set from the prior failed attempt -- the error branch is
+    // checked before the item branch below, so the stale message and retry
+    // button kept rendering forever even once `item` had the real detail.
+    getPublicAchievement(slug)
+      .then((response) => { if (!cancelled) { setItem(response); setError(""); } })
+      .catch((reason) => { if (!cancelled) setError(getApiErrorMessage(reason)); });
     return () => { cancelled = true; };
   }, [slug, version]);
   if (error) return (
     <div role="alert" className="mx-auto max-w-xl text-center">
-      <EmptyState title="دریافت افتخار با خطا روبه‌رو شد." description={error} />
+      <EmptyState as="h1" title="دریافت افتخار با خطا روبه‌رو شد." description={error} />
       <button type="button" onClick={() => setVersion((value) => value + 1)} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#12395b] px-5 text-sm font-black text-white">
         <RefreshCw aria-hidden="true" className="size-4" />تلاش دوباره
       </button>

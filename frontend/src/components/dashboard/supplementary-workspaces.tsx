@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { PanelIcon, type PanelIconName } from "@/components/dashboard/panel-icons";
 import {
   PanelEmpty,
@@ -49,11 +49,25 @@ export function ServicesWorkspace({ parent = false }: { parent?: boolean }) {
 export function ManagementReportsWorkspace() {
   const request = usePanelRequest(() => panelService.reports(), []);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  // FE-DASH-REPORT-EXPORT-DOUBLE-SUBMIT-001: download() had no in-flight
+  // guard and the export button had no busy/disabled state, so two clicks
+  // in the same turn (or before the first request settles) issued two
+  // separate exportReport() calls -- each a real, costly backend export.
+  // `exporting` alone (see login-card.tsx's identical AUTH-UI-DOUBLE-
+  // SUBMIT-001 rationale) only disables the button once React re-renders
+  // with the new state, which doesn't block two clicks dispatched before
+  // that render lands -- the ref is read/written synchronously so it
+  // blocks a re-entrant call immediately regardless of render timing.
+  const exportPendingRef = useRef(false);
   if (request.loading) return <PanelLoading label="در حال محاسبه گزارش‌ها..." />;
   if (request.error) return <PanelError message={request.error} onRetry={request.reload} />;
   if (!request.data) return <PanelEmpty title="گزارشی از بک‌اند دریافت نشد." />;
 
   async function download() {
+    if (exportPendingRef.current) return;
+    exportPendingRef.current = true;
+    setExporting(true);
     setError(null);
     try {
       const result = await panelService.exportReport();
@@ -65,6 +79,9 @@ export function ManagementReportsWorkspace() {
       URL.revokeObjectURL(url);
     } catch (reason) {
       setError(getApiErrorMessage(reason));
+    } finally {
+      exportPendingRef.current = false;
+      setExporting(false);
     }
   }
 
@@ -75,7 +92,7 @@ export function ManagementReportsWorkspace() {
         {request.data.metrics.map((metric) => <article key={metric.key} className="panel-card"><span className="flex size-10 items-center justify-center rounded-full bg-[#eef4fb] text-[#1760a9]"><PanelIcon name={icon(metric.icon)} className="size-5" /></span><p className="mt-4 text-xs font-black text-slate-500">{metric.title}</p><b className="mt-2 block text-3xl text-[#172b43]">{metric.value ?? "—"}</b>{metric.detail ? <p className="mt-2 text-xs text-slate-500">{metric.detail}</p> : null}</article>)}
       </section>
       <section className="panel-card">
-        <header className="mb-5 flex flex-wrap items-center justify-between gap-3"><h2 className="text-base font-black text-[#172b43]">گزارش عملکرد واحدها</h2><button type="button" onClick={() => void download()} className="panel-secondary-button"><PanelIcon name="download" className="size-4" />دریافت خروجی</button></header>
+        <header className="mb-5 flex flex-wrap items-center justify-between gap-3"><h2 className="text-base font-black text-[#172b43]">گزارش عملکرد واحدها</h2><button type="button" onClick={() => void download()} disabled={exporting} className="panel-secondary-button"><PanelIcon name="download" className="size-4" />{exporting ? "در حال دریافت..." : "دریافت خروجی"}</button></header>
         {request.data.units.length ? <div className="overflow-x-auto rounded-lg border border-slate-200"><table className="panel-table min-w-[48rem]"><thead><tr><th>واحد آموزشی</th><th>دانش‌آموزان</th><th>کادر</th><th>ثبت‌نام جدید</th><th>محتوای منتشرشده</th><th>وضعیت</th></tr></thead><tbody>{request.data.units.map((unit) => <tr key={unit.id}><td className="font-black text-[#172b43]">{unit.title}</td><td>{unit.students_count}</td><td>{unit.staff_count}</td><td>{unit.new_registrations_count}</td><td>{unit.published_content_count}</td><td><span className={`panel-status ${unit.is_active ? "is-success" : "is-danger"}`}>{unit.is_active ? "فعال" : "غیرفعال"}</span></td></tr>)}</tbody></table></div> : <PanelEmpty title="داده‌ای برای واحدها وجود ندارد." />}
       </section>
     </div>
@@ -87,12 +104,19 @@ export function SettingsWorkspace() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // FE-DASH-SETTINGS-DOUBLE-SUBMIT-001: `saving` is state-backed, so two
+  // same-tick submits both read it as `false` before either update commits
+  // -- a synchronous ref guard closes that race, matching the session's
+  // other double-submit fixes.
+  const savingRef = useRef(false);
   if (request.loading) return <PanelLoading label="در حال دریافت تنظیمات..." />;
   if (request.error) return <PanelError message={request.error} onRetry={request.reload} />;
   if (!request.data) return <PanelEmpty title="تنظیمات از بک‌اند دریافت نشد." />;
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (savingRef.current) return;
+    savingRef.current = true;
     const form = new FormData(event.currentTarget);
     const payload: Partial<PanelSettings> = {
       school_name: String(form.get("school_name") ?? ""),
@@ -114,6 +138,7 @@ export function SettingsWorkspace() {
       setError(getApiErrorMessage(reason));
     } finally {
       setSaving(false);
+      savingRef.current = false;
     }
   }
 
@@ -138,7 +163,17 @@ export function ParentRegistrationWorkspace() {
 
   return (
     <section className="grid gap-5 lg:grid-cols-2">
-      {request.data.map((registration) => <article key={registration.id} className="panel-card"><span className="flex size-12 items-center justify-center rounded-full bg-[#edf8ef] text-emerald-600"><PanelIcon name="registration" className="size-6" /></span><h2 className="mt-4 text-lg font-black text-[#172b43]">ثبت‌نام {registration.child.full_name}</h2><p className="mt-2 text-xs font-bold text-slate-500">{registration.academic_year?.title ?? "سال تحصیلی ثبت نشده است"} · {registration.status}</p><div className="mt-5 rounded-lg border border-slate-200 p-4"><div className="flex items-center justify-between text-xs font-black"><span>پیشرفت پرونده</span><span>{registration.progress_percent}%</span></div><div className="mt-3 h-2 rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${registration.progress_percent}%` }} /></div></div><ol className="mt-5 space-y-3">{registration.steps.map((step, index) => <li key={step.id} className="flex items-center gap-3 text-xs font-bold text-slate-600"><span className={`flex size-7 items-center justify-center rounded-full ${step.status === "complete" ? "bg-emerald-100 text-emerald-600" : step.status === "current" ? "bg-amber-100 text-amber-700" : "bg-slate-100"}`}>{step.status === "complete" ? <PanelIcon name="check" className="size-4" /> : index + 1}</span>{step.title}</li>)}</ol>{registration.next_action_url ? <Link href={registration.next_action_url} className="panel-primary-button mt-5">ادامه تکمیل پرونده</Link> : null}</article>)}
+      {/* FE-PANEL-PARENT-REGISTRATION-CONTINUATION-001: `next_action_url` is
+          hardcoded to null everywhere in the backend (panel_views.py) --
+          no continuation-form endpoint or field contract exists yet, so
+          rendering a "ادامه تکمیل پرونده" CTA for it promises a real next
+          step that doesn't exist anywhere: activating it just re-rendered
+          this identical card list with no visible change. Removed rather
+          than built against a nonexistent backend contract (per Codex's
+          own offered alternative); this field can grow a real Link again
+          once a genuine continuation flow is designed and implemented
+          backend-side. */}
+      {request.data.map((registration) => <article key={registration.id} className="panel-card"><span className="flex size-12 items-center justify-center rounded-full bg-[#edf8ef] text-emerald-600"><PanelIcon name="registration" className="size-6" /></span><h2 className="mt-4 text-lg font-black text-[#172b43]">ثبت‌نام {registration.child.full_name}</h2><p className="mt-2 text-xs font-bold text-slate-500">{registration.academic_year?.title ?? "سال تحصیلی ثبت نشده است"} · {registration.status}</p><div className="mt-5 rounded-lg border border-slate-200 p-4"><div className="flex items-center justify-between text-xs font-black"><span>پیشرفت پرونده</span><span>{registration.progress_percent}%</span></div><div className="mt-3 h-2 rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${registration.progress_percent}%` }} /></div></div><ol className="mt-5 space-y-3">{registration.steps.map((step, index) => <li key={step.id} className="flex items-center gap-3 text-xs font-bold text-slate-600"><span className={`flex size-7 items-center justify-center rounded-full ${step.status === "complete" ? "bg-emerald-100 text-emerald-600" : step.status === "current" ? "bg-amber-100 text-amber-700" : "bg-slate-100"}`}>{step.status === "complete" ? <PanelIcon name="check" className="size-4" /> : index + 1}</span>{step.title}</li>)}</ol></article>)}
     </section>
   );
 }

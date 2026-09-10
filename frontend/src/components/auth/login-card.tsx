@@ -1,39 +1,67 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { performLogin } from "@/lib/auth/login-service";
 import { writeBesatSession } from "@/lib/auth/auth-session";
+import { getSafeNextPath } from "@/lib/auth/next-path";
 import { mergeGuestCartAfterAuth } from "@/lib/shop/cart-context";
 import { BesatLogoMark } from "@/components/shared/besat-logo";
 
 function getNextPath(): string | null {
   if (typeof window === "undefined") return null;
   const params = new URLSearchParams(window.location.search);
-  const next = params.get("next");
-  if (next && next.startsWith("/")) return next;
-  return null;
+  return getSafeNextPath(params.get("next"));
 }
 
 export function LoginCard() {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<"username" | "password", string>>>({});
+  const usernameRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const usernameErrorId = useId();
+  const passwordErrorId = useId();
+  // AUTH-UI-DOUBLE-SUBMIT-001: `disabled={isSubmitting}` only disables the
+  // button once React actually re-renders with the new state -- two form
+  // submit events dispatched before that render (e.g. a double-click, or
+  // Enter held while a mouse click also lands) both start handleSubmit
+  // before either sees isSubmitting flip. A ref is read/written
+  // synchronously, so it blocks a re-entrant call immediately regardless of
+  // render timing.
+  const submittingRef = useRef(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submittingRef.current) return;
 
     const formData = new FormData(event.currentTarget);
     const username = String(formData.get("username") ?? "");
     const password = String(formData.get("password") ?? "");
 
     setMessage("");
+    setFieldErrors({});
+
+    const nextFieldErrors: typeof fieldErrors = {};
+    if (!username.trim()) nextFieldErrors.username = "نام کاربری الزامی است.";
+    if (!password) nextFieldErrors.password = "رمز عبور الزامی است.";
+
+    if (Object.keys(nextFieldErrors).length) {
+      setFieldErrors(nextFieldErrors);
+      setMessage("لطفاً خطاهای مشخص‌شده را اصلاح کنید.");
+      (nextFieldErrors.username ? usernameRef : passwordRef).current?.focus();
+      return;
+    }
+
+    submittingRef.current = true;
     setIsSubmitting(true);
 
     const result = await performLogin(username, password);
 
     if (!result.ok) {
+      submittingRef.current = false;
       setMessage(result.message);
       setIsSubmitting(false);
       return;
@@ -62,9 +90,14 @@ export function LoginCard() {
 
         <div className="relative z-10 mt-20 text-right lg:absolute lg:bottom-12 lg:right-12 lg:mt-0">
           <p className="text-sm font-black text-blue-300">ورود</p>
-          <h1 className="mt-4 text-4xl font-black leading-[1.5] text-white lg:text-5xl">
+          {/* Decorative marketing headline, not the page's real heading --
+              the actual h1 with the same content is in the form panel
+              below. Kept as a <p> (same visual size/weight) so there's
+              exactly one meaningful h1 per page instead of two competing
+              peers. */}
+          <p className="mt-4 text-4xl font-black leading-[1.5] text-white lg:text-5xl">
             ورود به حساب
-          </h1>
+          </p>
         </div>
 
         <div className="absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-white/10" />
@@ -78,19 +111,34 @@ export function LoginCard() {
             ورود به حساب کاربری
           </h1>
 
-          <form onSubmit={handleSubmit} className="mt-10 space-y-6">
+          <form onSubmit={handleSubmit} method="post" noValidate className="mt-10 space-y-6">
             <label className="block text-right">
               <span className="mb-3 block text-sm font-black text-[#062452]">
                 نام کاربری
               </span>
               <input
+                ref={usernameRef}
                 dir="rtl"
                 type="text"
                 name="username"
                 autoComplete="username"
                 required
-                className="h-[3.5rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
+                onChange={() => setFieldErrors((current) => ({ ...current, username: undefined }))}
+                aria-invalid={Boolean(fieldErrors.username)}
+                aria-describedby={
+                  fieldErrors.username
+                    ? usernameErrorId
+                    : message
+                      ? "login-error-message"
+                      : undefined
+                }
+                className="besat-focus-scroll-offset h-[3.5rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
               />
+              {fieldErrors.username ? (
+                <p id={usernameErrorId} className="mt-1.5 text-xs font-bold text-rose-600">
+                  {fieldErrors.username}
+                </p>
+              ) : null}
             </label>
 
             <label className="block text-right">
@@ -98,17 +146,36 @@ export function LoginCard() {
                 رمز عبور
               </span>
               <input
+                ref={passwordRef}
                 dir="rtl"
                 type="password"
                 name="password"
                 autoComplete="current-password"
                 required
-                className="h-[3.5rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
+                onChange={() => setFieldErrors((current) => ({ ...current, password: undefined }))}
+                aria-invalid={Boolean(fieldErrors.password)}
+                aria-describedby={
+                  fieldErrors.password
+                    ? passwordErrorId
+                    : message
+                      ? "login-error-message"
+                      : undefined
+                }
+                className="besat-focus-scroll-offset h-[3.5rem] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-right text-sm font-bold text-[#062452] outline-none transition focus:border-blue-400 focus:bg-white"
               />
+              {fieldErrors.password ? (
+                <p id={passwordErrorId} className="mt-1.5 text-xs font-bold text-rose-600">
+                  {fieldErrors.password}
+                </p>
+              ) : null}
             </label>
 
             {message ? (
-              <p className="rounded-2xl bg-rose-50 px-4 py-3 text-right text-sm font-black text-rose-700">
+              <p
+                id="login-error-message"
+                role="alert"
+                className="rounded-2xl bg-rose-50 px-4 py-3 text-right text-sm font-black text-rose-700"
+              >
                 {message}
               </p>
             ) : null}

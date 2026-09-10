@@ -318,6 +318,15 @@ export function RegistrationGradeSelector({
 
         <div
           id="registration-grade-options"
+          // A11Y-FE-REGISTRATION-COLLAPSED-OPTIONS-001: the collapsed state
+          // only hides this container visually (max-h-0/opacity-0) so the
+          // open/close transition can animate -- `hidden`/`display:none`
+          // would skip that entirely. Without aria-hidden here and
+          // tabIndex={-1} on each option below, a closed selector's options
+          // stayed in the keyboard tab order, so Tab from the (closed)
+          // trigger landed inside an invisible options list instead of
+          // moving to the next real control on the page.
+          aria-hidden={!isOpen}
           className={`mt-2 overflow-hidden rounded-2xl border bg-white transition-all duration-300 ease-out motion-reduce:transition-none ${
             isOpen
               ? "max-h-[18rem] translate-y-0 border-slate-200 opacity-100 shadow-[0_18px_45px_rgba(15,23,42,0.12)]"
@@ -333,6 +342,7 @@ export function RegistrationGradeSelector({
                   <button
                     key={option.value}
                     type="button"
+                    tabIndex={isOpen ? 0 : -1}
                     onClick={() => {
                       setSelectedGrade(option.value);
                       onChange?.(option.value);

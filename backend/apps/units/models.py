@@ -8,15 +8,29 @@ from apps.core.utils import normalize_text
 class SchoolUnitQuerySet(models.QuerySet):
     def active(self):
         return self.filter(is_active=True)
-    
+
+    def real(self):
+        """Active, genuinely public-facing units -- excludes internal/dev
+        plumbing units (e.g. the seeded dev-accounts test unit) that exist
+        only to give internal test accounts a membership to hang off of.
+        Use this everywhere a selector, filter, count, or report is meant
+        to represent the school's actual educational units; use the
+        unfiltered manager only for internal membership resolution or
+        genuine full-visibility admin CRUD (e.g. the Units management
+        table, where a general manager must still see every unit)."""
+        return self.active().filter(is_internal=False)
+
 
 class SchoolUnitManager(models.Manager):
     def get_queryset(self):
         return SchoolUnitQuerySet(self.model, using=self._db)
-    
+
     def active(self):
         return self.get_queryset().active()
-    
+
+    def real(self):
+        return self.get_queryset().real()
+
 
 class SchoolUnit(TimeStampedModel, ActiveModel, OrderedModel):
     class Kind(models.TextChoices):
@@ -136,6 +150,16 @@ class SchoolUnit(TimeStampedModel, ActiveModel, OrderedModel):
         default=True,
         db_index=True,
         verbose_name="پیش‌ثبت‌نام فعال است؟",
+    )
+    is_internal = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="واحد داخلی/غیرعمومی است؟",
+        help_text=(
+            "برای واحدهای غیرواقعی که فقط برای اتصال حساب‌های آزمایشی/توسعه "
+            "ساخته شده‌اند. این واحدها در سایت عمومی، فرم ثبت‌نام، فرم تماس و "
+            "آمارهای گزارش‌گیری نمایش داده نمی‌شوند."
+        ),
     )
 
     objects = SchoolUnitManager()

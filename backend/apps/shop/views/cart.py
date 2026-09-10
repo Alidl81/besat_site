@@ -63,6 +63,7 @@ class CartItemListCreateAPIView(APIView):
                 product_id=serializer.validated_data["product_id"],
                 variant_id=serializer.validated_data.get("variant_id"),
                 quantity=serializer.validated_data["quantity"],
+                client_request_id=serializer.validated_data.get("client_request_id"),
             )
         except cart_service.CartError as exc:
             raise DRFValidationError({exc.field or "detail": str(exc)}) from exc

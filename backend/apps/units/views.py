@@ -70,7 +70,7 @@ class SchoolUnitViewSet(ReadOnlyModelViewSet):
         if getattr(self, "swagger_fake_view", False):
             return SchoolUnit.objects.none()
 
-        return SchoolUnit.objects.filter(is_active=True).order_by("order", "id")
+        return SchoolUnit.objects.real().order_by("order", "id")
 
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())

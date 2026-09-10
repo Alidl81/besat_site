@@ -71,6 +71,40 @@ class SetPasswordAPITests(TestCase):
         self.invited_user.refresh_from_db()
         self.assertTrue(self.invited_user.check_password("BrandNewStrongPass123!"))
 
+    def test_set_password_revokes_a_pre_existing_refresh_token(self):
+        # AUTH-001 (invitation/reset path): a user with an already-active
+        # session whose password is reset via an invitation/recovery token
+        # must not leave that pre-reset session's refresh token usable
+        # afterward.
+        self.invited_user.set_password("original-password-123")
+        self.invited_user.save(update_fields=["password"])
+
+        pre_reset_login = self.client.post(
+            "/api/auth/login/",
+            {"username": "invited-user", "password": "original-password-123"},
+            format="json",
+        )
+        self.assertEqual(pre_reset_login.status_code, 200)
+
+        invitation, raw_token = create_invitation(user=self.invited_user, created_by=self.admin)
+        response = self.client.post(
+            "/api/auth/set-password/",
+            {"token": raw_token, "password": "BrandNewStrongPass123!"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 204)
+
+        refresh_response = self.client.post(
+            "/api/auth/refresh/",
+            {"refresh": pre_reset_login.data["refresh"]},
+            format="json",
+        )
+        self.assertEqual(
+            refresh_response.status_code,
+            401,
+            "The pre-reset refresh token could still mint a new access token after the invitation-based password reset.",
+        )
+
     def test_invalid_token_is_rejected(self):
         response = self.client.post(
             "/api/auth/set-password/",

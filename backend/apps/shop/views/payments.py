@@ -1,7 +1,6 @@
-from django.conf import settings
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
-from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.exceptions import NotFound, ValidationError as DRFValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -34,10 +33,12 @@ class PaymentStartAPIView(APIView):
         order_number = request.data.get("order_number")
         order = get_object_or_404(Order, order_number=order_number, user=request.user)
 
-        # The redirect destination is always this fixed, server-computed
-        # path -- never a client-supplied URL -- so this can't be turned
-        # into an open redirect.
-        return_url = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/shop/orders/{order.order_number}/"
+        # The redirect destination is always this fixed, server-computed,
+        # same-origin-relative path -- never a client-supplied or absolute
+        # URL -- so this can't be turned into an open redirect, and it
+        # matches what the payment gateway's own return-path allowlist
+        # (sanitizeReturnPath on the frontend) actually accepts.
+        return_url = f"/shop/orders/{order.order_number}/"
 
         try:
             attempt, intent = payment_service.start_payment(order, actor=request.user, return_url=return_url)
@@ -62,8 +63,24 @@ class PaymentCallbackAPIView(APIView):
             return [ScopedRateThrottle()]
         return super().get_throttles()
 
-    def _handle(self, provider: str, payload: dict) -> Response:
-        result = payment_service.handle_payment_callback(provider, payload)
+    def _handle(self, provider: str, payload) -> Response:
+        # REL-PAYMENT-CALLBACK-INPUT-001: this endpoint is AllowAny and
+        # reachable by an anonymous provider (or anyone probing it) --
+        # a JSON array/null POST body used to reach `request_data.get(...)`
+        # deep inside handle_payment_callback and crash with an
+        # AttributeError (neither has that method), and an unrecognized
+        # `provider` path segment used to crash with an uncaught ValueError
+        # from get_payment_provider(), both surfacing as an unhandled 500
+        # (and, with DEBUG on, a full traceback) instead of a bounded 4xx.
+        # A malformed/unknown attempt_id was already handled gracefully
+        # (returns outcome="attempt_not_found") -- only these two input
+        # shapes were missing a guard.
+        if not isinstance(payload, dict):
+            raise DRFValidationError({"detail": "بدنه درخواست نامعتبر است."})
+        try:
+            result = payment_service.handle_payment_callback(provider, payload)
+        except ValueError as exc:
+            raise NotFound({"detail": str(exc)}) from exc
         order = result["order"]
         data = {
             "outcome": result["outcome"],

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { CrudSection, EmptyState, Modal, Select, StatusBadge } from "@/components/crud/crud-ui";
+import { useRef, useState } from "react";
+import { ConfirmDialog, CrudSection, EmptyState, Modal, Select, StatusBadge, TextArea } from "@/components/crud/crud-ui";
+import { PanelError } from "@/components/dashboard/panel-request-state";
 import { usePanelRequest } from "@/hooks/use-panel-request";
 import { getApiErrorMessage } from "@/lib/api/client";
 import { formatPrice } from "@/lib/shop/money";
@@ -49,7 +50,12 @@ export function ShopOrdersManager() {
       title="سفارش‌ها"
       description="مشاهده و پردازش سفارش‌های فروشگاه"
       action={
-        <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="w-44">
+        <Select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+          className="w-44"
+          aria-label="فیلتر بر اساس وضعیت سفارش"
+        >
           <option value="">همه وضعیت‌ها</option>
           <option value="pending_payment">در انتظار پرداخت</option>
           <option value="paid">پرداخت‌شده</option>
@@ -64,11 +70,23 @@ export function ShopOrdersManager() {
       {loading ? (
         <p className="py-6 text-center text-sm font-bold text-slate-400">در حال بارگذاری…</p>
       ) : error ? (
-        <p role="alert" className="py-6 text-center text-sm font-bold text-rose-600">{error}</p>
+        // FE-PANEL-SHOP-CRUD-ERROR-RETRY-001: see shop-categories-manager.tsx
+        // -- identical no-retry defect, same shared PanelError fix.
+        <PanelError message={error} onRetry={reload} />
       ) : orders.length === 0 ? (
         <EmptyState text="سفارشی ثبت نشده است." />
       ) : (
-        <div className="overflow-x-auto">
+        <div className="panel-table-scroll">
+          {/* panel-table-scroll (globals.css) does two things: `contain:
+              paint` isolates this wrapper's overflowing RTL table content
+              from inflating documentElement.scrollWidth (root-level
+              horizontal overflow that persisted independently of the
+              mobile menu drawer this was initially, incorrectly,
+              attributed to across several rounds of
+              FE-DASH-MOBILE-CLOSED-OVERFLOW-001 -- see
+              FE-DASH-RTL-TABLE-ROOT-OVERFLOW-001), and an edge-fade
+              background signals when the status/action columns start
+              outside the visible area (FE-DASH-RTL-TABLE-MOBILE-AFFORDANCE-001). */}
           <table className="panel-table w-full">
             <thead>
               <tr>
@@ -76,7 +94,13 @@ export function ShopOrdersManager() {
                 <th>مشتری</th>
                 <th>مبلغ</th>
                 <th>وضعیت</th>
-                <th></th>
+                {/* FE-DASH-RTL-SHOP-ORDER-ACTION-001: same sticky-column fix
+                    as shop-products-manager.tsx -- the panel-table-scroll
+                    edge-cue fade signals the table is scrollable, but at
+                    390px this table's sole row action still sat entirely
+                    outside the visible RTL wrapper, unreachable without
+                    already knowing to scroll. */}
+                <th className="panel-table-action-sticky"><span className="sr-only">عملیات</span></th>
               </tr>
             </thead>
             <tbody>
@@ -86,7 +110,7 @@ export function ShopOrdersManager() {
                   <td className="font-black">{order.user_display}</td>
                   <td>{formatPrice(order.total_amount)}</td>
                   <td><StatusBadge status={order.status} /></td>
-                  <td>
+                  <td className="panel-table-action-sticky">
                     <button type="button" onClick={() => setOpenOrderId(order.id)} className="panel-text-link text-xs">
                       مشاهده جزئیات
                     </button>
@@ -117,12 +141,50 @@ function OrderDetailPanel({ orderId, onChanged }: { orderId: number; onChanged: 
   const { data: events } = usePanelRequest(() => cmsGetOrderEvents(orderId), [orderId, order?.status]);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // FE-SHOP-ORDER-ACTION-DOUBLE-SUBMIT-001: `busy` is state-backed, so two
+  // same-tick clicks both read it as `false` before either update commits
+  // -- a synchronous ref guard closes that race.
+  const busyRef = useRef(false);
+  // FE-DASH-SHOP-ORDER-DESTRUCTIVE-CONFIRM-001: this used to go straight
+  // from the action button to window.prompt("دلیل (اختیاری):"), then run
+  // the action REGARDLESS of how that prompt was dismissed -- prompt()
+  // returning null (Cancel/Escape/backdrop) was only ever used to null out
+  // the optional reason text, never checked as "abort the action". Both
+  // "cancel" and "refund" are irreversible order-state transitions, so
+  // dismissing the prompt silently cancelled/refunded the order anyway.
+  // A real ConfirmDialog (native window.prompt isn't stylable RTL, isn't a
+  // proper aria dialog, and conflates "provide detail" with "confirm the
+  // destructive action") makes Escape/backdrop/Cancel genuinely abort --
+  // its own onCancel only ever closes this dialog, never calls runAction.
+  const [pendingAction, setPendingAction] = useState<{ action: OrderFulfillmentAction; label: string; needsReason?: boolean } | null>(null);
+  const [pendingReason, setPendingReason] = useState("");
 
-  async function handleAction(action: OrderFulfillmentAction, needsReason?: boolean) {
-    let reason: string | undefined;
-    if (needsReason) {
-      reason = window.prompt("دلیل (اختیاری):") ?? undefined;
+  function requestAction(item: { action: OrderFulfillmentAction; label: string; needsReason?: boolean }) {
+    if (busyRef.current) return;
+    if (!item.needsReason) {
+      void runAction(item.action, undefined);
+      return;
     }
+    setPendingAction(item);
+    setPendingReason("");
+  }
+
+  function cancelPendingAction() {
+    setPendingAction(null);
+    setPendingReason("");
+  }
+
+  function confirmPendingAction() {
+    if (!pendingAction) return;
+    const reason = pendingReason.trim() || undefined;
+    setPendingAction(null);
+    setPendingReason("");
+    void runAction(pendingAction.action, reason);
+  }
+
+  async function runAction(action: OrderFulfillmentAction, reason: string | undefined) {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     setActionError(null);
     try {
@@ -133,14 +195,21 @@ function OrderDetailPanel({ orderId, onChanged }: { orderId: number; onChanged: 
       setActionError(getApiErrorMessage(reason_));
     } finally {
       setBusy(false);
+      busyRef.current = false;
     }
   }
 
   if (loading && !order) {
     return <p className="py-6 text-center text-sm font-bold text-slate-400">در حال بارگذاری…</p>;
   }
-  if (error || !order) {
-    return <p role="alert" className="py-6 text-center text-sm font-bold text-rose-600">{error ?? "سفارش پیدا نشد."}</p>;
+  if (error) {
+    // FE-PANEL-SHOP-CRUD-ERROR-RETRY-001: a genuine fetch failure is
+    // retryable (unlike a real "not found", which never was); split out so
+    // only this branch gets the shared PanelError retry action.
+    return <PanelError message={error} onRetry={reload} />;
+  }
+  if (!order) {
+    return <p role="alert" className="py-6 text-center text-sm font-bold text-rose-600">سفارش پیدا نشد.</p>;
   }
 
   const availableActions = ACTIONS_BY_STATUS[order.status] ?? [];
@@ -166,7 +235,7 @@ function OrderDetailPanel({ orderId, onChanged }: { orderId: number; onChanged: 
               key={item.action}
               type="button"
               disabled={busy}
-              onClick={() => handleAction(item.action, item.needsReason)}
+              onClick={() => requestAction(item)}
               className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
             >
               {item.label}
@@ -174,6 +243,22 @@ function OrderDetailPanel({ orderId, onChanged }: { orderId: number; onChanged: 
           ))}
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={pendingAction !== null}
+        title={pendingAction?.label ?? ""}
+        description="این عملیات قابل بازگشت نیست. در صورت تمایل می‌توانید دلیل را بنویسید."
+        confirmLabel={pendingAction?.label ?? "تایید"}
+        onConfirm={confirmPendingAction}
+        onCancel={cancelPendingAction}
+      >
+        <TextArea
+          value={pendingReason}
+          onChange={(event) => setPendingReason(event.target.value)}
+          placeholder="دلیل (اختیاری)"
+          rows={3}
+        />
+      </ConfirmDialog>
 
       <div>
         <h3 className="mb-2 text-sm font-black text-[#062452]">اقلام سفارش</h3>

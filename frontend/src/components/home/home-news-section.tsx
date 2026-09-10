@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { safePublicMediaUrl } from "@/lib/media/safe-url";
 import { getPublicNews } from "@/services/public-content-service";
 import type { PublicNewsItem } from "@/types/public-content";
 
@@ -50,7 +51,15 @@ export function HomeNewsSection() {
       <div className="mx-auto w-full max-w-[1400px]">
         <div className="mb-7 flex items-end justify-between gap-5">
           <div>
-            <p className="mb-2 flex items-center gap-3 text-xs font-black text-[#c98c3d]">
+            {/* FE-A11Y-CONTRAST-HOME-NEWS-001: #c98c3d on this near-white
+                background measured 2.755:1 for this 12px text (WCAG AA
+                needs 4.5:1); #8a641f is the same darker gold token this
+                codebase already uses for eyebrow labels elsewhere
+                (not-found.tsx, contact pages, shop page) and clears AA
+                comfortably (~5.1:1 here). The decorative line stays the
+                original brand gold -- it's not text and isn't part of
+                this contrast requirement. */}
+            <p className="mb-2 flex items-center gap-3 text-xs font-black text-[#8a641f]">
               <span className="h-px w-8 bg-[#c98c3d]" />
               در جریان بعثت باشید
             </p>
@@ -93,7 +102,9 @@ export function HomeNewsSection() {
           </div>
         ) : news.length > 0 ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {news.map((item, index) => (
+            {news.map((item, index) => {
+              const image = safePublicMediaUrl(item.cover_image);
+              return (
               <Link
                 key={item.id}
                 data-stagger-item
@@ -102,8 +113,8 @@ export function HomeNewsSection() {
                 className="group overflow-hidden rounded-[1.15rem] border border-[#e2e5e8] bg-white shadow-[0_10px_25px_rgba(8,30,55,0.05)] transition duration-300 hover:-translate-y-1 hover:border-[#d8aa65]/55 hover:shadow-[0_20px_40px_rgba(8,30,55,0.1)]"
               >
                 <div className="relative aspect-[16/9] overflow-hidden bg-[#e8edf1]">
-                  {item.cover_image ? (
-                    <img src={item.cover_image} alt={item.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                  {image ? (
+                    <img src={image} alt={item.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                   ) : (
                     <div className="h-full w-full bg-[linear-gradient(135deg,#133b5f,#8ea7ba)]" />
                   )}
@@ -116,10 +127,16 @@ export function HomeNewsSection() {
                 </div>
                 <div className="p-4 text-right">
                   <h3 className="text-[13px] font-black leading-7 text-[#0a2848] line-clamp-2">{item.title}</h3>
-                  <p className="mt-2 text-[10px] font-bold text-slate-400">{formatDate(item.published_at)}</p>
+                  {/* FE-A11Y-CONTRAST-PUBLIC-METADATA-001: text-slate-400 on this
+                      near-white background measured 2.456:1, below WCAG AA's
+                      4.5:1 for this 10px text. text-slate-500 only barely clears
+                      4.5:1 here (4.559:1, too thin a margin to rely on); slate-600
+                      (7.26:1) gives real headroom. */}
+                  <p className="mt-2 text-[10px] font-bold text-slate-600">{formatDate(item.published_at)}</p>
                 </div>
               </Link>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="rounded-[1.15rem] border border-dashed border-[#d8dde2] bg-white px-6 py-10 text-center text-sm font-bold text-slate-500">

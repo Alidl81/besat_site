@@ -59,7 +59,14 @@ function formatDate(value: string | null) {
 
 function StatCard({ metric }: { metric: PanelMetric }) {
   return (
-    <article className="panel-card min-h-36">
+    // FE-DASH-METRIC-CARD-DENSITY-001: a flat min-h-36 (9rem) left a large
+    // blank lower area under mobile's single-column stack (title/value/
+    // detail/icon alone don't need that much height), pushing feeds/
+    // actions further down the page. Only reduced below `sm`, where the
+    // grid above is already grid-cols-1 -- desktop's sm:grid-cols-3/
+    // xl:grid-cols-5 rows still get the taller min-h-36 for the
+    // intentional equal-height row alignment across columns.
+    <article className="panel-card min-h-28 sm:min-h-36">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-bold text-slate-600">{metric.title}</p>
@@ -111,7 +118,7 @@ function Feed({
                     </p>
                   ) : null}
                 </div>
-                <time className="shrink-0 text-[10px] font-bold text-slate-400">
+                <time className="shrink-0 text-[10px] font-bold text-slate-500">
                   {formatDate(item.timestamp)}
                 </time>
               </>
@@ -128,7 +135,11 @@ function Feed({
           })}
         </div>
       ) : (
-        <PanelEmpty title={empty} />
+        // FE-PANEL-ADMIN-OVERVIEW-EMPTY-DENSITY-001: several of these Feed
+        // cards can appear empty at once in a dashboard overview -- the
+        // default PanelEmpty height is sized for a standalone page/section,
+        // not for 2-3 of these stacked in a row/column.
+        <PanelEmpty title={empty} compact />
       )}
     </section>
   );
@@ -163,7 +174,7 @@ function AdminOverview({ payload }: { payload: AdminDashboard }) {
   return (
     <div className="space-y-5">
       <QuickActions actions={adminQuickActions} />
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3 xl:grid-cols-5">
         {payload.metrics.map((metric) => <StatCard key={metric.key} metric={metric} />)}
       </section>
       <section className="grid gap-5 xl:grid-cols-3">
@@ -211,7 +222,7 @@ function AdminOverview({ payload }: { payload: AdminDashboard }) {
 function MediaOverview({ payload }: { payload: MediaDashboard }) {
   return (
     <div className="space-y-5">
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3 xl:grid-cols-5">
         {payload.metrics.map((metric) => <StatCard key={metric.key} metric={metric} />)}
       </section>
       <section className="grid gap-5 xl:grid-cols-[1fr_1.6fr]">
@@ -232,7 +243,13 @@ function MediaOverview({ payload }: { payload: MediaDashboard }) {
                 {new Intl.NumberFormat("fa-IR", { style: "unit", unit: "megabyte", unitDisplay: "long" }).format(payload.storage.used_bytes / 1024 / 1024)}
               </p>
             </>
-          ) : <PanelEmpty title="اطلاعات فضای ذخیره‌سازی موجود نیست." />}
+          ) : (
+            // FE-PANEL-SINGLE-EMPTY-DENSITY-001: this card sits directly
+            // beside the compact Feed empty state (below) in the same row --
+            // the default 192px PanelEmpty made it visibly inconsistent with
+            // its neighbor and dominated the row on mobile.
+            <PanelEmpty title="اطلاعات فضای ذخیره‌سازی موجود نیست." compact />
+          )}
         </section>
         <Feed title="آخرین محتواها" icon="document" items={payload.latest_content} empty="محتوایی ثبت نشده است." />
       </section>
@@ -244,7 +261,7 @@ function MediaOverview({ payload }: { payload: MediaDashboard }) {
 function ParentOverview({ payload }: { payload: ParentDashboard }) {
   return (
     <div className="space-y-5">
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3 xl:grid-cols-5">
         {payload.metrics.map((metric) => <StatCard key={metric.key} metric={metric} />)}
       </section>
       <section className="grid gap-5 xl:grid-cols-3">
@@ -263,7 +280,13 @@ function ParentOverview({ payload }: { payload: ParentDashboard }) {
                 </li>
               ))}
             </ol>
-          ) : <PanelEmpty title="برای امروز برنامه‌ای ثبت نشده است." />}
+          ) : (
+            // FE-PANEL-SINGLE-EMPTY-DENSITY-001: this card sits in the same
+            // row as the compact Feed empty states beside it -- the default
+            // 192px PanelEmpty made it visibly inconsistent with its
+            // neighbors and dominated the row on mobile.
+            <PanelEmpty title="برای امروز برنامه‌ای ثبت نشده است." compact />
+          )}
         </section>
         <Feed title="رویدادهای مدرسه" icon="calendar" items={payload.events} empty="رویدادی وجود ندارد." />
         <Feed title="پیام‌های دبیران" icon="message" items={payload.teacher_messages} empty="پیام جدیدی وجود ندارد." />

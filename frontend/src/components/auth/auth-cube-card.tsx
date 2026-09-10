@@ -121,7 +121,7 @@ export function AuthCubeCard() {
                   ورود به پنل
                 </h2>
 
-                <form className="mt-8 space-y-5">
+                <form method="post" className="mt-8 space-y-5">
                   <Field id="username" label="نام کاربری" autoComplete="username" />
                   <Field
                     id="password"
@@ -162,7 +162,7 @@ export function AuthCubeCard() {
                   ثبت‌نام آنلاین
                 </h2>
 
-                <form className="mt-8 space-y-5">
+                <form method="post" className="mt-8 space-y-5">
                   <Field id="fullName" label="نام و نام خانوادگی" autoComplete="name" />
                   <Field id="phone" label="شماره تماس" autoComplete="tel" />
                   <Field id="grade" label="پایه یا واحد مورد نظر" />

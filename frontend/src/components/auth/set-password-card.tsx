@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { ApiError, getApiErrorMessage } from "@/lib/api/client";
 import { setAccountPassword } from "@/lib/api/account-api";
 import { BesatLogoMark } from "@/components/shared/besat-logo";
@@ -33,9 +33,75 @@ const fieldInputClass =
 export function SetPasswordCard({ token }: { token: string | null }) {
   const [status, setStatus] = useState<Status>(token ? "idle" : "missing_token");
   const [messages, setMessages] = useState<string[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<"password" | "confirmPassword", string>>>({});
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmPasswordRef = useRef<HTMLInputElement>(null);
+  const successRef = useRef<HTMLDivElement>(null);
+  // AUTH-UI-SET-PASSWORD-DOUBLE-SUBMIT-001: same guard/rationale as
+  // login-card.tsx's AUTH-UI-DOUBLE-SUBMIT-001 -- `disabled={status ===
+  // "submitting"}` only takes effect after React re-renders, so two submit
+  // events dispatched before that render both start handleSubmit. A
+  // synchronously read/written ref blocks the re-entrant call immediately.
+  const submittingRef = useRef(false);
+  // FE-AUTH-SET-PASSWORD-TOKEN-RERENDER-001: `status`'s initial value
+  // above only runs once, at mount -- if the App Router keeps this same
+  // client component instance alive across a query-string navigation
+  // (e.g. an invalid link corrected by re-navigating to the same route
+  // with a valid `?token=`, or the reverse), `token` changes on a
+  // re-render but `status` never re-derives from it, leaving the
+  // component stuck showing whichever screen it started on. Reconciling
+  // `status` here, during render, whenever `token` itself changes keeps
+  // the two in sync regardless of whether the parent remounts this
+  // component or reuses it -- React's own documented render-phase state-
+  // adjustment pattern for "resetting state when a prop changes"
+  // (react.dev), tracked via a *state* comparison rather than a ref: this
+  // project's stricter react-hooks/refs lint rule forbids reading/writing
+  // a ref's `.current` during render at all, even for this exact
+  // previous-value-comparison shape.
+  const [prevToken, setPrevToken] = useState(token);
+  if (token !== prevToken) {
+    setPrevToken(token);
+    setStatus(token ? "idle" : "missing_token");
+    setMessages([]);
+    setFieldErrors({});
+  }
+
+  // submittingRef can't be reset in the render-phase block above (ref
+  // writes during render are disallowed) -- an effect is fine here since
+  // submittingRef is only ever read inside handleSubmit, a later user-
+  // triggered event, never during render itself. Without this, a token
+  // change following an already-successful submission would leave
+  // submittingRef permanently `true`, silently blocking a subsequent
+  // submission attempt via the token's new form.
+  //
+  // FE-AUTH-SET-PASSWORD-TOKEN-RERENDER-001 (REOPENED, in-flight case):
+  // resetting submittingRef here already lets the *new* token's form
+  // accept a fresh submission -- but the *old* token's still-in-flight
+  // setAccountPassword() call keeps running regardless, and its own
+  // `await` continuation used to call setStatus("success")/setMessages()
+  // unconditionally once it settled, silently flipping whatever screen is
+  // now showing (the new token's form, or its own new submission) to
+  // "success" for a request that was never actually about that token.
+  // currentTokenRef lets handleSubmit's completion check, at the exact
+  // moment it resolves, whether the token it was called for is still the
+  // one currently active -- if not, its result is simply discarded.
+  const currentTokenRef = useRef(token);
+  useEffect(() => {
+    currentTokenRef.current = token;
+    submittingRef.current = false;
+  }, [token]);
+
+  useEffect(() => {
+    if (status !== "success") return;
+    successRef.current?.focus();
+    successRef.current?.scrollIntoView({ block: "center" });
+  }, [status]);
+  const passwordErrorId = useId();
+  const confirmPasswordErrorId = useId();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submittingRef.current) return;
 
     if (!token) {
       return;
@@ -45,19 +111,41 @@ export function SetPasswordCard({ token }: { token: string | null }) {
     const password = String(formData.get("password") ?? "");
     const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
-    if (password !== confirmPassword) {
+    setFieldErrors({});
+
+    const nextFieldErrors: typeof fieldErrors = {};
+    if (!password) nextFieldErrors.password = "رمز عبور الزامی است.";
+    else if (password.length < 8) nextFieldErrors.password = "رمز عبور باید حداقل ۸ نویسه باشد.";
+    if (!confirmPassword) nextFieldErrors.confirmPassword = "تکرار رمز عبور الزامی است.";
+
+    if (Object.keys(nextFieldErrors).length) {
+      setFieldErrors(nextFieldErrors);
       setStatus("error");
-      setMessages(["رمز عبور و تکرار آن یکسان نیستند."]);
+      setMessages(["لطفاً خطاهای مشخص‌شده را اصلاح کنید."]);
+      (nextFieldErrors.password ? passwordRef : confirmPasswordRef).current?.focus();
       return;
     }
 
+    if (password !== confirmPassword) {
+      setFieldErrors({ confirmPassword: "رمز عبور و تکرار آن یکسان نیستند." });
+      setStatus("error");
+      setMessages(["رمز عبور و تکرار آن یکسان نیستند."]);
+      confirmPasswordRef.current?.focus();
+      return;
+    }
+
+    const forToken = token;
+    submittingRef.current = true;
     setStatus("submitting");
     setMessages([]);
 
     try {
-      await setAccountPassword({ token, password });
+      await setAccountPassword({ token: forToken, password });
+      if (currentTokenRef.current !== forToken) return;
       setStatus("success");
     } catch (reason) {
+      if (currentTokenRef.current !== forToken) return;
+      submittingRef.current = false;
       setStatus("error");
       setMessages(resolveErrorMessages(reason));
     }
@@ -79,9 +167,12 @@ export function SetPasswordCard({ token }: { token: string | null }) {
 
         <div className="relative z-10 mt-20 text-right lg:absolute lg:bottom-12 lg:right-12 lg:mt-0">
           <p className="text-sm font-black text-blue-300">تعیین رمز عبور</p>
-          <h1 className="mt-4 text-4xl font-black leading-[1.5] text-white lg:text-5xl">
+          {/* Decorative marketing headline, not the page's real heading --
+              the actual h1 is in the form panel below. Same pattern/fix as
+              login-card.tsx's FE-AUTH-LOGIN-HEADING-HIERARCHY-001. */}
+          <p className="mt-4 text-4xl font-black leading-[1.5] text-white lg:text-5xl">
             رمز عبور خود را بسازید
-          </h1>
+          </p>
         </div>
 
         <div className="absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-white/10" />
@@ -108,7 +199,7 @@ export function SetPasswordCard({ token }: { token: string | null }) {
               </Link>
             </div>
           ) : status === "success" ? (
-            <div className="mt-10 space-y-6" role="status" aria-live="polite">
+            <div ref={successRef} tabIndex={-1} className="mt-10 space-y-6 outline-none" role="status" aria-live="polite">
               <p className="rounded-2xl bg-blue-50 px-4 py-3 text-right text-sm font-black text-blue-700">
                 رمز عبور شما با موفقیت تعیین شد. اکنون می‌توانید با آن وارد حساب کاربری خود شوید.
               </p>
@@ -120,20 +211,29 @@ export function SetPasswordCard({ token }: { token: string | null }) {
               </Link>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="mt-10 space-y-6">
+            <form onSubmit={handleSubmit} method="post" noValidate className="mt-10 space-y-6">
               <label className="block text-right">
                 <span className="mb-3 block text-sm font-black text-[#062452]">
                   رمز عبور جدید
                 </span>
                 <input
+                  ref={passwordRef}
                   dir="rtl"
                   type="password"
                   name="password"
                   autoComplete="new-password"
                   required
                   minLength={8}
-                  className={fieldInputClass}
+                  onChange={() => setFieldErrors((current) => ({ ...current, password: undefined }))}
+                  aria-invalid={Boolean(fieldErrors.password)}
+                  aria-describedby={fieldErrors.password ? passwordErrorId : undefined}
+                  className={`besat-focus-scroll-offset ${fieldInputClass}`}
                 />
+                {fieldErrors.password ? (
+                  <p id={passwordErrorId} className="mt-1.5 text-xs font-bold text-rose-600">
+                    {fieldErrors.password}
+                  </p>
+                ) : null}
               </label>
 
               <label className="block text-right">
@@ -141,14 +241,23 @@ export function SetPasswordCard({ token }: { token: string | null }) {
                   تکرار رمز عبور جدید
                 </span>
                 <input
+                  ref={confirmPasswordRef}
                   dir="rtl"
                   type="password"
                   name="confirmPassword"
                   autoComplete="new-password"
                   required
                   minLength={8}
-                  className={fieldInputClass}
+                  onChange={() => setFieldErrors((current) => ({ ...current, confirmPassword: undefined }))}
+                  aria-invalid={Boolean(fieldErrors.confirmPassword)}
+                  aria-describedby={fieldErrors.confirmPassword ? confirmPasswordErrorId : undefined}
+                  className={`besat-focus-scroll-offset ${fieldInputClass}`}
                 />
+                {fieldErrors.confirmPassword ? (
+                  <p id={confirmPasswordErrorId} className="mt-1.5 text-xs font-bold text-rose-600">
+                    {fieldErrors.confirmPassword}
+                  </p>
+                ) : null}
               </label>
 
               {status === "error" && messages.length ? (

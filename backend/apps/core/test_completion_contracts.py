@@ -12,6 +12,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import UserProfile, UserUnitMembership
 from apps.news.models import News
+from apps.registration.models import RegistrationInfo
 from apps.units.models import SchoolUnit
 
 
@@ -62,6 +63,12 @@ class CompletionContractTests(TestCase):
             (self.parent, UserUnitMembership.UnitRole.PARENT),
         ):
             UserUnitMembership.objects.create(user=user, unit=self.unit, role=role)
+        # REG-REGISTRATION-CLOSED-BYPASS-001: a registration submission is
+        # now rejected outright when there is no active RegistrationInfo
+        # row at all -- test_closed_unit_rejects_public_registration below
+        # needs one so its own unit-closed assertion is what actually
+        # rejects the request, not the absent-fixture case.
+        RegistrationInfo.objects.create(title="ثبت‌نام", is_open=True, is_active=True)
 
     def make_user(self, username, role):
         user = User.objects.create_user(username=username, password="password123")
@@ -160,19 +167,21 @@ class CompletionContractTests(TestCase):
 
         submitted = self.client.post(
             f"{endpoint}submit-review/",
-            {},
+            {"version": created.data["version"]},
             format="json",
         )
         self.assertEqual(submitted.status_code, 200, submitted.data)
-        self.assertEqual(submitted.data["status"], "waiting_review")
-        approved = self.client.post(f"{endpoint}approve/", {}, format="json")
+        self.assertEqual(submitted.data["status"], "in_review")
+        approved = self.client.post(
+            f"{endpoint}approve/", {"version": submitted.data["version"]}, format="json"
+        )
         self.assertEqual(approved.status_code, 200, approved.data)
         self.assertEqual(approved.data["status"], "approved")
 
         future_date = timezone.localdate() + timedelta(days=2)
         scheduled = self.client.post(
             f"{endpoint}schedule/",
-            {"scheduled_at": future_date.isoformat()},
+            {"scheduled_at": future_date.isoformat(), "version": approved.data["version"]},
             format="json",
         )
         self.assertEqual(scheduled.status_code, 200, scheduled.data)
@@ -201,11 +210,11 @@ class CompletionContractTests(TestCase):
         endpoint = f"/api/cms/content/{created.data['id']}/"
         submitted = self.client.post(
             f"{endpoint}submit-review/",
-            {},
+            {"version": created.data["version"]},
             format="json",
         )
         self.assertEqual(submitted.status_code, 200, submitted.data)
-        self.assertEqual(submitted.data["status"], "waiting_review")
+        self.assertEqual(submitted.data["status"], "in_review")
         attempted_approve = self.client.post(
             f"{endpoint}approve/",
             {},

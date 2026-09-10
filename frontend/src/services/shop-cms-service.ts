@@ -183,6 +183,6 @@ export function cmsUpdateSettings(payload: Partial<CMSShopSettings>) {
 
 // --- Course enrollments -----------------------------------------------------------
 
-export function cmsGetCourseEnrollments() {
-  return apiRequest<ApiListResponse<CMSCourseEnrollment>>(apiEndpoints.cmsShop.courseEnrollments);
+export function cmsGetCourseEnrollments(query: { page?: number } = {}) {
+  return apiRequest<ApiListResponse<CMSCourseEnrollment>>(withQuery(apiEndpoints.cmsShop.courseEnrollments, query));
 }

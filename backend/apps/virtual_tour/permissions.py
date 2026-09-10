@@ -10,7 +10,7 @@ from apps.gallery.permissions import (
     user_has_active_profile,
 )
 
-from .models import TourScene
+from .models import TourHotspot, TourScene
 
 __all__ = [
     "get_accessible_unit_ids",
@@ -132,6 +132,43 @@ class HasVirtualTourCMSPermission(BasePermission):
         return False
 
     def has_object_permission(self, request, view, obj) -> bool:
+        # AUTH-VTOUR-HOTSPOT-OBJECT-PERM-001: CMSTourHotspotViewSet shares
+        # this permission class with CMSTourSceneViewSet, but its detail
+        # actions (retrieve/update/partial_update/destroy) pass a
+        # TourHotspot instance here, not a TourScene -- the original
+        # `if not isinstance(obj, TourScene): return False` unconditionally
+        # rejected every one of those, including for general_manager,
+        # since DRF's GenericAPIView.get_object() always calls
+        # check_object_permissions() with the actual fetched instance
+        # before any view code runs.
+        if isinstance(obj, TourHotspot):
+            if is_general_manager(request.user):
+                return True
+
+            if is_parent(request.user):
+                return False
+
+            if request.method in SAFE_METHODS:
+                return user_can_access_tour_scene(request.user, obj.scene)
+
+            # Object-level write authorization for a specific hotspot is
+            # enforced by CMSTourHotspotViewSet._ensure_can_write_scene()
+            # (called from perform_update()/perform_destroy(), which only
+            # run after this check passes) -- that already derives
+            # correctly from the hotspot's owning scene and matches this
+            # view's own create-time authorization exactly, INCLUDING the
+            # terminal-workflow-status lock (AUTH-VTOUR-HOTSPOT-WORKFLOW-001:
+            # a non-GM cannot write a hotspot once its scene is
+            # approved/published/archived, exactly mirroring
+            # CMSTourSceneViewSet's own status guard on the scene itself).
+            # Re-deriving an equivalent check here via
+            # user_can_write_tour_scene() would duplicate that logic in a
+            # second place with a real risk of drifting out of sync -- this
+            # only needs to admit the same broad role set has_permission()
+            # already allows for a mutating method on this view, not
+            # duplicate the scene-ownership/status decision a second time.
+            return is_unit_manager(request.user) or is_unit_media(request.user)
+
         if not isinstance(obj, TourScene):
             return False
 

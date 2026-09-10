@@ -1,7 +1,7 @@
 "use client";
 
 import { Search, SlidersHorizontal, X } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useFocusTrap } from "@/hooks/use-focus-trap";
 import type { ShopCategory } from "@/types/shop";
 
@@ -44,148 +44,143 @@ type ShopFiltersProps = {
 };
 
 export function ShopFilters({ value, onChange, categories }: ShopFiltersProps) {
-  const [searchDraft, setSearchDraft] = useState(value.search);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const searchInputId = useId();
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    Promise.resolve().then(() => setSearchDraft(value.search));
-  }, [value.search]);
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      if (searchDraft !== value.search) {
-        onChange({ ...value, search: searchDraft });
-      }
-    }, 400);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchDraft]);
+  // Unique per ShopFilters instance -- combined with a "-desktop"/"-mobile"
+  // suffix below so the two simultaneously-mounted renderings of the same
+  // fields (desktop copy hidden via CSS, mobile copy inside the dialog)
+  // never share an id. Duplicate ids broke every <label htmlFor> here:
+  // the browser always resolves to the *first* match in document order,
+  // which was the hidden desktop copy, leaving the visible mobile dialog's
+  // controls with no accessible name at all.
+  const baseId = useId();
 
   const activeCount = [value.type, value.category, value.priceMin, value.priceMax].filter(Boolean).length;
 
-  const body = (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <div className="sm:col-span-2 lg:col-span-1">
-        <label htmlFor={searchInputId} className="mb-1.5 block text-xs font-black text-[#0a2848]/70">
-          جست‌وجو
-        </label>
-        <div className="relative">
-          <Search aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#0a2848]/40" />
-          <input
-            id={searchInputId}
-            type="search"
-            inputMode="search"
-            value={searchDraft}
-            onChange={(event) => setSearchDraft(event.target.value)}
-            placeholder="عنوان کتاب یا دوره…"
-            className="w-full rounded-xl border border-[#e5e7eb] bg-white py-2.5 pr-9 pl-3 text-sm font-bold text-[#0a2848] placeholder:text-[#0a2848]/35 focus:border-[#c98c3d] focus:outline-none focus:ring-4 focus:ring-[#c98c3d]/20"
-          />
+  function renderFields(scope: "desktop" | "mobile") {
+    const searchId = `${baseId}-search-${scope}`;
+    const typeId = `${baseId}-type-${scope}`;
+    const categoryId = `${baseId}-category-${scope}`;
+    const orderingId = `${baseId}-ordering-${scope}`;
+
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="sm:col-span-2 lg:col-span-1">
+          <label htmlFor={searchId} className="mb-1.5 block text-xs font-black text-[#0a2848]/70">
+            جست‌وجو
+          </label>
+          <div className="relative">
+            <Search aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#0a2848]/40" />
+            <input
+              id={searchId}
+              type="search"
+              inputMode="search"
+              value={value.search}
+              onChange={(event) => onChange({ ...value, search: event.target.value })}
+              placeholder="عنوان کتاب یا دوره…"
+              className="w-full rounded-xl border border-[#e5e7eb] bg-white py-2.5 pr-9 pl-3 text-sm font-bold text-[#0a2848] placeholder:text-[#0a2848]/35 focus:border-[#c98c3d] focus:outline-none focus:ring-4 focus:ring-[#c98c3d]/20"
+            />
+          </div>
         </div>
-      </div>
 
-      <div>
-        <label htmlFor="shop-filter-type" className="mb-1.5 block text-xs font-black text-[#0a2848]/70">
-          نوع محصول
-        </label>
-        <select
-          id="shop-filter-type"
-          value={value.type}
-          onChange={(event) => onChange({ ...value, type: event.target.value })}
-          className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm font-bold text-[#0a2848] focus:border-[#c98c3d] focus:outline-none focus:ring-4 focus:ring-[#c98c3d]/20"
-        >
-          {TYPE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label htmlFor="shop-filter-category" className="mb-1.5 block text-xs font-black text-[#0a2848]/70">
-          دسته‌بندی
-        </label>
-        <select
-          id="shop-filter-category"
-          value={value.category}
-          onChange={(event) => onChange({ ...value, category: event.target.value })}
-          className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm font-bold text-[#0a2848] focus:border-[#c98c3d] focus:outline-none focus:ring-4 focus:ring-[#c98c3d]/20"
-        >
-          <option value="">همه دسته‌ها</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.slug}>
-              {category.title}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label htmlFor="shop-filter-ordering" className="mb-1.5 block text-xs font-black text-[#0a2848]/70">
-          مرتب‌سازی
-        </label>
-        <select
-          id="shop-filter-ordering"
-          value={value.ordering}
-          onChange={(event) => onChange({ ...value, ordering: event.target.value })}
-          className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm font-bold text-[#0a2848] focus:border-[#c98c3d] focus:outline-none focus:ring-4 focus:ring-[#c98c3d]/20"
-        >
-          {ORDERING_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="sm:col-span-2 lg:col-span-2">
-        <span className="mb-1.5 block text-xs font-black text-[#0a2848]/70">بازه قیمت (تومان)</span>
-        <div className="flex items-center gap-2">
-          <input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            value={value.priceMin}
-            onChange={(event) => onChange({ ...value, priceMin: event.target.value })}
-            placeholder="از"
-            className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm font-bold text-[#0a2848] placeholder:text-[#0a2848]/35 focus:border-[#c98c3d] focus:outline-none focus:ring-4 focus:ring-[#c98c3d]/20"
-          />
-          <span className="text-[#0a2848]/40">—</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            value={value.priceMax}
-            onChange={(event) => onChange({ ...value, priceMax: event.target.value })}
-            placeholder="تا"
-            className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm font-bold text-[#0a2848] placeholder:text-[#0a2848]/35 focus:border-[#c98c3d] focus:outline-none focus:ring-4 focus:ring-[#c98c3d]/20"
-          />
-        </div>
-      </div>
-
-      {activeCount > 0 ? (
-        <div className="flex items-end sm:col-span-2 lg:col-span-1">
-          <button
-            type="button"
-            onClick={() => onChange({ ...DEFAULT_SHOP_FILTERS, search: value.search, ordering: value.ordering })}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-[#e5e7eb] px-4 py-2.5 text-sm font-black text-[#0a2848] transition hover:bg-[#f4f1ea]"
+        <div>
+          <label htmlFor={typeId} className="mb-1.5 block text-xs font-black text-[#0a2848]/70">
+            نوع محصول
+          </label>
+          <select
+            id={typeId}
+            value={value.type}
+            onChange={(event) => onChange({ ...value, type: event.target.value })}
+            className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm font-bold text-[#0a2848] focus:border-[#c98c3d] focus:outline-none focus:ring-4 focus:ring-[#c98c3d]/20"
           >
-            <X aria-hidden="true" className="size-4" />
-            پاک کردن فیلترها
-          </button>
+            {TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
-      ) : null}
-    </div>
-  );
+
+        <div>
+          <label htmlFor={categoryId} className="mb-1.5 block text-xs font-black text-[#0a2848]/70">
+            دسته‌بندی
+          </label>
+          <select
+            id={categoryId}
+            value={value.category}
+            onChange={(event) => onChange({ ...value, category: event.target.value })}
+            className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm font-bold text-[#0a2848] focus:border-[#c98c3d] focus:outline-none focus:ring-4 focus:ring-[#c98c3d]/20"
+          >
+            <option value="">همه دسته‌ها</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.slug}>
+                {category.title}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor={orderingId} className="mb-1.5 block text-xs font-black text-[#0a2848]/70">
+            مرتب‌سازی
+          </label>
+          <select
+            id={orderingId}
+            value={value.ordering}
+            onChange={(event) => onChange({ ...value, ordering: event.target.value })}
+            className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm font-bold text-[#0a2848] focus:border-[#c98c3d] focus:outline-none focus:ring-4 focus:ring-[#c98c3d]/20"
+          >
+            {ORDERING_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="sm:col-span-2 lg:col-span-2">
+          <span className="mb-1.5 block text-xs font-black text-[#0a2848]/70">بازه قیمت (تومان)</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={value.priceMin}
+              onChange={(event) => onChange({ ...value, priceMin: event.target.value })}
+              placeholder="از"
+              className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm font-bold text-[#0a2848] placeholder:text-[#0a2848]/35 focus:border-[#c98c3d] focus:outline-none focus:ring-4 focus:ring-[#c98c3d]/20"
+            />
+            <span className="text-[#0a2848]/40">—</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={value.priceMax}
+              onChange={(event) => onChange({ ...value, priceMax: event.target.value })}
+              placeholder="تا"
+              className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm font-bold text-[#0a2848] placeholder:text-[#0a2848]/35 focus:border-[#c98c3d] focus:outline-none focus:ring-4 focus:ring-[#c98c3d]/20"
+            />
+          </div>
+        </div>
+
+        {activeCount > 0 ? (
+          <div className="flex items-end sm:col-span-2 lg:col-span-1">
+            <button
+              type="button"
+              onClick={() => onChange({ ...DEFAULT_SHOP_FILTERS, search: value.search, ordering: value.ordering })}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#e5e7eb] px-4 py-2.5 text-sm font-black text-[#0a2848] transition hover:bg-[#f4f1ea]"
+            >
+              <X aria-hidden="true" className="size-4" />
+              پاک کردن فیلترها
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div>
-      <div className="hidden lg:block">{body}</div>
+      <div className="hidden lg:block">{renderFields("desktop")}</div>
 
       <div className="lg:hidden">
         <button
@@ -204,7 +199,7 @@ export function ShopFilters({ value, onChange, categories }: ShopFiltersProps) {
         </button>
 
         {mobileOpen ? (
-          <MobileFilterSheet onClose={() => setMobileOpen(false)}>{body}</MobileFilterSheet>
+          <MobileFilterSheet onClose={() => setMobileOpen(false)}>{renderFields("mobile")}</MobileFilterSheet>
         ) : null}
       </div>
     </div>

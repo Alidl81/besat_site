@@ -39,6 +39,7 @@ export function HomeVirtualTourSection() {
       <img
         src="/images/official/units/unit-05.jpg"
         alt="فضای آموزشی مجتمع بعثت"
+        loading="lazy"
         className="besat-tour-backdrop absolute inset-0 h-full w-full object-cover"
         draggable={false}
       />

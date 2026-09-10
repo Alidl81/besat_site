@@ -1,7 +1,7 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
-import { Modal } from "@/components/crud/crud-ui";
+import { type FormEvent, useMemo, useRef, useState } from "react";
+import { ConfirmDialog, Modal } from "@/components/crud/crud-ui";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
 import {
   PanelEmpty,
@@ -32,10 +32,21 @@ export function MessagingPanel() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [selected, setSelected] = useState<InternalMessageItem | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // FE-PANEL-MESSAGES-PAGINATION-001: the backend's StandardResultsSetPagination
+  // returns 10 items per page (count/next/previous), but this never sent a
+  // page param and never rendered any next/previous control -- any folder
+  // exceeding one page made every older message permanently unreachable.
+  const [page, setPage] = useState(1);
   const messages = usePanelRequest(
-    () => panelService.messages(activeTab),
-    [activeTab],
+    () => panelService.messages(activeTab, page),
+    [activeTab, page],
   );
+
+  function selectTab(tab: "inbox" | "sent") {
+    setActiveTab(tab);
+    setPage(1);
+  }
   const recipients = usePanelRequest(
     () => panelService.messageRecipients(),
     [],
@@ -62,7 +73,8 @@ export function MessagingPanel() {
   }
 
   async function remove() {
-    if (!selected || !window.confirm("این پیام حذف شود؟")) return;
+    if (!selected) return;
+    setConfirmingDelete(false);
     setError(null);
     try {
       await panelService.removeMessage(selected.id);
@@ -85,8 +97,8 @@ export function MessagingPanel() {
       </div>
 
       <div className="flex gap-2 rounded-xl border border-slate-200 bg-white p-2">
-        <button type="button" onClick={() => setActiveTab("inbox")} className={`flex-1 rounded-lg px-4 py-3 text-sm font-black ${activeTab === "inbox" ? "bg-[#062452] text-white" : "text-[#062452] hover:bg-slate-50"}`}>صندوق ورودی</button>
-        <button type="button" onClick={() => setActiveTab("sent")} className={`flex-1 rounded-lg px-4 py-3 text-sm font-black ${activeTab === "sent" ? "bg-[#062452] text-white" : "text-[#062452] hover:bg-slate-50"}`}>ارسال‌شده‌ها</button>
+        <button type="button" onClick={() => selectTab("inbox")} className={`flex-1 rounded-lg px-4 py-3 text-sm font-black ${activeTab === "inbox" ? "bg-[#062452] text-white" : "text-[#062452] hover:bg-slate-50"}`}>صندوق ورودی</button>
+        <button type="button" onClick={() => selectTab("sent")} className={`flex-1 rounded-lg px-4 py-3 text-sm font-black ${activeTab === "sent" ? "bg-[#062452] text-white" : "text-[#062452] hover:bg-slate-50"}`}>ارسال‌شده‌ها</button>
       </div>
 
       {messages.loading ? <PanelLoading label="در حال دریافت پیام‌ها..." /> : messages.error ? <PanelError message={messages.error} onRetry={messages.reload} /> : messages.data?.results.length ? (
@@ -98,7 +110,7 @@ export function MessagingPanel() {
                 <li key={message.id}>
                   <button type="button" onClick={() => void openMessage(message)} className={`flex w-full items-start gap-4 px-5 py-4 text-right hover:bg-slate-50 ${activeTab === "inbox" && !message.is_read ? "bg-blue-50/50" : ""}`}>
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#eef3f7] text-sm font-black text-[#0c3a66]">{person.full_name.slice(0, 1)}</span>
-                    <span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-3"><b className="truncate text-sm text-[#062452]">{person.full_name} · {person.role_display}</b><time className="shrink-0 text-[11px] font-bold text-slate-400">{formatDate(message.created_at)}</time></span><strong className="mt-1 block truncate text-sm text-slate-700">{message.subject}</strong><span className="mt-1 block truncate text-xs font-bold text-slate-400">{message.body}</span></span>
+                    <span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-3"><b className="truncate text-sm text-[#062452]">{person.full_name} · {person.role_display}</b><time className="shrink-0 text-[11px] font-bold text-slate-600">{formatDate(message.created_at)}</time></span><strong className="mt-1 block truncate text-sm text-slate-700">{message.subject}</strong><span className="mt-1 block truncate text-xs font-bold text-slate-600">{message.body}</span></span>
                     {activeTab === "inbox" && !message.is_read ? <i className="mt-2 size-2 shrink-0 rounded-full bg-blue-500" /> : null}
                   </button>
                 </li>
@@ -106,11 +118,34 @@ export function MessagingPanel() {
             })}
           </ul>
           <p className="border-t border-slate-100 px-5 py-3 text-xs font-bold text-slate-500">مجموع {messages.data.count} پیام</p>
+          {messages.data.next || messages.data.previous ? (
+            <nav aria-label="صفحه‌بندی پیام‌ها" className="flex items-center justify-center gap-3 border-t border-slate-100 px-5 py-3">
+              <button
+                type="button"
+                disabled={!messages.data.previous}
+                onClick={() => setPage((current) => current - 1)}
+                className="min-h-9 rounded-lg border border-slate-300 bg-white px-4 text-xs font-black text-[#0f2f4a] disabled:opacity-45"
+              >
+                صفحه قبل
+              </button>
+              <span className="text-xs font-black text-slate-600">
+                صفحه {new Intl.NumberFormat("fa-IR").format(page)}
+              </span>
+              <button
+                type="button"
+                disabled={!messages.data.next}
+                onClick={() => setPage((current) => current + 1)}
+                className="min-h-9 rounded-lg border border-slate-300 bg-white px-4 text-xs font-black text-[#0f2f4a] disabled:opacity-45"
+              >
+                صفحه بعد
+              </button>
+            </nav>
+          ) : null}
         </section>
       ) : <PanelEmpty title={activeTab === "inbox" ? "پیامی دریافت نشده است." : "پیامی ارسال نشده است."} />}
 
       <Modal open={selected !== null} onClose={() => setSelected(null)} title="مشاهده پیام" size="lg">
-        {selected ? <div className="space-y-4"><div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs font-bold text-slate-600"><p>از: <b className="text-[#062452]">{selected.sender.full_name}</b></p><p className="mt-2">به: <b className="text-[#062452]">{selected.recipient.full_name}</b></p><time className="mt-2 block">{formatDate(selected.created_at)}</time></div><h3 className="text-lg font-black text-[#062452]">{selected.subject}</h3><p className="min-h-24 whitespace-pre-line rounded-lg border border-slate-200 p-4 text-sm font-bold leading-8 text-slate-700">{selected.body}</p><div className="flex justify-end gap-3"><button type="button" onClick={() => void remove()} className="panel-secondary-button !border-rose-200 !text-rose-600"><PanelIcon name="trash" className="size-4" />حذف پیام</button><button type="button" onClick={() => { setComposeOpen(true); }} className="panel-primary-button">پاسخ</button></div></div> : null}
+        {selected ? <div className="space-y-4"><div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs font-bold text-slate-600"><p>از: <b className="text-[#062452]">{selected.sender.full_name}</b></p><p className="mt-2">به: <b className="text-[#062452]">{selected.recipient.full_name}</b></p><time className="mt-2 block">{formatDate(selected.created_at)}</time></div><h3 className="text-lg font-black text-[#062452]">{selected.subject}</h3><p className="min-h-24 whitespace-pre-line rounded-lg border border-slate-200 p-4 text-sm font-bold leading-8 text-slate-700">{selected.body}</p><div className="flex justify-end gap-3"><button type="button" onClick={() => setConfirmingDelete(true)} className="panel-secondary-button !border-rose-200 !text-rose-600"><PanelIcon name="trash" className="size-4" />حذف پیام</button><button type="button" onClick={() => { setComposeOpen(true); }} className="panel-primary-button">پاسخ</button></div></div> : null}
       </Modal>
 
       <Modal open={composeOpen} onClose={() => setComposeOpen(false)} title={selected ? "پاسخ به پیام" : "ارسال پیام"} size="lg">
@@ -128,6 +163,14 @@ export function MessagingPanel() {
           />
         )}
       </Modal>
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="حذف پیام"
+        description="آیا از حذف این پیام مطمئن هستید؟ این عملیات قابل بازگشت نیست."
+        onConfirm={() => void remove()}
+        onCancel={() => setConfirmingDelete(false)}
+      />
     </div>
   );
 }
@@ -149,6 +192,16 @@ function ComposeForm({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [errors, setErrors] = useState<ComposeFieldErrors>({});
+  const recipientRef = useRef<HTMLSelectElement>(null);
+  const subjectRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  // FE-DASH-MESSAGE-DOUBLE-SUBMIT-001: `saving` is state-backed, so two
+  // same-tick submits both read it as `false` before either update commits.
+  // Guarded after the synchronous validation early-returns (so a second
+  // click during validation isn't blocked from re-validating), immediately
+  // before the actual mutation call, matching the session's other
+  // double-submit fixes.
+  const savingRef = useRef(false);
 
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -165,9 +218,12 @@ function ComposeForm({
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);
       setFormError("لطفاً خطاهای مشخص‌شده را اصلاح کنید.");
+      (nextErrors.recipient_id ? recipientRef : nextErrors.subject ? subjectRef : bodyRef).current?.focus();
       return;
     }
 
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setFormError("");
     setErrors({});
@@ -187,6 +243,7 @@ function ComposeForm({
       setFormError(getApiErrorMessage(reason));
     } finally {
       setSaving(false);
+      savingRef.current = false;
     }
   }
 
@@ -205,6 +262,7 @@ function ComposeForm({
       <label>
         <span className="panel-field-label">گیرنده</span>
         <select
+          ref={recipientRef}
           name="recipient_id"
           required
           defaultValue={replyTo?.sender.id ?? ""}
@@ -229,6 +287,7 @@ function ComposeForm({
       <label>
         <span className="panel-field-label">موضوع</span>
         <input
+          ref={subjectRef}
           name="subject"
           required
           defaultValue={replyTo ? `پاسخ: ${replyTo.subject}` : ""}
@@ -245,6 +304,7 @@ function ComposeForm({
       <label>
         <span className="panel-field-label">متن پیام</span>
         <textarea
+          ref={bodyRef}
           name="body"
           required
           rows={7}

@@ -1,11 +1,12 @@
 "use client";
 
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useId, useRef, useState } from "react";
 import type { JSONContent } from "@tiptap/core";
-import { CrudSection, EmptyState, Field, GhostButton, Modal, PrimaryButton, Select, StatusBadge, TextArea, TextInput } from "@/components/crud/crud-ui";
+import { ConfirmDialog, CrudSection, EmptyState, Field, GhostButton, Modal, PrimaryButton, Select, StatusBadge, TextArea, TextInput } from "@/components/crud/crud-ui";
 import { MediaPickerDialog } from "@/components/cms/media-picker-dialog";
 import { emptySeoDraft, seoDraftFrom, seoDraftToPayload, SeoPanel, type SeoDraft } from "@/components/cms/seo-panel";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
+import { PanelError } from "@/components/dashboard/panel-request-state";
 import { RichEditor, type EditorDocumentStats, type EditorOutlineItem } from "@/components/editor/rich-editor";
 import { usePanelRequest } from "@/hooks/use-panel-request";
 import { getApiErrorMessage } from "@/lib/api/client";
@@ -44,10 +45,19 @@ export function ShopProductsManager({ mode }: { mode: "admin" | "media" }) {
   const [editingId, setEditingId] = useState<number | "new" | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<CMSProductListItem | null>(null);
+  // FE-SHOP-PRODUCT-WORKFLOW-DOUBLE-SUBMIT-001 + FE-SHOP-PRODUCT-DELETE-DOUBLE-SUBMIT-001:
+  // `busyId` is state-backed, so two same-tick clicks on the same product
+  // both read it as unset before either update commits -- a synchronous
+  // Set-keyed ref guard closes that race (Set, not one boolean, so an
+  // action on a different product is never incorrectly blocked).
+  const busyIdsRef = useRef<Set<number>>(new Set());
 
   const products = data?.results ?? [];
 
   async function handleWorkflowAction(product: CMSProductListItem, action: ProductWorkflowAction) {
+    if (busyIdsRef.current.has(product.id)) return;
+    busyIdsRef.current.add(product.id);
     setBusyId(product.id);
     setActionError(null);
     try {
@@ -57,11 +67,14 @@ export function ShopProductsManager({ mode }: { mode: "admin" | "media" }) {
       setActionError(getApiErrorMessage(reason));
     } finally {
       setBusyId(null);
+      busyIdsRef.current.delete(product.id);
     }
   }
 
   async function handleDelete(product: CMSProductListItem) {
-    if (!window.confirm(`آیا از حذف «${product.title}» مطمئن هستید؟`)) return;
+    if (busyIdsRef.current.has(product.id)) return;
+    busyIdsRef.current.add(product.id);
+    setPendingDelete(null);
     setBusyId(product.id);
     setActionError(null);
     try {
@@ -71,6 +84,7 @@ export function ShopProductsManager({ mode }: { mode: "admin" | "media" }) {
       setActionError(getApiErrorMessage(reason));
     } finally {
       setBusyId(null);
+      busyIdsRef.current.delete(product.id);
     }
   }
 
@@ -96,13 +110,22 @@ export function ShopProductsManager({ mode }: { mode: "admin" | "media" }) {
       ) : null}
 
       {loading ? (
-        <p className="py-6 text-center text-sm font-bold text-slate-400">در حال بارگذاری…</p>
+        <p className="py-6 text-center text-sm font-bold text-slate-600">در حال بارگذاری…</p>
       ) : error ? (
-        <p role="alert" className="py-6 text-center text-sm font-bold text-rose-600">{error}</p>
+        // FE-PANEL-SHOP-CRUD-ERROR-RETRY-001: see shop-categories-manager.tsx
+        // -- identical no-retry defect, same shared PanelError fix.
+        <PanelError message={error} onRetry={reload} />
       ) : products.length === 0 ? (
         <EmptyState text="محصولی ثبت نشده است." />
       ) : (
-        <div className="overflow-x-auto">
+        <div className="panel-table-scroll">
+          {/* panel-table-scroll (globals.css) -- see
+              FE-DASH-RTL-TABLE-ROOT-OVERFLOW-001 and
+              FE-DASH-RTL-TABLE-MOBILE-AFFORDANCE-001 in
+              shop-orders-manager.tsx: isolates this wrapper's overflowing
+              RTL table content from contributing to root-level
+              documentElement.scrollWidth, and fades in an edge cue when the
+              status/action columns start outside the visible area. */}
           <table className="panel-table w-full">
             <thead>
               <tr>
@@ -110,7 +133,7 @@ export function ShopProductsManager({ mode }: { mode: "admin" | "media" }) {
                 <th>نوع</th>
                 {mode === "admin" ? <th>قیمت</th> : null}
                 <th>وضعیت</th>
-                <th></th>
+                <th className="panel-table-action-sticky"><span className="sr-only">عملیات</span></th>
               </tr>
             </thead>
             <tbody>
@@ -126,7 +149,7 @@ export function ShopProductsManager({ mode }: { mode: "admin" | "media" }) {
                       <td>
                         {product.sale_price_amount ? (
                           <span>
-                            <span className="ml-1 text-xs text-slate-400 line-through">{formatPrice(product.price_amount)}</span>
+                            <span className="ml-1 text-xs text-slate-600 line-through">{formatPrice(product.price_amount)}</span>
                             {formatPrice(product.sale_price_amount)}
                           </span>
                         ) : (
@@ -135,7 +158,7 @@ export function ShopProductsManager({ mode }: { mode: "admin" | "media" }) {
                       </td>
                     ) : null}
                     <td><StatusBadge status={product.status} /></td>
-                    <td>
+                    <td className="panel-table-action-sticky">
                       <div className="flex flex-wrap items-center justify-end gap-1.5">
                         {availableActions.map((item) => (
                           <button
@@ -154,7 +177,7 @@ export function ShopProductsManager({ mode }: { mode: "admin" | "media" }) {
                         {mode === "admin" ? (
                           <button
                             type="button"
-                            onClick={() => handleDelete(product)}
+                            onClick={() => setPendingDelete(product)}
                             disabled={busyId === product.id}
                             className="panel-icon-button hover:bg-rose-50 hover:text-rose-600"
                             aria-label={`حذف ${product.title}`}
@@ -190,6 +213,14 @@ export function ShopProductsManager({ mode }: { mode: "admin" | "media" }) {
           />
         ) : null}
       </Modal>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="حذف محصول"
+        description={pendingDelete ? `آیا از حذف «${pendingDelete.title}» مطمئن هستید؟ این عملیات قابل بازگشت نیست.` : ""}
+        onConfirm={() => pendingDelete && handleDelete(pendingDelete)}
+        onCancel={() => setPendingDelete(null)}
+      />
     </CrudSection>
   );
 }
@@ -237,11 +268,26 @@ function ProductForm({
   const [featuredImagePickerOpen, setFeaturedImagePickerOpen] = useState(false);
   const [galleryImages, setGalleryImages] = useState<ProductImage[]>([]);
   const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
+  // FE-SHOP-ADMIN-PRODUCT-GALLERY-UPLOAD-DOUBLE-SUBMIT-001:
+  // `uploadingGalleryImage` is state-backed, so two same-tick file-input
+  // changes both started an upload before either update committed.
+  const uploadingGalleryImageRef = useRef(false);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const [hydrated, setHydrated] = useState(!productId);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ title?: string; price?: string; sku?: string }>({});
+  const titleRef = useRef<HTMLInputElement>(null);
+  const priceRef = useRef<HTMLInputElement>(null);
+  const skuRef = useRef<HTMLInputElement>(null);
+  const titleErrorId = useId();
+  const priceErrorId = useId();
+  const skuErrorId = useId();
+  // FE-SHOP-PRODUCT-CMS-CREATE-DOUBLE-SUBMIT-001: `submitting` is
+  // state-backed, so two same-tick submits both read it as `false` before
+  // either update commits -- a synchronous ref guard closes that race.
+  const submittingRef = useRef(false);
 
   if (existing && !hydrated) {
     setProductType(existing.product_type);
@@ -275,8 +321,25 @@ function ProductForm({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    setSubmitting(true);
     setError(null);
+    setFieldErrors({});
+
+    const isPhysical = mode === "admin" && productType === "physical";
+    const nextFieldErrors: typeof fieldErrors = {};
+    if (!title.trim()) nextFieldErrors.title = "عنوان محصول الزامی است.";
+    if (mode === "admin" && !priceDisplay.trim()) nextFieldErrors.price = "قیمت الزامی است.";
+    if (isPhysical && !sku.trim()) nextFieldErrors.sku = "کد کالا (SKU) الزامی است.";
+
+    if (Object.keys(nextFieldErrors).length) {
+      setFieldErrors(nextFieldErrors);
+      setError("لطفاً خطاهای مشخص‌شده را اصلاح کنید.");
+      (nextFieldErrors.title ? titleRef : nextFieldErrors.price ? priceRef : skuRef).current?.focus();
+      return;
+    }
+
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
     try {
       const basePayload = {
         ...(productId ? {} : { product_type: productType }),
@@ -327,18 +390,34 @@ function ProductForm({
       setError(getApiErrorMessage(reason));
     } finally {
       setSubmitting(false);
+      submittingRef.current = false;
     }
   }
 
   if (productId && loadingExisting && !hydrated) {
-    return <p className="py-6 text-center text-sm font-bold text-slate-400">در حال بارگذاری…</p>;
+    return <p className="py-6 text-center text-sm font-bold text-slate-600">در حال بارگذاری…</p>;
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-5">
+    <form onSubmit={handleSubmit} noValidate className="grid gap-5">
       <div className="grid gap-5 md:grid-cols-2">
         <Field label="عنوان" required>
-          <TextInput value={title} onChange={(event) => setTitle(event.target.value)} required />
+          <TextInput
+            ref={titleRef}
+            value={title}
+            onChange={(event) => {
+              setTitle(event.target.value);
+              setFieldErrors((prev) => ({ ...prev, title: undefined }));
+            }}
+            required
+            aria-invalid={Boolean(fieldErrors.title)}
+            aria-describedby={fieldErrors.title ? titleErrorId : undefined}
+          />
+          {fieldErrors.title ? (
+            <p id={titleErrorId} className="mt-1.5 text-xs font-bold text-rose-600">
+              {fieldErrors.title}
+            </p>
+          ) : null}
         </Field>
         <Field label="نوع محصول" required>
           <Select
@@ -366,7 +445,7 @@ function ProductForm({
         <TextArea value={shortDescription} onChange={(event) => setShortDescription(event.target.value)} rows={2} />
       </Field>
 
-      <Field label="توضیحات کامل">
+      <Field label="توضیحات کامل" as="div">
         <div className="besat-editor-shell rounded-2xl border border-slate-200">
           <RichEditor
             value={description}
@@ -387,7 +466,7 @@ function ProductForm({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={featuredImageUrl} alt="پیش‌نمایش تصویر شاخص" className="size-16 shrink-0 rounded-xl object-cover" />
           ) : (
-            <div className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs font-bold text-slate-400">
+            <div className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs font-bold text-slate-600">
               بدون تصویر
             </div>
           )}
@@ -417,22 +496,26 @@ function ProductForm({
                 ))}
               </div>
             ) : (
-              <p className="text-xs font-bold text-slate-400">هنوز تصویری در گالری ثبت نشده است.</p>
+              <p className="text-xs font-bold text-slate-600">هنوز تصویری در گالری ثبت نشده است.</p>
             )}
             <input
               ref={galleryInputRef}
               type="file"
               accept="image/*"
               className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
               onChange={(event) => {
                 const file = event.target.files?.[0];
-                if (!file) return;
+                if (!file || uploadingGalleryImageRef.current) return;
+                uploadingGalleryImageRef.current = true;
                 setUploadingGalleryImage(true);
                 cmsUploadProductGalleryImage(productId, file, { altText: title })
                   .then((image) => setGalleryImages((current) => [...current, image]))
                   .catch((reason) => setError(getApiErrorMessage(reason)))
                   .finally(() => {
                     setUploadingGalleryImage(false);
+                    uploadingGalleryImageRef.current = false;
                     if (galleryInputRef.current) galleryInputRef.current.value = "";
                   });
               }}
@@ -442,7 +525,7 @@ function ProductForm({
             </GhostButton>
           </div>
         ) : (
-          <p className="text-xs font-bold text-slate-400">برای افزودن تصویر به گالری، ابتدا محصول را ذخیره کنید.</p>
+          <p className="text-xs font-bold text-slate-600">برای افزودن تصویر به گالری، ابتدا محصول را ذخیره کنید.</p>
         )}
       </Field>
 
@@ -467,7 +550,23 @@ function ProductForm({
         <>
           <div className="grid gap-5 md:grid-cols-2">
             <Field label="قیمت (تومان)" required>
-              <TextInput type="number" value={priceDisplay} onChange={(event) => setPriceDisplay(event.target.value)} required />
+              <TextInput
+                ref={priceRef}
+                type="number"
+                value={priceDisplay}
+                onChange={(event) => {
+                  setPriceDisplay(event.target.value);
+                  setFieldErrors((prev) => ({ ...prev, price: undefined }));
+                }}
+                required
+                aria-invalid={Boolean(fieldErrors.price)}
+                aria-describedby={fieldErrors.price ? priceErrorId : undefined}
+              />
+              {fieldErrors.price ? (
+                <p id={priceErrorId} className="mt-1.5 text-xs font-bold text-rose-600">
+                  {fieldErrors.price}
+                </p>
+              ) : null}
             </Field>
             <Field label="قیمت ویژه (تومان، اختیاری)">
               <TextInput type="number" value={salePriceDisplay} onChange={(event) => setSalePriceDisplay(event.target.value)} />
@@ -477,7 +576,23 @@ function ProductForm({
           {productType === "physical" ? (
             <div className="grid gap-5 md:grid-cols-3">
               <Field label="کد کالا (SKU)" required>
-                <TextInput dir="ltr" value={sku} onChange={(event) => setSku(event.target.value)} required />
+                <TextInput
+                  ref={skuRef}
+                  dir="ltr"
+                  value={sku}
+                  onChange={(event) => {
+                    setSku(event.target.value);
+                    setFieldErrors((prev) => ({ ...prev, sku: undefined }));
+                  }}
+                  required
+                  aria-invalid={Boolean(fieldErrors.sku)}
+                  aria-describedby={fieldErrors.sku ? skuErrorId : undefined}
+                />
+                {fieldErrors.sku ? (
+                  <p id={skuErrorId} className="mt-1.5 text-xs font-bold text-rose-600">
+                    {fieldErrors.sku}
+                  </p>
+                ) : null}
               </Field>
               <Field label="موجودی انبار">
                 <TextInput type="number" value={inventoryQty} onChange={(event) => setInventoryQty(Number(event.target.value))} />

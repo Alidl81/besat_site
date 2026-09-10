@@ -1,0 +1,145 @@
+"use client";
+
+import { type FormEvent, useId, useRef, useState } from "react";
+import { CrudManager, FormActions, type Column } from "@/components/crud/crud-manager";
+import { Field, StatusBadge, TextArea, TextInput } from "@/components/crud/crud-ui";
+import { getApiErrorMessage } from "@/lib/api/client";
+import { departmentsRepository } from "@/lib/data/repositories";
+import type { DepartmentRecord, WithoutSystemFields } from "@/lib/data/domain-types";
+
+function slugify(value: string): string {
+  return value.trim().replace(/\s+/g, "-").replace(/[^\w؀-ۿ-]/g, "").slice(0, 80);
+}
+
+export function DepartmentsManager() {
+  const columns: Column<DepartmentRecord>[] = [
+    { key: "title", header: "نام دپارتمان", render: (i) => <span className="font-black">{i.title}</span> },
+    {
+      key: "active",
+      header: "وضعیت",
+      render: (i) => <StatusBadge status={i.is_active ? "active" : "inactive"} />,
+    },
+  ];
+
+  return (
+    <CrudManager<DepartmentRecord>
+      title="مدیریت دپارتمان‌ها"
+      description="دپارتمان‌های تخصصی مجموعه را ایجاد، ویرایش و مدیریت کنید."
+      repository={departmentsRepository}
+      columns={columns}
+      emptyText="دپارتمانی ثبت نشده است."
+      addLabel="دپارتمان جدید"
+      rowLabel={(i) => i.title}
+      renderForm={({ initial, onSubmit, onCancel, submitting }) => (
+        <DepartmentForm initial={initial} onSubmit={onSubmit} onCancel={onCancel} submitting={submitting} />
+      )}
+    />
+  );
+}
+
+function DepartmentForm({
+  initial,
+  onSubmit,
+  onCancel,
+  submitting,
+}: {
+  initial: DepartmentRecord | null;
+  onSubmit: (data: WithoutSystemFields<DepartmentRecord>) => Promise<void>;
+  onCancel: () => void;
+  submitting: boolean;
+}) {
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [shortDescription, setShortDescription] = useState(initial?.short_description ?? "");
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [coverImage, setCoverImage] = useState(initial?.cover_image ?? "");
+  const [order, setOrder] = useState(initial?.order ?? 0);
+  const [isActive, setIsActive] = useState(initial?.is_active ?? true);
+  const [formError, setFormError] = useState("");
+  const [titleError, setTitleError] = useState("");
+  const titleRef = useRef<HTMLInputElement>(null);
+  const titleErrorId = useId();
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError("");
+    setTitleError("");
+
+    if (!title.trim()) {
+      setTitleError("نام دپارتمان الزامی است.");
+      setFormError("لطفاً خطاهای مشخص‌شده را اصلاح کنید.");
+      titleRef.current?.focus();
+      return;
+    }
+
+    try {
+      await onSubmit({
+        title,
+        slug: initial?.slug || slugify(title) || `department-${Date.now()}`,
+        short_description: shortDescription || null,
+        description: description || null,
+        cover_image: coverImage || null,
+        is_active: isActive,
+        order: Number(order) || 0,
+      });
+    } catch (reason) {
+      setFormError(getApiErrorMessage(reason));
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} noValidate className="space-y-5">
+      {formError ? (
+        <p role="alert" className="rounded-2xl bg-rose-50 px-4 py-3 text-right text-sm font-black text-rose-700">
+          {formError}
+        </p>
+      ) : null}
+      <Field label="نام دپارتمان" required>
+        <TextInput
+          ref={titleRef}
+          value={title}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setTitleError("");
+          }}
+          required
+          aria-invalid={Boolean(titleError)}
+          aria-describedby={titleError ? titleErrorId : undefined}
+        />
+        {titleError ? (
+          <p id={titleErrorId} className="mt-1.5 text-xs font-bold text-rose-600">
+            {titleError}
+          </p>
+        ) : null}
+      </Field>
+
+      <Field label="توضیح کوتاه">
+        <TextInput value={shortDescription} onChange={(e) => setShortDescription(e.target.value)} />
+      </Field>
+
+      <Field label="توضیحات">
+        <TextArea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+      </Field>
+
+      <div className="grid gap-5 md:grid-cols-2">
+        <Field label="تصویر کاور (URL)">
+          <TextInput value={coverImage} onChange={(e) => setCoverImage(e.target.value)} placeholder="/images/..." />
+        </Field>
+        <Field label="ترتیب نمایش">
+          <TextInput type="number" value={order} onChange={(e) => setOrder(Number(e.target.value))} />
+        </Field>
+      </div>
+
+      <label className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
+        <span className="text-sm font-black text-[#062452]">دپارتمان فعال باشد</span>
+        <input
+          type="checkbox"
+          checked={isActive}
+          onChange={(e) => setIsActive(e.target.checked)}
+          className="size-5 rounded border-slate-300 accent-blue-600"
+        />
+      </label>
+
+      <FormActions onCancel={onCancel} submitting={submitting} />
+    </form>
+  );
+}

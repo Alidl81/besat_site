@@ -28,8 +28,25 @@ const legacyKeys = [
   "besat_user",
 ];
 
+// AUTH-FE-CROSS-TAB-SESSION-CHANNEL-001: this display cache lives in
+// localStorage, not sessionStorage. sessionStorage is scoped per top-level
+// browsing context (tab) and never fires the native `storage` event in
+// OTHER tabs -- it isn't shared at all, so the storage listeners in
+// site-auth-actions.tsx/dashboard-guard.tsx could only ever have reacted to
+// a change made within the SAME tab, never a genuine logout/login in
+// another tab, even though they were written to expect exactly that.
+// localStorage is the browser-native mechanism for this: writing here
+// fires `storage` in every OTHER same-origin tab automatically. This holds
+// no secret -- BesatSession is display metadata only (username, full
+// name, role, redirect path, unit id); the actual auth tokens never touch
+// client JS at all, living only in HttpOnly cookies the BFF routes manage
+// server-side. A stale localStorage display value is self-healing: the
+// next getCurrentUser() call (already run by every consumer of this
+// module) fails against the real cookie and clears it via
+// clearBesatSession(), same as it always has for a stale sessionStorage
+// value.
 function canUseStorage() {
-  return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
 function removeLegacyCredentialStorage() {
@@ -58,7 +75,7 @@ export function readBesatSession(): BesatSession | null {
   removeLegacyCredentialStorage();
 
   try {
-    const raw = window.sessionStorage.getItem(displayKey);
+    const raw = window.localStorage.getItem(displayKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SessionUser;
     if (!parsed.role) return null;
@@ -71,13 +88,13 @@ export function readBesatSession(): BesatSession | null {
 export function writeBesatSession(session: BesatSession) {
   if (!canUseStorage()) return;
   removeLegacyCredentialStorage();
-  window.sessionStorage.setItem(displayKey, JSON.stringify(session));
+  window.localStorage.setItem(displayKey, JSON.stringify(session));
   window.dispatchEvent(new Event("besat-auth-changed"));
 }
 
 export function clearBesatSession() {
   if (!canUseStorage()) return;
-  window.sessionStorage.removeItem(displayKey);
+  window.localStorage.removeItem(displayKey);
   removeLegacyCredentialStorage();
   window.dispatchEvent(new Event("besat-auth-changed"));
 }
@@ -89,8 +106,14 @@ export function getBesatSessionDisplayName(session: BesatSession) {
 export function redirectPathForRole(role: BesatRole): string {
   switch (role) {
     case "general_manager":
-    case "unit_manager":
       return "/dashboard/admin";
+    // Every "admin" menu item is general_manager-only (see
+    // dashboard-data.ts) -- a unit_manager landing there saw only the
+    // three items that happen to carry no role restriction at all
+    // (Dashboard/Calendar/Profile) and no way to reach their actual
+    // permitted workflows. "content-manager" is the shell whose menu
+    // items are actually open to unit_manager.
+    case "unit_manager":
     case "unit_media":
       return "/dashboard/content-manager";
     case "parent":
@@ -103,7 +126,7 @@ export function redirectPathForRole(role: BesatRole): string {
 export function rolesForDashboardSegment(segment: string): BesatRole[] {
   switch (segment) {
     case "admin":
-      return ["general_manager", "unit_manager"];
+      return ["general_manager"];
     case "content-manager":
       return ["general_manager", "unit_manager", "unit_media"];
     case "parents":

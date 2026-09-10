@@ -30,9 +30,15 @@ function withQuery(endpoint: string, query: Record<string, Scalar>) {
   return encoded ? `${endpoint}?${encoded}` : endpoint;
 }
 
-export function getPublicNews(query: Record<string, Scalar> = {}) {
+// FE-CATALOG-FILTER-URL-MIXED-REQUEST-001 (residual): accepting an
+// optional AbortSignal lets a caller actually cancel a superseded request's
+// transport (not just discard its result once it lands) -- see NewsHub's
+// fetch effect, which aborts the previous request's controller before
+// issuing a new one on a filter/page/URL change.
+export function getPublicNews(query: Record<string, Scalar> = {}, signal?: AbortSignal) {
   return apiRequest<ApiListResponse<PublicNewsItem>>(
     withQuery(apiEndpoints.news, query),
+    { signal },
   );
 }
 

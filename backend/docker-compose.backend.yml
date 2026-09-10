@@ -27,6 +27,16 @@ services:
       - path: docker.env
         required: true
     environment:
+      # Hardcoded here, not left to docker.env alone: Compose's own
+      # `environment:` always takes precedence over `env_file:` for the
+      # same key, so this cannot be silently overridden by a stray/wrong
+      # value (or a missing line) in docker.env. config/wsgi.py's own
+      # DJANGO_SETTINGS_MODULE fallback is "config.settings.local" if
+      # this were ever unset -- which would silently skip every check in
+      # _production_guard.py entirely, since that guard only runs when
+      # production settings are actually imported. Mirrors the same
+      # hardcoded value in ../docker-compose.prod.yml.
+      DJANGO_SETTINGS_MODULE: config.settings.production
       DJANGO_READ_DOT_ENV_FILE: "False"
     ports:
       - "${BACKEND_PORT:-8000}:8000"

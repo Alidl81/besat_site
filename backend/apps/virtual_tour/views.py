@@ -331,6 +331,22 @@ class CMSTourHotspotViewSet(ModelViewSet):
 
         return queryset
 
+    # AUTH-VTOUR-HOTSPOT-WORKFLOW-001: same terminal-workflow-status lock
+    # already applied to CMSTourSceneViewSet itself (see its own
+    # status_value check above) and to the equivalent child-object gaps
+    # fixed elsewhere this session (events, News/Announcement content, shop
+    # product gallery images) -- a hotspot is a child of its scene, and
+    # editing/creating/deleting one is exactly as much a mutation of the
+    # scene's published surface as editing the scene's own fields is. This
+    # viewset previously only checked unit/department ownership, never the
+    # scene's status, so a unit_media/unit_manager could freely add, edit,
+    # or remove hotspots on an already APPROVED/PUBLISHED/ARCHIVED scene.
+    _NON_GM_LOCKED_STATUSES = (
+        TourScene.Status.APPROVED,
+        TourScene.Status.PUBLISHED,
+        TourScene.Status.ARCHIVED,
+    )
+
     def _ensure_can_write_scene(self, scene):
         user = self.request.user
         if is_general_manager(user):
@@ -339,6 +355,8 @@ class CMSTourHotspotViewSet(ModelViewSet):
             raise PermissionDenied("فقط مدیر کل اجازه مدیریت نقاط اتصال دپارتمانی را دارد.")
         if scene.unit_id not in get_accessible_unit_ids(user):
             raise PermissionDenied("شما به این واحد دسترسی ندارید.")
+        if scene.status in self._NON_GM_LOCKED_STATUSES:
+            raise PermissionDenied("شما اجازه ویرایش نقاط اتصال این صحنه را در این وضعیت ندارید.")
 
     def perform_create(self, serializer):
         scene = serializer.validated_data["scene"]
@@ -349,6 +367,11 @@ class CMSTourHotspotViewSet(ModelViewSet):
             raise_drf_validation_error(exc)
 
     def perform_update(self, serializer):
+        # `scene` is writable on this serializer -- check the CURRENT scene
+        # too, not just the target one, so a non-GM can't sidestep a locked
+        # scene's guard by simply reassigning the hotspot to an editable
+        # scene in the same request.
+        self._ensure_can_write_scene(serializer.instance.scene)
         scene = serializer.validated_data.get("scene", serializer.instance.scene)
         self._ensure_can_write_scene(scene)
         try:

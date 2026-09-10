@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Per-payment-attempt state -- must not be statically generated as one shared page.
+export const dynamic = "force-dynamic";
+
 export default async function MockPaymentPage({
   params,
 }: {

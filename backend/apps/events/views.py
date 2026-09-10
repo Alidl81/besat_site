@@ -383,11 +383,26 @@ class CMSEventViewSet(ModelViewSet):
         if unit.id not in unit_ids:
             raise PermissionDenied("شما به این واحد دسترسی ندارید.")
 
+    # AUTH-EVENT-PUBLISHED-MUTATION-001 / AUTH-EVENT-PUBLISHED-DELETE-001:
+    # once an event has left the draft/review workflow (approved,
+    # published, or archived), only a general manager may touch it further
+    # -- the same convention apps.content.cms already applies to news/
+    # announcements (a non-GM status change into one of these states is
+    # forced back to WAITING_REVIEW rather than accepted outright).
+    # HasEventCMSPermission/_validate_update_scope previously only checked
+    # *unit* scope, never workflow state, so a unit manager/media role
+    # could PATCH or hard-DELETE a live public event -- including changing
+    # its title or deleting it outright -- with no review step at all.
+    _NON_GM_LOCKED_STATUSES = (Event.Status.APPROVED, Event.Status.PUBLISHED, Event.Status.ARCHIVED)
+
     def _validate_update_scope(self, serializer):
         if is_general_manager(self.request.user):
             return
 
         instance = self.get_object()
+
+        if instance.status in self._NON_GM_LOCKED_STATUSES:
+            raise PermissionDenied("این رویداد منتشر یا آرشیو شده و فقط توسط مدیر کل قابل ویرایش است.")
 
         if instance.scope != Event.Scope.UNIT:
             raise PermissionDenied("شما به این رویداد دسترسی ندارید.")
@@ -404,6 +419,12 @@ class CMSEventViewSet(ModelViewSet):
 
         if not new_unit or new_unit.id not in unit_ids:
             raise PermissionDenied("شما به این واحد دسترسی ندارید.")
+
+    def perform_destroy(self, instance):
+        if not is_general_manager(self.request.user) and instance.status in self._NON_GM_LOCKED_STATUSES:
+            raise PermissionDenied("این رویداد منتشر یا آرشیو شده و فقط توسط مدیر کل قابل حذف است.")
+
+        instance.delete()
 
     def _workflow_note(self, request):
         serializer = EventWorkflowActionSerializer(data=request.data)

@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { CrudSection, EmptyState, StatusBadge } from "@/components/crud/crud-ui";
+import { PanelError } from "@/components/dashboard/panel-request-state";
 import { usePanelRequest } from "@/hooks/use-panel-request";
 import { cmsGetCourseEnrollments } from "@/services/shop-cms-service";
 
 export function ShopEnrollmentsManager() {
-  const { data, loading, error } = usePanelRequest(() => cmsGetCourseEnrollments(), []);
+  const [page, setPage] = useState(1);
+  const { data, loading, error, reload } = usePanelRequest(() => cmsGetCourseEnrollments({ page }), [page]);
   const enrollments = data?.results ?? [];
 
   return (
@@ -13,11 +16,20 @@ export function ShopEnrollmentsManager() {
       {loading ? (
         <p className="py-6 text-center text-sm font-bold text-slate-400">در حال بارگذاری…</p>
       ) : error ? (
-        <p role="alert" className="py-6 text-center text-sm font-bold text-rose-600">{error}</p>
+        // FE-PANEL-SHOP-CRUD-ERROR-RETRY-001: see shop-categories-manager.tsx
+        // -- identical no-retry defect, same shared PanelError fix.
+        <PanelError message={error} onRetry={reload} />
       ) : enrollments.length === 0 ? (
         <EmptyState text="ثبت‌نامی وجود ندارد." />
       ) : (
-        <div className="overflow-x-auto">
+        <div className="panel-table-scroll">
+          {/* panel-table-scroll (globals.css) -- see
+              FE-DASH-RTL-TABLE-ROOT-OVERFLOW-001 and
+              FE-DASH-RTL-TABLE-MOBILE-AFFORDANCE-001 in
+              shop-orders-manager.tsx: isolates this wrapper's overflowing
+              RTL table content from contributing to root-level
+              documentElement.scrollWidth, and fades in an edge cue when
+              columns start outside the visible area. */}
           <table className="panel-table w-full">
             <thead>
               <tr>
@@ -40,6 +52,35 @@ export function ShopEnrollmentsManager() {
               ))}
             </tbody>
           </table>
+          {/* FE-PANEL-ADMIN-COURSE-ENROLLMENTS-PAGINATION-001: the backend's
+              StandardResultsSetPagination returns ten items per page, but this
+              never sent a page param and never rendered any next/previous
+              control -- older enrollments became permanently inaccessible past
+              the first page. Reuses the established pagination nav convention
+              from messaging-panel.tsx/gallery-explorer.tsx. */}
+          {data?.next || data?.previous ? (
+            <nav aria-label="صفحه‌بندی ثبت‌نام‌ها" className="flex items-center justify-center gap-3 border-t border-slate-100 px-5 py-3">
+              <button
+                type="button"
+                disabled={!data?.previous}
+                onClick={() => setPage((current) => current - 1)}
+                className="min-h-9 rounded-lg border border-slate-300 bg-white px-4 text-xs font-black text-[#0f2f4a] disabled:opacity-45"
+              >
+                صفحه قبل
+              </button>
+              <span className="text-xs font-black text-slate-600">
+                صفحه {new Intl.NumberFormat("fa-IR").format(page)}
+              </span>
+              <button
+                type="button"
+                disabled={!data?.next}
+                onClick={() => setPage((current) => current + 1)}
+                className="min-h-9 rounded-lg border border-slate-300 bg-white px-4 text-xs font-black text-[#0f2f4a] disabled:opacity-45"
+              >
+                صفحه بعد
+              </button>
+            </nav>
+          ) : null}
         </div>
       )}
     </CrudSection>

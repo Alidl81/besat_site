@@ -1,28 +1,38 @@
 import "server-only";
+import { HAS_SESSION_COOKIE_NAME } from "@/lib/auth/session-marker-cookie";
 
 export const sessionCookieNames = {
   access: 'besat_access',
   refresh: 'besat_refresh',
+  // Non-HttpOnly marker: mirrors whether a session cookie pair was just set
+  // (login) or cleared (logout / failed silent refresh), so client code can
+  // check `document.cookie` and skip a doomed `/me` request -- and the red
+  // 401 console error that comes with it -- for a visitor who has no
+  // session at all, instead of always making the request to find out.
+  hasSession: HAS_SESSION_COOKIE_NAME,
 } as const;
+
+const REFRESH_MAX_AGE = 7 * 24 * 60 * 60;
 
 type SessionTokens = {
   access: string;
   refresh: string;
 };
 
-function cookieAttributes(maxAge: number) {
-  const attributes = [
-    'Path=/',
-    'HttpOnly',
-    'SameSite=Lax',
-    `Max-Age=${maxAge}`,
-  ];
+function cookieAttributes(maxAge: number, { httpOnly = true }: { httpOnly?: boolean } = {}) {
+  const attributes = ['Path=/', 'SameSite=Lax', `Max-Age=${maxAge}`];
+  if (httpOnly) attributes.push('HttpOnly');
   if (process.env.NODE_ENV === 'production') attributes.push('Secure');
   return attributes.join('; ');
 }
 
-function serializeCookie(name: string, value: string, maxAge: number) {
-  return `${name}=${encodeURIComponent(value)}; ${cookieAttributes(maxAge)}`;
+function serializeCookie(
+  name: string,
+  value: string,
+  maxAge: number,
+  options?: { httpOnly?: boolean },
+) {
+  return `${name}=${encodeURIComponent(value)}; ${cookieAttributes(maxAge, options)}`;
 }
 
 export function readCookie(cookieHeader: string | null, name: string) {
@@ -46,11 +56,22 @@ export function appendSessionCookies(headers: Headers, tokens: SessionTokens) {
   );
   headers.append(
     'set-cookie',
-    serializeCookie(sessionCookieNames.refresh, tokens.refresh, 7 * 24 * 60 * 60),
+    serializeCookie(sessionCookieNames.refresh, tokens.refresh, REFRESH_MAX_AGE),
+  );
+  // Mirrors the refresh cookie's lifetime, not the shorter-lived access
+  // cookie's: as long as a refresh token could still silently resurrect the
+  // session, client code should keep treating "worth checking" as true.
+  headers.append(
+    'set-cookie',
+    serializeCookie(sessionCookieNames.hasSession, '1', REFRESH_MAX_AGE, { httpOnly: false }),
   );
 }
 
 export function clearSessionCookies(headers: Headers) {
   headers.append('set-cookie', serializeCookie(sessionCookieNames.access, '', 0));
   headers.append('set-cookie', serializeCookie(sessionCookieNames.refresh, '', 0));
+  headers.append(
+    'set-cookie',
+    serializeCookie(sessionCookieNames.hasSession, '', 0, { httpOnly: false }),
+  );
 }

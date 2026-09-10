@@ -137,12 +137,26 @@ export type StudentItem = {
   updated_at: string;
 };
 
+// FE-REGISTRATION-CONTRACT-001: this used to describe a richer shape
+// (nested `parent`, `requested_grade` as {id, title}, `documents`,
+// `timeline`, plus `request_code`/`student_avatar_url`/
+// `student_national_code`) that backend/apps/registration never actually
+// implements -- confirmed against CMSRegistrationRequestSerializer,
+// CMSRegistrationRequestUpdateSerializer, and RegistrationRequest.Status
+// (backend/apps/registration/{serializers,models}.py): there is no
+// document-upload or audit-timeline concept anywhere in this app, parent
+// info is three flat fields, and `requested_grade` is a plain free-text
+// string. Every registration endpoint (list, retrieve, and each
+// approve/reject/contact/request-documents action) returns this exact
+// same flat shape, so a single type now matches all of them.
 export type RegistrationStatus =
   | "new"
   | "reviewing"
   | "needs_documents"
+  | "contacted"
   | "accepted"
-  | "rejected";
+  | "rejected"
+  | "archived";
 
 export type RegistrationSummary = {
   total: number;
@@ -152,43 +166,30 @@ export type RegistrationSummary = {
   needs_documents: number;
 };
 
-export type RegistrationDocument = {
-  id: ApiId;
-  title: string;
-  status: "pending" | "approved" | "rejected" | "missing";
-  file_url: string | null;
-};
-
-export type RegistrationTimelineItem = {
-  id: ApiId;
-  title: string;
-  created_at: string;
-  actor_name: string | null;
-};
-
 export type RegistrationItem = {
   id: ApiId;
-  request_code: string;
   student_full_name: string;
-  student_avatar_url: string | null;
-  student_national_code: string | null;
-  requested_grade: NamedOption | null;
+  full_name: string;
+  parent_full_name: string | null;
+  parent_phone: string;
+  parent_email: string | null;
   requested_unit: NamedOption | null;
-  parent: {
-    full_name: string;
-    phone: string | null;
-    email: string | null;
-  };
+  requested_grade: string | null;
   description: string | null;
   status: RegistrationStatus;
-  documents: RegistrationDocument[];
-  timeline: RegistrationTimelineItem[];
+  admin_note: string | null;
   created_at: string;
   updated_at: string;
 };
 
 export type ContentKind = "news" | "announcement";
 
+// Mirrors apps.core.models.ContentWorkflowModel.Status exactly, plus
+// "scheduled" -- a read-only, derived pseudo-status apps.content.cms
+// computes at serialization time for a PUBLISHED item whose published_at is
+// still in the future (see serialize_content_item). There is deliberately
+// no "unpublished" or "trash" status: neither exists in the model, and no
+// action can produce them -- see ContentWorkflowAction below.
 export type ContentWorkflowStatus =
   | "draft"
   | "in_review"
@@ -196,19 +197,20 @@ export type ContentWorkflowStatus =
   | "approved"
   | "scheduled"
   | "published"
-  | "unpublished"
-  | "archived"
-  | "trash";
+  | "archived";
 
+// Mirrors the @action routes actually exposed by CMSContentViewSet
+// (apps/content/cms.py). "request-changes"/"unpublish"/"trash" were
+// previously wired to buttons here but had no matching backend route (404
+// on every click) -- "reject" is the real action behind the "request
+// changes" UI copy; unpublish/trash never existed on either side.
 export type ContentWorkflowAction =
   | "submit-review"
   | "approve"
-  | "request-changes"
+  | "reject"
   | "schedule"
   | "publish"
-  | "unpublish"
   | "archive"
-  | "trash"
   | "restore";
 
 export type ContentSeoMetadata = {
@@ -237,6 +239,9 @@ export type ContentItem = {
   seo?: ContentSeoMetadata;
   audience?: "all" | "students" | "parents" | "staff";
   is_featured?: boolean;
+  /** News-only: drives the homepage's "important news" rail. Absent for announcements. */
+  is_important?: boolean;
+  priority?: number;
   allow_comments?: boolean;
   scope: "school" | "unit";
   unit: NamedOption | null;
@@ -261,9 +266,7 @@ export type ContentSummary = {
   approved: number;
   scheduled: number;
   published: number;
-  unpublished: number;
   archived: number;
-  trash: number;
 };
 
 export type ContentRevision = {

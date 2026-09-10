@@ -11,7 +11,7 @@ export function ShopEmptyState({
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[#d8dbe0] bg-[#fbfaf7] px-6 py-16 text-center">
       <PackageSearch aria-hidden="true" className="size-10 text-[#0a2848]/30" />
       <p className="text-base font-black text-[#0a2848]">{title}</p>
-      <p className="max-w-sm text-sm font-bold leading-7 text-[#0a2848]/60">{description}</p>
+      <p className="max-w-sm text-sm font-bold leading-7 text-[#0a2848]/70">{description}</p>
     </div>
   );
 }

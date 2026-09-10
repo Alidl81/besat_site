@@ -21,6 +21,7 @@ from .serializers import (
     LogoutSerializer,
     MeSerializer,
     ProfileSerializer,
+    RefreshTokenSerializer,
     SetPasswordSerializer,
     UserPermissionsSerializer,
     UserUnitSerializer,
@@ -45,6 +46,10 @@ class LoginAPIView(TokenObtainPairView):
 class RefreshTokenAPIView(TokenRefreshView):
     permission_classes = [AllowAny]
     throttle_scope = "refresh"
+    # AUTH-001: serializes refresh/rotation against a concurrent
+    # password change via a per-user row lock -- see
+    # RefreshTokenSerializer's docstring in .serializers.
+    serializer_class = RefreshTokenSerializer
 
     @extend_schema(
         tags=["Auth"],

@@ -1,6 +1,4 @@
 ﻿@import "tailwindcss";
-@source not "../../public/images/home-slider/بررسی قالب HTML Digimark.html";
-@source not "../../public/images/home-slider/بررسی قالب HTML Digimark_files";
 
 @font-face {
   font-family: "Estedad";
@@ -38,6 +36,18 @@
 html {
   direction: rtl;
   scroll-behavior: smooth;
+  /* A closed (translate-x-full) fixed-position drawer is only moved
+     visually -- its untransformed box still contributes to the
+     scrollable area of the document root, since position:fixed elements
+     are sized/positioned relative to the viewport/initial containing
+     block, not to <body>. body's own overflow-x:hidden below only
+     contains body's normal-flow content, not a fixed descendant escaping
+     it entirely, which is why documentElement.scrollWidth could still
+     exceed the viewport even with a closed, inert, aria-hidden drawer
+     (see FE-DASH-MOBILE-CLOSED-OVERFLOW-001). Mirroring the same
+     overflow-x:hidden onto html closes that gap without touching any
+     drawer's own animation/inert/focus logic. */
+  overflow-x: hidden;
 }
 
 body {
@@ -73,7 +83,16 @@ img {
 
 @keyframes besat-page-enter {
   from { opacity: 0; transform: translateY(12px); filter: blur(2px); }
-  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+  /* transform: none here is necessary but NOT sufficient on its own: with
+     animation-fill-mode "both" (see .besat-page-enter below), a browser's
+     held/filled value for an animated transform is an equivalent identity
+     matrix, not the literal `none` keyword -- confirmed by real
+     measurement, not just spec reading -- so this alone does not stop
+     <main> from being a containing block for position:fixed descendants
+     after the animation completes. The actual fix is in
+     page-motion.tsx, which drops the animation class once it ends so
+     <main> reverts to its true unanimated (literal none) transform. */
+  to { opacity: 1; transform: none; filter: blur(0); }
 }
 
 @keyframes besat-dropdown-in {
@@ -104,6 +123,11 @@ img {
 @keyframes besat-carousel-progress {
   from { transform: scaleX(0); }
   to { transform: scaleX(1); }
+}
+
+@keyframes besat-article-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes besat-stagger-item {
@@ -186,12 +210,34 @@ img {
   opacity: 0;
 }
 
+/* Public pages sit under SiteHeader's sticky mobile bar, whose own height
+   is h-[calc(62px+env(safe-area-inset-top))] (site-header.tsx). Without
+   this, a browser's default scroll-into-view on a programmatic .focus()
+   call (e.g. moving to the first invalid field after a validation
+   failure) lands the field flush at viewport y=0 -- completely hidden
+   behind that fixed-position header, along with its error text right
+   below it. +12px is just breathing room so the field isn't flush
+   against the header's bottom edge either. */
+.besat-focus-scroll-offset {
+  scroll-margin-top: calc(62px + env(safe-area-inset-top) + 12px);
+}
+
 .besat-orbit-enter {
   animation: besat-orbit-enter 850ms cubic-bezier(.2,.8,.2,1) both;
 }
 
 .besat-page-enter {
   animation: besat-page-enter 650ms cubic-bezier(.16,1,.3,1) both;
+}
+
+.besat-article-in {
+  animation: besat-article-in 520ms cubic-bezier(.16,1,.3,1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .besat-article-in {
+    animation: none;
+  }
 }
 
 .besat-dropdown-panel[data-open="true"] {
@@ -443,9 +489,17 @@ img {
   animation: besat-modal-in 520ms cubic-bezier(.16,1,.3,1) both;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* Wrapped in Tailwind's base layer (not left unlayered) so that any
+   text-color/text-decoration utility class continues to win, matching how
+   Tailwind's own Preflight reset is layered. An unlayered version of this
+   rule silently overrides every text-color utility applied to an <a>,
+   regardless of specificity, because unlayered CSS always beats layered CSS
+   in the Cascade Layers spec. */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 button,
@@ -489,6 +543,31 @@ button {
   background: #143d5f;
   color: #ffffff !important;
   box-shadow: 0 18px 36px rgba(15, 47, 74, 0.28);
+}
+
+/* Background is a hardcoded darker gold, not var(--color-accent) (#c98c3d):
+   white text on #c98c3d is only 2.87:1, failing WCAG AA (needs >=4.5:1) --
+   see FE-A11Y-CONTRAST-NOTFOUND-001. #8a641f is this session's established
+   AA-safe darkened gold, reused site-wide for this shared button (white on
+   #8a641f is ~5.35:1). --color-accent itself is left untouched since it's
+   also used for non-text decorative accents elsewhere that don't need this. */
+.besat-accent-button {
+  background: #8a641f;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 30px rgba(201, 140, 61, 0.28);
+}
+
+.besat-accent-button,
+.besat-accent-button span,
+.besat-accent-button svg {
+  color: #ffffff !important;
+}
+
+.besat-accent-button:hover {
+  background: #74531a;
+  color: #ffffff !important;
+  box-shadow: 0 18px 36px rgba(201, 140, 61, 0.32);
 }
 
 a[class*="bg-[#0f2f4a]"],
@@ -762,6 +841,13 @@ button.besat-accent-button * {
 .besat-accent-button:hover * {
   color: #ffffff !important;
 }
+
+.besat-gold-button,
+.besat-gold-button *,
+a.besat-gold-button,
+a.besat-gold-button * {
+  color: #0b213c !important;
+}
 /* BESAT_BUTTON_COLOR_FIX_END */
 
 /* BESAT_HEADER_FONT_FIX_START */
@@ -888,6 +974,46 @@ button.besat-accent-button * {
   box-shadow: 0 8px 20px rgba(41, 24, 4, 0.2);
 }
 
+.dashboard-sidebar-link:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 2px;
+}
+
+/* Bottom utility area ("بازگشت به سایت" / "خروج از حساب"): these are
+   important navigation/session actions, not regular nav items, so they get
+   a real, stable surface (fill + border) instead of relying on transparent
+   text over the navy gradient -- the previous zero-background state read as
+   disabled/low-contrast even though no backdrop-filter was involved. */
+.besat-dashboard-sidebar-footer .dashboard-sidebar-link {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.besat-dashboard-sidebar-footer .dashboard-sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+
+/* Restrained danger treatment for logout: distinct from the neutral
+   "بازگشت به سایت" surface, but not a large red block. */
+.dashboard-sidebar-link.dashboard-sidebar-link--danger {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #fecaca;
+}
+
+.dashboard-sidebar-link.dashboard-sidebar-link--danger:hover {
+  background: rgba(248, 113, 113, 0.2);
+  border-color: rgba(248, 113, 113, 0.42);
+  color: #fee2e2;
+}
+
+.dashboard-sidebar-link.dashboard-sidebar-link--danger:focus-visible {
+  outline-color: rgba(254, 202, 202, 0.9);
+}
+
   @media (min-width: 1024px) and (max-height: 900px) {
   .besat-dashboard-brand {
     margin-top: 0.65rem;
@@ -932,13 +1058,6 @@ button.besat-accent-button * {
   .besat-dashboard-sidebar-footer .dashboard-sidebar-link {
     min-height: 2.2rem;
     padding-block: 0.3rem;
-  }
-}
-
-@media (min-width: 1024px) and (max-height: 699px) {
-  .besat-panel-menu-scroll {
-    overflow-y: auto !important;
-    overscroll-behavior: contain;
   }
 }
 
@@ -1089,6 +1208,33 @@ button.besat-accent-button * {
   transform: translateY(-2px);
 }
 
+/* FE-DASH-RTL-TABLE-MOBILE-AFFORDANCE-001: a `panel-table` wider than its
+   `overflow-x-auto` wrapper is scrollable, but nothing signals that -- on a
+   narrow RTL viewport the status/action columns start outside the visible
+   area with no visual cue that more content is one drag away. This edge-fade
+   is direction-agnostic (background-position 0%/100% is always keyed to the
+   wrapper's own physical left/right edge, never to `direction`), so it
+   correctly fades out whichever physical edge still has hidden content and
+   disappears entirely once that edge is scrolled into view; when the table
+   already fits, both edges start already "scrolled in" and no fade ever
+   paints. The `local`-attached layers are opaque covers that scroll with the
+   table content and occlude the `scroll`-attached shadow layers once that
+   edge is no longer clipped. */
+.panel-table-scroll {
+  overflow-x: auto;
+  contain: paint;
+  background-color: var(--panel-surface);
+  background-image:
+    linear-gradient(to right, var(--panel-surface) 30%, rgba(255, 255, 255, 0)),
+    linear-gradient(to left, var(--panel-surface) 30%, rgba(255, 255, 255, 0)),
+    linear-gradient(to right, rgba(15, 37, 58, 0.18), rgba(15, 37, 58, 0) 30%),
+    linear-gradient(to left, rgba(15, 37, 58, 0.18), rgba(15, 37, 58, 0) 30%);
+  background-position: 0 0, 100% 0, 0 0, 100% 0;
+  background-repeat: no-repeat;
+  background-size: 24px 100%, 24px 100%, 10px 100%, 10px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+
 .panel-table {
   width: 100%;
   border-collapse: separate;
@@ -1127,6 +1273,38 @@ button.besat-accent-button * {
   background: #fffbf4;
 }
 
+/* FE-DASH-RTL-SHOP-PRODUCT-ACTION-001: the edge-cue fade from
+   panel-table-scroll (FE-DASH-RTL-TABLE-MOBILE-AFFORDANCE-001) signals that
+   a table is scrollable, but on a table wide enough that its action column
+   sits ~250-300px past the visible RTL wrapper edge, that's still a "read
+   only" list on first glance -- the fade alone doesn't make the controls
+   reachable, only discoverable. `left: 0` (not the logical
+   `inset-inline-start`, which would resolve to the wrong physical edge
+   under `direction: rtl`) pins this column to the wrapper's real left edge
+   -- where the action column already renders in RTL, since it's the last
+   DOM column -- so it's visible immediately, with no scroll gesture
+   required at all. An explicit opaque background is required so the
+   columns scrolling underneath don't show through the sticky cell; the
+   left-edge box-shadow (not a border, so it doesn't add a second baseline
+   next to the real cell borders) gives it a visible separation from the
+   content scrolling past it. */
+.panel-table-action-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--panel-surface);
+  box-shadow: -1px 0 0 0 #e7eaed;
+}
+
+.panel-table thead .panel-table-action-sticky {
+  background: #fafbfc;
+}
+
+.panel-table tbody tr:hover .panel-table-action-sticky,
+.panel-table tbody tr.is-selected .panel-table-action-sticky {
+  background: #fffbf4;
+}
+
 .panel-status {
   display: inline-flex;
   min-height: 1.7rem;
@@ -1134,7 +1312,7 @@ button.besat-accent-button * {
   border-radius: 999px;
   background: #f1f3f5;
   padding: 0.25rem 0.65rem;
-  color: #687482;
+  color: #5b6774;
   font-size: 0.66rem;
   font-weight: 900;
 }
@@ -1222,6 +1400,7 @@ button.besat-accent-button * {
 
 .panel-empty-state {
   display: flex;
+  flex-direction: column;
   min-height: 12rem;
   align-items: center;
   justify-content: center;
@@ -1232,6 +1411,26 @@ button.besat-accent-button * {
   font-size: 0.8rem;
   font-weight: 800;
   text-align: center;
+}
+
+/* FE-PANEL-ADMIN-OVERVIEW-EMPTY-DENSITY-001: a dashboard-feed-specific
+   compact variant of .panel-empty-state -- see PanelEmpty's `compact` prop
+   in panel-request-state.tsx for why this exists as a separate class
+   rather than changing .panel-empty-state itself. */
+.panel-empty-state-compact {
+  display: flex;
+  flex-direction: column;
+  min-height: 6rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #dfe4e8;
+  border-radius: 0.7rem;
+  background: #fbfcfd;
+  color: #718096;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: center;
+  padding: 1rem;
 }
 
 .panel-divider-title {
@@ -1290,7 +1489,7 @@ button.besat-accent-button * {
   --editor-ink: #173652;
   --editor-amber: #d98a12;
   --editor-border: #e1e6ea;
-  --editor-muted: #687789;
+  --editor-muted: #5a6b7d;
   min-width: 0;
   color: var(--editor-ink);
 }
@@ -1342,7 +1541,7 @@ button.besat-accent-button * {
 }
 
 .besat-editor-studio-title p {
-  color: #87919d;
+  color: var(--editor-muted);
   font-size: 0.68rem;
   font-weight: 800;
 }
@@ -1352,6 +1551,13 @@ button.besat-accent-button * {
   color: var(--editor-navy);
   font-size: clamp(1.1rem, 2vw, 1.45rem);
   font-weight: 950;
+  outline: none;
+  border-radius: 0.3rem;
+}
+
+.besat-editor-studio-title h2:focus {
+  outline: 3px solid var(--editor-amber);
+  outline-offset: 3px;
 }
 
 .besat-editor-header-actions {
@@ -1418,8 +1624,7 @@ button.besat-accent-button * {
 
 .besat-editor-document,
 .besat-editor-side-card,
-.besat-editor-setting-group,
-.besat-editor-media-blocks {
+.besat-editor-setting-group {
   border: 1px solid var(--editor-border);
   border-radius: 0.7rem;
   background: #fff;
@@ -1490,7 +1695,7 @@ button.besat-accent-button * {
 .besat-editor-document-meta label > small {
   display: block;
   margin-top: 0.35rem;
-  color: #929ba5;
+  color: var(--editor-muted);
   font-size: 0.62rem;
   font-weight: 700;
   text-align: left;
@@ -1507,7 +1712,7 @@ button.besat-accent-button * {
 }
 
 .besat-editor-document-label > div {
-  color: #87919d;
+  color: var(--editor-muted);
   font-size: 0.62rem;
   font-weight: 700;
 }
@@ -1540,12 +1745,12 @@ button.besat-accent-button * {
 
 .besat-editor-toolbar-scroll {
   display: flex;
+  flex-wrap: wrap;
   min-height: 3.45rem;
   align-items: center;
   gap: 0.18rem;
-  overflow-x: auto;
   padding: 0.45rem 0.65rem;
-  scrollbar-width: thin;
+  row-gap: 0.3rem;
 }
 
 .besat-editor-tool {
@@ -1593,14 +1798,123 @@ button.besat-accent-button * {
   top: calc(100% + 0.35rem);
   right: 0.65rem;
   display: grid;
-  width: min(24rem, calc(100vw - 3rem));
-  grid-template-columns: minmax(0, 1fr) 2.5rem 2.5rem;
+  width: min(26rem, calc(100vw - 3rem));
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
   gap: 0.35rem;
   border: 1px solid var(--editor-border);
   border-radius: 0.6rem;
   background: #fff;
   padding: 0.45rem;
   box-shadow: 0 12px 35px rgba(15, 40, 63, 0.15);
+}
+
+.besat-editor-link-popover-checkbox {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.1rem;
+  color: #52708b;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.besat-editor-link-popover-remove {
+  color: #c93434 !important;
+}
+
+.besat-editor-toolbar-dropdown {
+  position: relative;
+}
+
+.besat-editor-toolbar-menu {
+  position: absolute;
+  z-index: 16;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  display: grid;
+  gap: 0.15rem;
+  min-width: 11rem;
+  border: 1px solid var(--editor-border);
+  border-radius: 0.6rem;
+  background: #fff;
+  padding: 0.35rem;
+  box-shadow: 0 12px 35px rgba(15, 40, 63, 0.15);
+}
+
+.besat-editor-toolbar-menu--wide {
+  min-width: 15rem;
+}
+
+.besat-editor-toolbar-menu button[role="menuitem"] {
+  border-radius: 0.4rem;
+  padding: 0.45rem 0.6rem;
+  color: #3b536a;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+.besat-editor-toolbar-menu button[role="menuitem"]:hover {
+  background: #f2f6f9;
+  color: var(--editor-navy);
+}
+
+.besat-editor-toolbar-menu-danger {
+  color: #c93434 !important;
+}
+
+.besat-editor-toolbar-menu-label {
+  margin-top: 0.25rem;
+  padding: 0 0.3rem;
+  color: var(--editor-muted);
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+.besat-editor-toolbar-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 0.2rem 0.3rem 0.4rem;
+}
+
+.besat-editor-toolbar-swatches button {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid rgba(15, 40, 63, 0.15);
+  border-radius: 999px;
+}
+
+.besat-editor-toolbar-swatch-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f2f6f9;
+  color: var(--editor-muted);
+}
+
+.besat-editor-toolbar-menu-row {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.15rem 0.3rem;
+}
+
+.besat-editor-toolbar-menu-row button {
+  flex: 1;
+  border: 1px solid #e1e6ea;
+  border-radius: 0.4rem;
+  padding: 0.35rem;
+  color: #3b536a;
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.besat-editor-toolbar-menu-row button.is-active {
+  border-color: var(--editor-navy);
+  background: var(--editor-navy);
+  color: #fff;
 }
 
 .besat-editor-link-popover input {
@@ -1737,6 +2051,121 @@ button.besat-accent-button * {
   color: #082f57;
 }
 
+[data-besat-editor-block="image"] {
+  max-width: 100%;
+}
+
+[data-besat-editor-block="image"] img {
+  max-width: 100%;
+}
+
+.besat-image-resize-handle {
+  position: absolute;
+  z-index: 2;
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 1px solid #d7a95d;
+  border-radius: 0.35rem;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(15, 40, 63, 0.2);
+  opacity: 0;
+  cursor: nwse-resize;
+  transition: opacity 120ms ease;
+}
+
+[data-besat-editor-block="image"]:hover .besat-image-resize-handle,
+[data-besat-editor-block="image"].is-selected .besat-image-resize-handle,
+.besat-image-resize-handle:focus-visible {
+  opacity: 1;
+}
+
+.besat-image-resize-handle:focus-visible {
+  outline: 2px solid #d98712;
+  outline-offset: 1px;
+}
+
+.besat-image-resize-handle--top-right { top: -0.45rem; right: -0.45rem; cursor: nesw-resize; }
+.besat-image-resize-handle--top-left { top: -0.45rem; left: -0.45rem; cursor: nwse-resize; }
+.besat-image-resize-handle--bottom-right { bottom: -0.45rem; right: -0.45rem; cursor: nwse-resize; }
+.besat-image-resize-handle--bottom-left { bottom: -0.45rem; left: -0.45rem; cursor: nesw-resize; }
+
+.besat-image-align-bar {
+  position: absolute;
+  top: 0.5rem;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  gap: 0.2rem;
+  padding: 0.25rem;
+  border-radius: 0.6rem;
+  background: rgba(15, 40, 63, 0.85);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity 120ms ease;
+}
+
+[data-besat-editor-block="image"]:hover .besat-image-align-bar,
+[data-besat-editor-block="image"].is-selected .besat-image-align-bar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.besat-image-align-button {
+  display: flex;
+  size: 1.6rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.4rem;
+  color: #fff;
+}
+
+.besat-image-align-button svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.besat-image-align-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.besat-image-align-button.is-active {
+  background: #d98712;
+}
+
+.besat-editor-review-feedback {
+  border: 1px solid #fecdd3;
+  border-radius: 0.9rem;
+  background: #fff1f2;
+  padding: 0.9rem 1.1rem;
+}
+
+.besat-editor-review-feedback-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #9f1239;
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+
+.besat-editor-review-feedback-body {
+  margin-top: 0.45rem;
+  color: #3f1d24;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.9;
+}
+
+.besat-editor-review-feedback-meta {
+  margin-top: 0.5rem;
+  color: #b45166;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
 .besat-editor-canvas > * {
   position: relative;
   border-radius: 0.25rem;
@@ -1844,6 +2273,237 @@ button.besat-accent-button * {
   border-radius: 0.65rem;
 }
 
+/* BESAT_TABLE_THEMES_START -- shared between the editor preview
+   (.besat-editor-canvas) and the published page (.besat-rich-content), so
+   an author's chosen theme looks the same in both places. */
+.besat-table-wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.besat-editor-canvas table.besat-table,
+.besat-rich-content table.besat-table {
+  width: 100%;
+  table-layout: auto;
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+
+.besat-editor-canvas table.besat-table:not(.besat-table--full-width),
+.besat-rich-content table.besat-table:not(.besat-table--full-width) {
+  width: auto;
+  max-width: 100%;
+}
+
+.besat-rich-content table.besat-table caption {
+  caption-side: top;
+  margin-bottom: 0.6rem;
+  color: #52708b;
+  font-size: 0.92em;
+  font-weight: 800;
+  text-align: right;
+}
+
+.besat-editor-canvas table.besat-table[data-caption]:not([data-caption=""])::before {
+  content: attr(data-caption);
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #52708b;
+  font-size: 0.75em;
+  font-weight: 800;
+}
+
+.besat-editor-canvas table.besat-table th,
+.besat-editor-canvas table.besat-table td,
+.besat-rich-content table.besat-table th,
+.besat-rich-content table.besat-table td {
+  min-width: 0;
+  padding: 0.65rem 0.8rem;
+  vertical-align: top;
+}
+
+.besat-valign-middle { vertical-align: middle !important; }
+.besat-valign-bottom { vertical-align: bottom !important; }
+
+.besat-table--density-compact th, .besat-table--density-compact td { padding: 0.35rem 0.5rem; font-size: 0.94em; }
+.besat-table--density-comfortable th, .besat-table--density-comfortable td { padding: 1rem 1.15rem; }
+
+.besat-table--striped tbody tr:nth-child(even) td { background: #f6f8fa; }
+
+.besat-table--theme-minimal { border: none; }
+.besat-table--theme-minimal th, .besat-table--theme-minimal td { border: none; border-bottom: 1px solid #e2e6ea; }
+.besat-table--theme-minimal th { border-bottom: 2px solid #c9d2d8; font-weight: 900; }
+
+.besat-table--theme-bordered th, .besat-table--theme-bordered td { border: 1px solid #c9d2d8; }
+.besat-table--theme-bordered th { background: #f2f6f9; }
+
+.besat-table--theme-striped th { background: #eef2f5; border-bottom: 2px solid #c9d2d8; }
+.besat-table--theme-striped td { border-bottom: 1px solid #e5e9ec; }
+
+.besat-table--theme-accent-header th { background: var(--editor-navy); color: #fff; font-weight: 900; border: 1px solid #0a3557; }
+.besat-table--theme-accent-header td { border: 1px solid #e5e9ec; }
+
+.besat-table--theme-soft th, .besat-table--theme-soft td { border: 1px solid #edf1f4; }
+.besat-table--theme-soft th { background: #f6f8fa; color: #36536e; }
+
+.besat-table--theme-compact th, .besat-table--theme-compact td { padding: 0.4rem 0.55rem; font-size: 0.86em; border: 1px solid #e5e9ec; }
+
+.besat-table--theme-formal { border: 2px solid var(--editor-navy); }
+.besat-table--theme-formal th { background: var(--editor-navy); color: #fff; font-weight: 950; border: 1px solid #0a3557; }
+.besat-table--theme-formal td { border: 1px solid #c9d2d8; }
+.besat-table--theme-formal tbody tr:nth-child(even) td { background: #f5f7f9; }
+
+.besat-rich-content table.besat-table tbody tr:hover td,
+.besat-editor-canvas table.besat-table tbody tr:hover td {
+  background-color: rgba(10, 40, 72, 0.04);
+}
+/* BESAT_TABLE_THEMES_END */
+
+/* BESAT_CALLOUT_QUOTE_PREVIEW_START -- the editor canvas shows callout and
+   quote blocks via their static renderHTML output (no NodeView), so their
+   preview is styled directly from the data-tone/data-style attributes. */
+.besat-editor-canvas section[data-besat-block="callout"] {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin: 1rem 0;
+  border: 1px solid;
+  border-radius: 0.9rem;
+  padding: 0.9rem 1.05rem;
+}
+
+.besat-editor-canvas section[data-besat-block="callout"] h3 {
+  margin-bottom: 0.2rem;
+  font-size: 0.92em;
+  font-weight: 900;
+}
+
+.besat-editor-canvas section[data-besat-block="callout"] .besat-callout-icon {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.besat-editor-canvas section[data-besat-block="callout"][data-tone="note"] { border-color: #cbd5e1; background: #f8fafc; color: #334155; }
+.besat-editor-canvas section[data-besat-block="callout"][data-tone="info"] { border-color: #bfdbfe; background: #eff6ff; color: #173652; }
+.besat-editor-canvas section[data-besat-block="callout"][data-tone="success"] { border-color: #bbf7d0; background: #f0fdf4; color: #064e3b; }
+.besat-editor-canvas section[data-besat-block="callout"][data-tone="warning"] { border-color: #fde68a; background: #fffbeb; color: #78350f; }
+.besat-editor-canvas section[data-besat-block="callout"][data-tone="important"] { border-color: #fecaca; background: #fef2f2; color: #7f1d1d; }
+
+.besat-editor-canvas blockquote[data-besat-block="quote"] { margin: 1rem 0; padding: 0.9rem 1.1rem; }
+.besat-editor-canvas blockquote[data-besat-block="quote"][data-style="classic"] { border-right: 4px solid var(--editor-amber); background: #fff8ec; }
+.besat-editor-canvas blockquote[data-besat-block="quote"][data-style="accent"] { border: 1px solid var(--editor-navy); border-radius: 0.9rem; background: #eef4f9; }
+.besat-editor-canvas blockquote[data-besat-block="quote"][data-style="minimal"] { border: none; background: transparent; padding-right: 0; }
+/* BESAT_CALLOUT_QUOTE_PREVIEW_END */
+
+/* BESAT_CODE_BLOCK_LINES_START */
+.besat-editor-canvas pre[data-wrap="true"],
+.besat-rich-content pre[data-wrap="true"] {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.besat-rich-content pre {
+  position: relative;
+  overflow-x: auto;
+  direction: ltr;
+  border-radius: 0.55rem;
+  background: #0a2239;
+  padding: 1rem;
+  color: #e8f2fa;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  text-align: left;
+}
+
+.besat-code-line {
+  display: block;
+}
+
+pre[data-line-numbers="true"] .besat-code-line {
+  padding-inline-start: 2.4rem;
+  counter-increment: besat-code-line;
+}
+
+pre[data-line-numbers="true"] {
+  counter-reset: besat-code-line;
+}
+
+pre[data-line-numbers="true"] .besat-code-line::before {
+  content: counter(besat-code-line);
+  position: absolute;
+  left: 1rem;
+  width: 1.6rem;
+  color: rgba(232, 242, 250, 0.4);
+  font-size: 0.85em;
+  text-align: right;
+}
+
+.besat-code-copy-button {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+  border: 1px solid rgba(232, 242, 250, 0.25);
+  border-radius: 0.4rem;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.25rem 0.55rem;
+  color: #e8f2fa;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.besat-code-copy-button:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+/* BESAT_CODE_BLOCK_LINES_END */
+
+/* Generic "this complex block is selected" outline for atom blocks that
+   don't manage their own selected-state styling via a custom NodeView
+   (table cursor position, besatQuoteBlock/besatCalloutBlock/besatEmbedBlock,
+   codeBlock). Image and gallery already draw their own selection affordance. */
+.besat-editor-canvas .ProseMirror-selectednode {
+  outline: 2px solid #60a5fa;
+  outline-offset: 3px;
+  border-radius: 0.6rem;
+}
+
+/* Floating "تنظیمات جدول" badge over the selected table -- position:fixed
+   because it tracks the table's real viewport rect (see RichEditor's
+   updateTableTriggerRect); top/left offsets are set inline per-instance.
+   Deliberately small ("a badge, not a giant button") and outward of the
+   table's own content so it never overlaps cell text or the column-resize
+   handles running along the table's bottom/right edges. */
+.besat-table-settings-trigger {
+  position: fixed;
+  z-index: 20;
+  display: flex;
+  width: 1.9rem;
+  height: 1.9rem;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-35%, -35%);
+  border: 1px solid var(--editor-border);
+  border-radius: 999px;
+  background: #fff;
+  color: #3b536a;
+  box-shadow: 0 4px 14px rgba(15, 40, 63, 0.18);
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.besat-table-settings-trigger:hover {
+  border-color: var(--editor-navy);
+  color: var(--editor-navy);
+}
+
+.besat-table-settings-trigger:focus-visible {
+  outline: 2px solid var(--editor-navy);
+  outline-offset: 2px;
+}
+
+.besat-table-settings-trigger svg {
+  width: 1rem;
+  height: 1rem;
+}
+
 .besat-editor-drag-handle {
   display: flex;
   width: 2rem;
@@ -1867,8 +2527,7 @@ button.besat-accent-button * {
   height: 1rem;
 }
 
-.besat-editor-side-card,
-.besat-editor-media-blocks {
+.besat-editor-side-card {
   padding: 0.9rem;
 }
 
@@ -1889,7 +2548,7 @@ button.besat-accent-button * {
 
 .besat-editor-side-heading p {
   margin-top: 0.2rem;
-  color: #8a95a0;
+  color: var(--editor-muted);
   font-size: 0.58rem;
   font-weight: 700;
   line-height: 1.65;
@@ -1950,7 +2609,7 @@ button.besat-accent-button * {
 
 .besat-editor-outline-main small {
   margin-top: 0.12rem;
-  color: #9aa3ac;
+  color: var(--editor-muted);
   font-size: 0.53rem;
   font-weight: 700;
 }
@@ -1958,7 +2617,7 @@ button.besat-accent-button * {
 .besat-editor-outline-grip {
   width: 0.75rem;
   height: 0.75rem;
-  color: #a2acb5;
+  color: var(--editor-muted);
 }
 
 .besat-editor-outline-icon {
@@ -1989,7 +2648,7 @@ button.besat-accent-button * {
   align-items: center;
   justify-content: center;
   border-left: 1px solid #edf0f2;
-  color: #758493;
+  color: var(--editor-muted);
 }
 
 .besat-editor-outline-actions button:last-child {
@@ -2019,19 +2678,41 @@ button.besat-accent-button * {
   border: 1px dashed #dfe4e8;
   border-radius: 0.55rem;
   padding: 1rem 0.6rem;
-  color: #909ba5;
+  color: var(--editor-muted);
   font-size: 0.65rem;
   font-weight: 800;
   text-align: center;
+}
+
+.besat-editor-insert-heading {
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid #edf0f2;
+  color: var(--editor-navy);
+  font-size: 0.7rem;
+  font-weight: 950;
+}
+
+.besat-editor-insert-hint {
+  margin-top: 0.35rem;
+  color: var(--editor-muted);
+  font-size: 0.56rem;
+  font-weight: 700;
+  line-height: 1.8;
 }
 
 .besat-editor-insert-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 0.35rem;
-  margin-top: 0.7rem;
-  padding-top: 0.7rem;
-  border-top: 1px solid #edf0f2;
+  margin-top: 0.5rem;
+}
+
+/* Media/dialog-driven blocks (gallery, single media, quote, callout,
+   embed) carry a title + description, so they need the full row width
+   rather than squeezing into the structural buttons' half-width column. */
+.besat-editor-insert-grid .besat-editor-media-block-button {
+  grid-column: 1 / -1;
 }
 
 .besat-editor-insert-grid button {
@@ -2077,6 +2758,183 @@ button.besat-accent-button * {
   background: #fff9ef;
 }
 
+/* BESAT_BLOCK_INSPECTOR_START */
+.besat-inspector {
+  margin-top: 0.5rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid #edf0f2;
+}
+
+.besat-inspector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.besat-inspector-header h3 {
+  color: var(--editor-navy);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.besat-inspector-actions {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.besat-inspector-actions button {
+  display: flex;
+  width: 1.9rem;
+  height: 1.9rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e1e6ea;
+  border-radius: 0.4rem;
+  color: var(--editor-muted);
+}
+
+.besat-inspector-actions button svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.besat-inspector-actions button:hover {
+  border-color: var(--editor-navy);
+  color: var(--editor-navy);
+}
+
+.besat-inspector-actions button.is-danger:hover {
+  border-color: #c93434;
+  background: #fff1f2;
+  color: #c93434;
+}
+
+.besat-inspector-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+
+.besat-inspector-body {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 0.7rem;
+}
+
+.besat-inspector-section {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.besat-inspector-section h4 {
+  color: #52708b;
+  font-size: 0.6rem;
+  font-weight: 900;
+}
+
+.besat-inspector-field {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.besat-inspector-field > span {
+  color: #52708b;
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+.besat-inspector-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.3rem;
+}
+
+.besat-inspector-grid button,
+.besat-inspector-danger-button {
+  border: 1px solid #e1e6ea;
+  border-radius: 0.45rem;
+  padding: 0.4rem 0.5rem;
+  color: #36536e;
+  font-size: 0.58rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.besat-inspector-grid button:hover {
+  border-color: var(--editor-navy);
+  background: #f2f6f9;
+  color: var(--editor-navy);
+}
+
+.besat-inspector-danger-button {
+  width: 100%;
+  color: #c93434;
+}
+
+.besat-inspector-danger-button:hover {
+  border-color: #c93434;
+  background: #fff1f2;
+}
+
+.besat-inspector-segmented {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid #e1e6ea;
+  border-radius: 0.45rem;
+}
+
+.besat-inspector-segmented button {
+  flex: 1;
+  padding: 0.4rem 0.3rem;
+  color: #52708b;
+  font-size: 0.58rem;
+  font-weight: 850;
+}
+
+.besat-inspector-segmented button + button {
+  border-right: 1px solid #e1e6ea;
+}
+
+.besat-inspector-segmented button:hover {
+  background: #f5f7f9;
+}
+
+.besat-inspector-segmented button.is-active {
+  background: var(--editor-navy);
+  color: #fff;
+}
+
+.besat-inspector-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.3rem;
+}
+
+.besat-inspector-swatch {
+  border: 1px solid #e1e6ea;
+  border-radius: 0.45rem;
+  padding: 0.35rem 0.5rem;
+  color: #36536e;
+  font-size: 0.58rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.besat-inspector-swatch.is-active {
+  border-color: var(--editor-navy);
+  box-shadow: inset 0 0 0 1px var(--editor-navy);
+  color: var(--editor-navy);
+}
+
+.besat-inspector-hint {
+  color: var(--editor-muted);
+  font-size: 0.56rem;
+  font-weight: 700;
+  line-height: 1.8;
+}
+/* BESAT_BLOCK_INSPECTOR_END */
+
 .besat-editor-setting-group {
   overflow: hidden;
 }
@@ -2117,7 +2975,7 @@ button.besat-accent-button * {
 }
 
 .besat-editor-setting-body label > span small {
-  color: #9aa3ac;
+  color: var(--editor-muted);
   font-size: 0.55rem;
 }
 
@@ -2133,7 +2991,7 @@ button.besat-accent-button * {
   border: 1px dashed #d7dde2;
   border-radius: 0.55rem;
   padding: 1.15rem 0.65rem;
-  color: #8995a1;
+  color: var(--editor-muted);
   font-size: 0.63rem;
   font-weight: 800;
   line-height: 1.8;
@@ -2388,7 +3246,7 @@ button.besat-accent-button * {
 
 .besat-editor-revisions span,
 .besat-editor-revisions small {
-  color: #8c98a3;
+  color: var(--editor-muted);
   font-size: 0.52rem;
 }
 
@@ -2409,7 +3267,7 @@ button.besat-accent-button * {
   grid-template-columns: 1.5rem minmax(0, 1fr);
   align-items: start;
   gap: 0.5rem;
-  color: #96a0aa;
+  color: var(--editor-muted);
   font-size: 0.62rem;
   font-weight: 850;
 }
@@ -2491,7 +3349,7 @@ button.besat-accent-button * {
 }
 
 .besat-editor-actionbar small {
-  color: #8a96a1;
+  color: var(--editor-muted);
   font-size: 0.58rem;
   font-weight: 700;
 }
@@ -2528,7 +3386,7 @@ button.besat-accent-button * {
 }
 
 .besat-editor-preview > header p {
-  color: #8a96a1;
+  color: var(--editor-muted);
   font-size: 0.65rem;
   font-weight: 800;
 }

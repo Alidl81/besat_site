@@ -1,0 +1,124 @@
+name: besat_site_prod
+
+# Explicit PRODUCTION deployment composition -- separate on purpose from
+# docker-compose.yml (the developer/local-QA composition at the repo
+# root, which stays untouched and keeps working exactly as before). Never
+# used for local development. See docs/reliability/PRODUCTION_DEPLOYMENT.md
+# before using this file.
+#
+# Every service here uses config.settings.production (backend) / the
+# production Next.js runtime (frontend, `next start` via each image's own
+# Dockerfile CMD -- never `next dev`), reads all configuration from
+# required, gitignored env files (never inline defaults), and mounts no
+# application source from the host -- the built image is the deployed
+# artifact, not a live host checkout.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - path: backend/docker.env
+        required: true
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    # Deliberately no `ports:` mapping. PostgreSQL is reachable only from
+    # other containers on this compose's own private network -- never from
+    # the host or the public internet (SEC-CONFIG-001 criterion: "not
+    # expose PostgreSQL publicly by default").
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file:
+      - path: backend/docker.env
+        required: true
+    environment:
+      # Hardcoded here, not left to docker.env alone: Compose's own
+      # `environment:` always takes precedence over `env_file:` for the
+      # same key, so this cannot be silently overridden by a stray/wrong
+      # value in docker.env (e.g. one copy-pasted from a local dev env).
+      # config/wsgi.py's own DJANGO_SETTINGS_MODULE fallback is
+      # "config.settings.local" if this were ever unset -- which would
+      # silently skip every check in _production_guard.py entirely, since
+      # that guard only runs when production settings are actually
+      # imported.
+      DJANGO_SETTINGS_MODULE: config.settings.production
+    ports:
+      - "${BACKEND_PORT:-8080}:8000"
+    volumes:
+      - static_data_prod:/app/staticfiles
+      - media_data_prod:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+    # entrypoint.sh always execs gunicorn (config/wsgi.py), never
+    # `runserver` -- true for both this file and the developer compose,
+    # nothing to override here. config.settings.production (set in
+    # backend/docker.env) refuses to start at all on an unsafe
+    # configuration -- see backend/config/settings/_production_guard.py --
+    # so a misconfigured deploy fails its healthcheck and never accepts
+    # traffic rather than silently serving insecurely.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    stop_grace_period: 30s
+    # No `volumes:` bind-mount of ./backend -- unlike the developer
+    # compose, the image built from backend/Dockerfile is the deployed
+    # artifact, not a live host checkout.
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      # OPS-FRONTEND-BUILD-ORIGIN-001: NEXT_PUBLIC_SITE_URL is webpack-
+      # inlined at `next build` time (see frontend/Dockerfile's ARG), so it
+      # must be supplied here, at `docker compose build` time -- the
+      # `env_file:` below only applies once the container is already
+      # running, long after this image exists. Compose does not read
+      # env_file for build.args; it reads this value from the shell
+      # environment (or a .env file next to this compose file) when you
+      # run `docker compose -f docker-compose.prod.yml build`, so export
+      # NEXT_PUBLIC_SITE_URL (same value as frontend/.env.production's own
+      # NEXT_PUBLIC_SITE_URL/SITE_URL) before building.
+      #
+      # OPS-FRONTEND-MEDIA-REWRITE-001: BESAT_BACKEND_API_URL needs the
+      # exact same build-time treatment -- it's read by next.config.ts's
+      # rewrites() to bake the /media/* -> Django proxy into the build
+      # output, and frontend/Dockerfile now fails the build outright if
+      # this is missing or loopback rather than silently shipping an image
+      # with no rewrite. Export it (same value as this service's backend
+      # service address, e.g. http://backend:8000/api) alongside
+      # NEXT_PUBLIC_SITE_URL before running `docker compose build`.
+      args:
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+        BESAT_BACKEND_API_URL: ${BESAT_BACKEND_API_URL}
+    restart: unless-stopped
+    env_file:
+      - path: frontend/.env.production
+        required: true
+    ports:
+      - "${FRONTEND_PORT:-3080}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    # No `command:` override and no source bind-mount -- runs the image's
+    # own Dockerfile CMD (`next start`, the production Next.js runtime),
+    # never `next dev` (SEC-CONFIG-001 criterion #14).
+
+volumes:
+  postgres_data_prod:
+  static_data_prod:
+  media_data_prod:

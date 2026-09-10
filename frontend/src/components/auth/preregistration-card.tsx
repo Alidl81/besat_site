@@ -51,6 +51,13 @@ export function PreregistrationCard({
   const [errors, setErrors] = useState<Errors>({});
   const [version, setVersion] = useState(0);
   const pendingRef = useRef(false);
+  const successRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (state !== "success") return;
+    successRef.current?.focus();
+    successRef.current?.scrollIntoView({ block: "center" });
+  }, [state]);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -331,9 +338,11 @@ export function PreregistrationCard({
           </div>
         ) : state === "success" ? (
           <div
+            ref={successRef}
+            tabIndex={-1}
             role="status"
             aria-live="polite"
-            className="rounded-[1.7rem] border border-emerald-200 bg-emerald-50 p-8 text-center"
+            className="rounded-[1.7rem] border border-emerald-200 bg-emerald-50 p-8 text-center outline-none"
           >
             <CheckCircle2
               aria-hidden="true"

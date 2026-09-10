@@ -15,9 +15,7 @@ export type PublishStatus =
   | "approved"
   | "scheduled"
   | "published"
-  | "unpublished"
   | "archived"
-  | "trash"
   | "rejected";
 
 export type ContentScope = "school" | "unit";

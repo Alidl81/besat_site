@@ -34,6 +34,8 @@ export type SchoolUnitRecord = {
   description: string | null;
   cover_image: string | null;
   is_active: boolean;
+  /** Read-only server flag; never set by the client (see units-manager.tsx). */
+  is_internal?: boolean;
   order: number;
   created_at: string;
   updated_at: string;
@@ -44,6 +46,7 @@ export type DepartmentRecord = {
   id: EntityId;
   title: string;
   slug: string;
+  short_description: string | null;
   description: string | null;
   cover_image: string | null;
   is_active: boolean;

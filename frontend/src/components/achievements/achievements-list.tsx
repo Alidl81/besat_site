@@ -1,9 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useGSAP } from "@gsap/react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Award, CalendarDays, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getApiErrorMessage } from "@/lib/api/client";
+import { ensureScrollTriggerRegistered, prefersReducedMotion } from "@/lib/motion/gsap-scroll-trigger";
 import { safePublicMediaUrl } from "@/lib/media/safe-url";
 import { getPublicAchievements } from "@/services/public-content-service";
 import type { PublicAchievement } from "@/types/public-content";
@@ -12,6 +16,44 @@ export function AchievementsList() {
   const [items, setItems] = useState<PublicAchievement[] | null>(null);
   const [error, setError] = useState("");
   const [version, setVersion] = useState(0);
+  const gridRef = useRef<HTMLDivElement | null>(null);
+
+  // Achievements accumulate over time -- each card grows into place rather
+  // than sliding, a small "earned, not just appearing" distinction from the
+  // directional reveals used on Gallery (up) and News (right). The overshoot
+  // is kept minimal (not a playful bounce) to match the school's formal,
+  // dignified identity.
+  useGSAP(
+    () => {
+      if (!items || items.length === 0) return;
+      if (prefersReducedMotion()) return;
+
+      ensureScrollTriggerRegistered();
+
+      const cards = gridRef.current?.querySelectorAll(".achievement-card");
+      if (!cards || cards.length === 0) return;
+
+      gsap.set(cards, { opacity: 0, scale: 0.94 });
+      const triggers = ScrollTrigger.batch(cards, {
+        start: "top 90%",
+        once: true,
+        onEnter: (batch) =>
+          gsap.to(batch, {
+            opacity: 1,
+            scale: 1,
+            duration: 0.55,
+            stagger: 0.08,
+            ease: "back.out(1.15)",
+            overwrite: true,
+          }),
+      });
+
+      return () => {
+        triggers.forEach((trigger) => trigger.kill());
+      };
+    },
+    { scope: gridRef, dependencies: [items], revertOnUpdate: true },
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -52,11 +94,11 @@ export function AchievementsList() {
     return <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center"><Award aria-hidden="true" className="mx-auto size-10 text-slate-400" /><h2 className="mt-4 text-xl font-black text-[#0f2f4a]">افتخار منتشرشده‌ای وجود ندارد</h2></div>;
   }
   return (
-    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div ref={gridRef} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((item) => {
         const image = safePublicMediaUrl(item.cover_image ?? item.image);
         return (
-          <article key={item.id} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <article key={item.id} className="achievement-card overflow-hidden rounded-lg border border-slate-200 bg-white">
             <div className="aspect-[16/10] overflow-hidden bg-slate-100">
               {image ? <img src={image} alt="" loading="lazy" className="size-full object-cover" /> : <div className="flex size-full items-center justify-center text-slate-400"><Award aria-hidden="true" className="size-10" /></div>}
             </div>

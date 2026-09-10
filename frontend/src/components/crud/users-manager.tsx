@@ -1,9 +1,10 @@
 "use client";
 
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 import { CrudManager, FormActions, type Column } from "@/components/crud/crud-manager";
 import { Field, Modal, PrimaryButton, Select, StatusBadge, TextInput } from "@/components/crud/crud-ui";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
+import { ApiError, getApiErrorMessage } from "@/lib/api/client";
 import type { Repository } from "@/lib/data/repository";
 import { unitsRepository, usersRepository } from "@/lib/data/repositories";
 import type {
@@ -27,6 +28,8 @@ const assignableRoleOptions: { value: AccountRole; label: string }[] = [
   { value: "unit_media", label: roleLabels.unit_media },
   { value: "parent", label: roleLabels.parent },
 ];
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function buildSetPasswordLink(token: string) {
   const origin = typeof window === "undefined" ? "" : window.location.origin;
@@ -76,6 +79,7 @@ export function UsersManager() {
         columns={columns}
         emptyText="کاربری ثبت نشده است."
         addLabel="کاربر جدید"
+        rowLabel={(i) => i.full_name}
         renderForm={({ initial, onSubmit, onCancel, submitting }) => (
           <UserForm initial={initial} onSubmit={onSubmit} onCancel={onCancel} submitting={submitting} />
         )}
@@ -172,37 +176,124 @@ function UserForm({
   const [unitId, setUnitId] = useState(initial?.unit_id ?? "");
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
   const [units, setUnits] = useState<SchoolUnitRecord[]>([]);
+  const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{
+    full_name?: string;
+    username?: string;
+    email?: string;
+  }>({});
+  const fullNameRef = useRef<HTMLInputElement>(null);
+  const usernameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const fullNameErrorId = useId();
+  const usernameErrorId = useId();
+  const emailErrorId = useId();
 
   useEffect(() => {
-    unitsRepository.list().then(setUnits);
+    // Internal/dev-only units (e.g. the seeded dev-accounts test unit) are
+    // plumbing for internal test accounts, not a real unit a general
+    // manager should ever assign a genuine staff member to.
+    unitsRepository.list().then((items) => setUnits(items.filter((unit) => !unit.is_internal)));
   }, []);
 
   const needsUnit = role === "unit_manager" || role === "unit_media";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await onSubmit({
-      full_name: fullName,
-      username,
-      email: email || null,
-      phone: phone || null,
-      role,
-      unit_id: needsUnit ? unitId || null : null,
-      is_active: isActive,
-    });
+    setFormError("");
+    setFieldErrors({});
+
+    const nextErrors: typeof fieldErrors = {};
+    if (!fullName.trim()) nextErrors.full_name = "نام و نام خانوادگی الزامی است.";
+    if (!username.trim()) nextErrors.username = "نام کاربری الزامی است.";
+    if (email && !EMAIL_PATTERN.test(email)) nextErrors.email = "ایمیل واردشده معتبر نیست.";
+
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors);
+      setFormError("لطفاً خطاهای مشخص‌شده را اصلاح کنید.");
+      (nextErrors.full_name ? fullNameRef : nextErrors.username ? usernameRef : emailRef).current?.focus();
+      return;
+    }
+
+    try {
+      await onSubmit({
+        full_name: fullName,
+        username,
+        email: email || null,
+        phone: phone || null,
+        role,
+        unit_id: needsUnit ? unitId || null : null,
+        is_active: isActive,
+      });
+    } catch (reason) {
+      if (reason instanceof ApiError && reason.fieldErrors.username?.[0]) {
+        setFieldErrors({ username: reason.fieldErrors.username[0] });
+      }
+      setFormError(getApiErrorMessage(reason));
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} noValidate className="space-y-5">
+      {formError ? (
+        <p role="alert" className="rounded-2xl bg-rose-50 px-4 py-3 text-right text-sm font-black text-rose-700">
+          {formError}
+        </p>
+      ) : null}
       <div className="grid gap-5 md:grid-cols-2">
         <Field label="نام و نام خانوادگی" required>
-          <TextInput value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+          <TextInput
+            ref={fullNameRef}
+            value={fullName}
+            onChange={(e) => {
+              setFullName(e.target.value);
+              setFieldErrors((prev) => ({ ...prev, full_name: undefined }));
+            }}
+            required
+            aria-invalid={Boolean(fieldErrors.full_name)}
+            aria-describedby={fieldErrors.full_name ? fullNameErrorId : undefined}
+          />
+          {fieldErrors.full_name ? (
+            <p id={fullNameErrorId} className="mt-1.5 text-xs font-bold text-rose-600">
+              {fieldErrors.full_name}
+            </p>
+          ) : null}
         </Field>
         <Field label="نام کاربری" required>
-          <TextInput value={username} onChange={(e) => setUsername(e.target.value)} required />
+          <TextInput
+            ref={usernameRef}
+            value={username}
+            onChange={(e) => {
+              setUsername(e.target.value);
+              setFieldErrors((prev) => ({ ...prev, username: undefined }));
+            }}
+            required
+            aria-invalid={Boolean(fieldErrors.username)}
+            aria-describedby={fieldErrors.username ? usernameErrorId : undefined}
+          />
+          {fieldErrors.username ? (
+            <p id={usernameErrorId} className="mt-1.5 text-xs font-bold text-rose-600">
+              {fieldErrors.username}
+            </p>
+          ) : null}
         </Field>
         <Field label="ایمیل">
-          <TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <TextInput
+            ref={emailRef}
+            type="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setFieldErrors((prev) => ({ ...prev, email: undefined }));
+            }}
+            aria-invalid={Boolean(fieldErrors.email)}
+            aria-describedby={fieldErrors.email ? emailErrorId : undefined}
+          />
+          {fieldErrors.email ? (
+            <p id={emailErrorId} className="mt-1.5 text-xs font-bold text-rose-600">
+              {fieldErrors.email}
+            </p>
+          ) : null}
         </Field>
         <Field label="شماره تماس">
           <TextInput type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />

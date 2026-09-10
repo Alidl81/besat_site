@@ -112,7 +112,7 @@ function UnitDetails({ unit }: { unit: PublicSchoolUnit }) {
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-black text-[#b97827]">واحد انتخاب‌شده</p>
+          <p className="text-xs font-black text-[#8a641f]">واحد انتخاب‌شده</p>
           <h3 className="mt-1 text-xl font-black text-[#0f2f4a]">{unit.title}</h3>
           {unit.subtitle ? (
             <p className="mt-2 text-sm font-bold leading-7 text-slate-600">{unit.subtitle}</p>
@@ -292,7 +292,7 @@ export function ContactPageContent() {
           aria-labelledby="complex-contact-title"
           className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,35,57,0.08)] sm:p-8"
         >
-          <p className="text-sm font-black text-[#b97827]">ارتباط با مجموعه</p>
+          <p className="text-sm font-black text-[#8a641f]">ارتباط با مجموعه</p>
           <h2 id="complex-contact-title" className="mt-2 text-2xl font-black text-[#0f2f4a]">
             {contact.title || "راه‌های ارتباط با مجتمع"}
           </h2>
@@ -371,7 +371,7 @@ export function ContactPageContent() {
         >
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="text-sm font-black text-[#b97827]">واحدهای آموزشی</p>
+              <p className="text-sm font-black text-[#8a641f]">واحدهای آموزشی</p>
               <h2 id="unit-directory-title" className="mt-2 text-2xl font-black text-[#0f2f4a]">
                 انتخاب واحد و مشاهده جزئیات
               </h2>

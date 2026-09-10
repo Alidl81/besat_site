@@ -12,7 +12,7 @@ export default function ContactPage() {
     <PublicPageLayout>
       <header className="border-b border-slate-200 bg-[linear-gradient(135deg,#f8fbfd_0%,#ffffff_64%,#fffaf1_100%)]">
         <Container className="py-14 md:py-20">
-          <p className="mb-4 text-sm font-black text-[#b97827]">تماس با ما</p>
+          <p className="mb-4 text-sm font-black text-[#8a641f]">تماس با ما</p>
           <h1 className="max-w-3xl text-3xl font-black leading-[1.45] text-[#0f2f4a] md:text-5xl">
             راهی روشن برای ارتباط با مجموعه و واحدهای آموزشی
           </h1>
@@ -21,11 +21,11 @@ export default function ContactPage() {
           </p>
         </Container>
       </header>
-      <main id="main-content" className="bg-slate-50 py-14 md:py-16">
+      <div className="bg-slate-50 py-14 md:py-16">
         <Container>
           <ContactPageContent />
         </Container>
-      </main>
+      </div>
     </PublicPageLayout>
   );
 }

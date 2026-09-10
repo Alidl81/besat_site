@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { destroySession } from "@/lib/auth/login-service";
 import {
   clearBesatSession,
@@ -18,22 +18,42 @@ export function SiteAuthActions() {
   const pathname = usePathname();
   const [session, setSession] = useState<BesatSession | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  // FE-AUTH-SITE-LOGOUT-DOUBLE-SUBMIT-001: `isLoggingOut` is state-backed,
+  // so two same-tick clicks both read it as `false` before either update
+  // commits -- a synchronous ref guard closes that race.
+  const isLoggingOutRef = useRef(false);
+  // AUTH-FE-SESSION-DISPLAY-STALE-RESURRECT-001: see the mount effect below.
+  const sessionGenerationRef = useRef(0);
 
   useEffect(() => {
     let active = true;
+    // AUTH-FE-SESSION-DISPLAY-STALE-RESURRECT-001: the mount-time
+    // getCurrentUser() call used to be fenced only by `active` (unmount),
+    // so an external besat-auth-changed event (this tab's own logout, or a
+    // storage event from another tab) that landed *while it was still
+    // pending* was invisible to it -- a stale success arriving after the
+    // display had already been cleared re-wrote and resurrected the old
+    // user, and (the reverse) a stale rejection arriving after a *newer*
+    // account had already been written cleared that valid session back to
+    // guest. sessionGenerationRef is bumped every time syncSession() runs
+    // (for either event, including the synchronous self-echo the
+    // writeBesatSession/clearBesatSession calls below trigger), so any
+    // stale completion whose generation no longer matches is discarded.
     function syncSession() {
+      sessionGenerationRef.current += 1;
       setSession(readBesatSession());
     }
 
+    const forGeneration = sessionGenerationRef.current;
     getCurrentUser()
       .then((user) => {
-        if (!active) return;
+        if (!active || sessionGenerationRef.current !== forGeneration) return;
         const nextSession = sessionFromUser(user);
         writeBesatSession(nextSession);
         setSession(nextSession);
       })
       .catch(() => {
-        if (!active) return;
+        if (!active || sessionGenerationRef.current !== forGeneration) return;
         clearBesatSession();
         setSession(null);
       });
@@ -49,7 +69,8 @@ export function SiteAuthActions() {
   }, []);
 
   async function handleLogout() {
-    if (!session || isLoggingOut) return;
+    if (!session || isLoggingOutRef.current) return;
+    isLoggingOutRef.current = true;
     setIsLoggingOut(true);
 
     try {
@@ -60,6 +81,7 @@ export function SiteAuthActions() {
       clearBesatSession();
       setSession(null);
       setIsLoggingOut(false);
+      isLoggingOutRef.current = false;
     }
 
     const isDashboardPath =

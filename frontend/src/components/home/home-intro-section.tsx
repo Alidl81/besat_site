@@ -62,7 +62,10 @@ export function HomeIntroSection() {
     <section dir="rtl" className="bg-[#fbfaf7] px-5 py-16 sm:px-8 lg:py-20">
       <div className="mx-auto grid w-full max-w-[1400px] items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
         <div className="text-right">
-          <p className="mb-3 flex items-center gap-3 text-sm font-black text-[#c98c3d]">
+          {/* FE-A11Y-CONTRAST-HOME-NEWS-001 (same defect pattern, proactively
+              applied here too): identical failing color/background pairing
+              as home-news-section.tsx's eyebrow label. */}
+          <p className="mb-3 flex items-center gap-3 text-sm font-black text-[#8a641f]">
             <span className="h-px w-8 bg-[#c98c3d]" />
             مجتمع آموزشی بعثت
           </p>
@@ -78,7 +81,7 @@ export function HomeIntroSection() {
 
           <div role="list" aria-label="ارزش‌های آموزشی بعثت" className="mt-8 grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-4 sm:gap-x-4">
             {principles.map((item, index) => (
-              <article
+              <div
                 key={item.title}
                 role="listitem"
                 data-stagger-item
@@ -87,8 +90,8 @@ export function HomeIntroSection() {
               >
                 <PrincipleIcon>{item.icon}</PrincipleIcon>
                 <h3 className="mt-4 text-[13px] font-black leading-6 text-[#0a2848] sm:text-sm">{item.title}</h3>
-                <p className="mt-1 text-[11px] font-bold leading-5 text-[#657486] sm:text-xs">{item.subtitle}</p>
-              </article>
+                <p className="mt-1 text-[11px] font-bold leading-5 text-[#5c6b7c] sm:text-xs">{item.subtitle}</p>
+              </div>
             ))}
           </div>
         </div>
@@ -99,6 +102,7 @@ export function HomeIntroSection() {
             <img
               src={content.imageSrc}
               alt={content.imageAlt || content.title}
+              loading="lazy"
               className="aspect-[4/3] w-full rounded-[1.1rem] object-cover transition-transform duration-[1400ms] hover:scale-[1.035]"
               draggable={false}
             />

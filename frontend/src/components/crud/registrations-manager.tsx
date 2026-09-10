@@ -19,7 +19,7 @@ export function RegistrationsManager({ unitId = null }: RegistrationsManagerProp
       key: "date",
       header: "تاریخ",
       render: (i) => (
-        <span className="text-xs font-bold text-slate-400">
+        <span className="text-xs font-bold text-slate-600">
           {new Intl.DateTimeFormat("fa-IR").format(new Date(i.created_at))}
         </span>
       ),
@@ -31,12 +31,13 @@ export function RegistrationsManager({ unitId = null }: RegistrationsManagerProp
       title="درخواست‌های ثبت‌نام"
       description="درخواست‌های پیش‌ثبت‌نام دریافتی را بررسی و وضعیت آن‌ها را تعیین کنید."
       repository={registrationsRepository}
-      filter={unitId ? (i) => i.unit_id === unitId : undefined}
+      filter={unitId ? (i) => String(i.unit_id) === unitId : undefined}
       columns={columns}
       emptyText="درخواست ثبت‌نامی برای نمایش وجود ندارد."
       addLabel=""
       canCreate={false}
       canEdit={false}
+      rowLabel={(i) => i.full_name}
       rowActions={(item, { update }) => (
         <select
           value={item.status}

@@ -442,3 +442,65 @@ class EventCMSAPITests(TestCase):
 
         self.assertEqual(response.status_code, 204)
         self.assertEqual(Event.objects.count(), 0)
+
+    def test_unit_manager_cannot_edit_a_published_event(self):
+        # AUTH-EVENT-PUBLISHED-MUTATION-001: self.event is already
+        # PUBLISHED and in the unit_manager's own unit -- unit scope alone
+        # used to be sufficient to edit it, with no workflow-state check.
+        self.authenticate(self.unit_manager)
+
+        response = self.client.patch(
+            f"/api/cms/events/{self.event.id}/",
+            {"title": "عنوان دستکاری‌شده"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.title, "رویداد CMS")
+
+    def test_unit_media_cannot_edit_a_published_event(self):
+        self.authenticate(self.unit_media)
+
+        response = self.client.patch(
+            f"/api/cms/events/{self.event.id}/",
+            {"title": "عنوان دستکاری‌شده"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.title, "رویداد CMS")
+
+    def test_unit_manager_cannot_delete_a_published_event(self):
+        # AUTH-EVENT-PUBLISHED-DELETE-001
+        self.authenticate(self.unit_manager)
+
+        response = self.client.delete(f"/api/cms/events/{self.event.id}/")
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(Event.objects.filter(pk=self.event.id).count(), 1)
+
+    def test_unit_manager_can_still_edit_and_delete_a_draft_own_unit_event(self):
+        # Confirms the fix is scoped to terminal statuses only -- a
+        # unit manager's ordinary draft-editing workflow must be unaffected.
+        draft_event = Event.objects.create(
+            title="رویداد پیش‌نویس",
+            slug="draft-cms-event",
+            event_start_at=self.now + timedelta(days=2),
+            event_end_at=self.now + timedelta(days=2, hours=1),
+            scope=Event.Scope.UNIT,
+            unit=self.unit,
+            status=Event.Status.DRAFT,
+        )
+        self.authenticate(self.unit_manager)
+
+        response = self.client.patch(
+            f"/api/cms/events/{draft_event.id}/",
+            {"title": "عنوان ویرایش‌شده"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.delete(f"/api/cms/events/{draft_event.id}/")
+        self.assertEqual(response.status_code, 204)

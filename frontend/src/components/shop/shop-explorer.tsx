@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { getShopCategories, getShopProducts } from "@/services/shop-service";
 import type { ProductListItem, ShopCategory } from "@/types/shop";
@@ -48,6 +48,18 @@ export function ShopExplorer() {
   const initial = useMemo(() => filtersFromSearchParams(searchParams), []); // eslint-disable-line react-hooks/exhaustive-deps
   const [filters, setFilters] = useState<ShopFiltersState>(initial.filters);
   const [page, setPage] = useState(initial.page);
+  // FE-CATALOG-FILTER-URL-REHYDRATION-001: `initial` above only seeds
+  // state once, at mount -- Next re-renders this same component instance
+  // with a changed `searchParams` on browser back/forward navigation, or
+  // when a link elsewhere on the site points at this route with different
+  // query params, and nothing previously reacted to that: `filters`/`page`
+  // kept whatever they were initialized to, silently ignoring the new URL.
+  // lastWrittenQueryRef distinguishes an external URL change (rehydrate
+  // state from it, below) from the echo of this component's own
+  // router.replace() call (skip, since state already matches what was
+  // just written).
+  const lastWrittenQueryRef = useRef<string | null>(null);
+  const searchParamsKey = searchParams.toString();
   const [categories, setCategories] = useState<ShopCategory[]>([]);
   const [products, setProducts] = useState<ProductListItem[] | null>(null);
   const [count, setCount] = useState(0);
@@ -55,13 +67,72 @@ export function ShopExplorer() {
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
+  // Only the free-text search field is debounced -- typing updates
+  // `filters.search` (and the input) immediately, but the URL write and
+  // the actual fetch below both wait for `debouncedSearch` to settle, so
+  // there's one request per pause in typing rather than one per
+  // keystroke. Every other filter (type/category/price/ordering) applies
+  // immediately, unchanged.
+  //
+  // Both effects below depend on the individual primitive fields of
+  // `filters`, not on `filters` itself: an object built fresh each render
+  // (e.g. `{...filters, search: debouncedSearch}`) gets a new identity on
+  // *every* keystroke, since `filters` itself changes on every keystroke
+  // even though `debouncedSearch` hasn't settled yet -- an effect
+  // dependent on that object reference re-fires every keystroke, not
+  // once after the debounce, defeating the debounce entirely (this
+  // shipped once already, see FE-SHOP-FILTER-003). Primitive dependencies
+  // (strings) are compared by value, so this can't happen.
+  //
+  // FE-CATALOG-FILTER-URL-MIXED-REQUEST-001: `debouncedSearch` used to
+  // come from the shared `useDebouncedValue()` hook, whose internal state
+  // is opaque to this component -- the rehydration effect below could only
+  // update `filters.search` immediately, leaving `debouncedSearch` to
+  // catch up 400ms later via the hook's OWN separate effect. That meant an
+  // external URL change updating both `search` and, say, `type` landed in
+  // two separate commits: one where `type` had already changed but
+  // `debouncedSearch` was still stale (firing an immediate fetch with a
+  // mixed old-search/new-type tuple), and a second 400ms later once
+  // `debouncedSearch` finally caught up (firing a second, correct fetch).
+  // Managing `debouncedSearch` as local state here (instead of through the
+  // opaque hook) lets the rehydration effect set it in the very same
+  // batched update as `filters`/`page`, landing in a single commit with no
+  // intermediate mixed-tuple fetch.
+  const [debouncedSearch, setDebouncedSearch] = useState(initial.filters.search);
+  const { type, category, priceMin, priceMax, ordering } = filters;
+
+  useEffect(() => {
+    // Nothing pending -- either settled already, or just rehydrated
+    // atomically alongside `filters` by the rehydration effect below.
+    if (filters.search === debouncedSearch) return;
+    const timer = window.setTimeout(() => setDebouncedSearch(filters.search), 400);
+    return () => window.clearTimeout(timer);
+  }, [filters.search, debouncedSearch]);
+
   // Keep the URL in sync so filtered/paginated views stay shareable and
   // survive a refresh -- without re-navigating (no scroll jump).
   useEffect(() => {
-    const query = searchParamsFromState(filters, page);
+    const query = searchParamsFromState(
+      { search: debouncedSearch, type, category, priceMin, priceMax, ordering },
+      page,
+    );
+    lastWrittenQueryRef.current = query;
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, page]);
+  }, [debouncedSearch, type, category, priceMin, priceMax, ordering, page]);
+
+  useEffect(() => {
+    if (lastWrittenQueryRef.current === searchParamsKey) return;
+    const next = filtersFromSearchParams(searchParams);
+    setFilters(next.filters);
+    // FE-CATALOG-FILTER-URL-MIXED-REQUEST-001: set alongside `filters` in
+    // this same effect call (batched into one commit) so the fetch effect
+    // never observes a half-rehydrated state -- see the comment on
+    // `debouncedSearch`'s declaration above.
+    setDebouncedSearch(next.filters.search);
+    setPage(next.page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParamsKey]);
 
   useEffect(() => {
     getShopCategories()
@@ -71,6 +142,15 @@ export function ShopExplorer() {
 
   useEffect(() => {
     let active = true;
+    // FE-CATALOG-FILTER-URL-MIXED-REQUEST-001 (residual): `active` already
+    // prevented a superseded request's result from ever reaching state --
+    // but the request itself still ran to completion, wasting bandwidth
+    // and backend load on a response nobody would use (most visibly on a
+    // rapid A -> B -> C filter/URL change, where the "B" request was
+    // never going to matter the moment "C" started). Aborting the
+    // previous controller in this effect's cleanup actually cancels that
+    // superseded request's transport, not just its eventual result.
+    const controller = new AbortController();
 
     Promise.resolve()
       .then(() => {
@@ -80,13 +160,13 @@ export function ShopExplorer() {
         return getShopProducts({
           page,
           page_size: PAGE_SIZE,
-          search: filters.search || undefined,
-          type: filters.type || undefined,
-          category: filters.category || undefined,
-          price_min: filters.priceMin ? Number(filters.priceMin) * 10 : undefined,
-          price_max: filters.priceMax ? Number(filters.priceMax) * 10 : undefined,
-          ordering: filters.ordering || undefined,
-        });
+          search: debouncedSearch || undefined,
+          type: type || undefined,
+          category: category || undefined,
+          price_min: priceMin ? Number(priceMin) * 10 : undefined,
+          price_max: priceMax ? Number(priceMax) * 10 : undefined,
+          ordering: ordering || undefined,
+        }, controller.signal);
       })
       .then((response) => {
         if (!active || !response) return;
@@ -102,8 +182,9 @@ export function ShopExplorer() {
 
     return () => {
       active = false;
+      controller.abort();
     };
-  }, [filters, page, reloadToken]);
+  }, [debouncedSearch, type, category, priceMin, priceMax, ordering, page, reloadToken]);
 
   const handleFiltersChange = useCallback((next: ShopFiltersState) => {
     setFilters(next);
@@ -128,6 +209,7 @@ export function ShopExplorer() {
         <ShopEmptyState />
       ) : (
         <>
+          <h2 className="sr-only">همه محصولات</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {products.map((product) => (
               <ProductCard key={product.id} product={product} />

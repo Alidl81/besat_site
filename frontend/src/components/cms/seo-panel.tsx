@@ -140,7 +140,7 @@ export function SeoPanel({
   const effectiveSeoTitle = draft.seoTitle || title;
 
   return (
-    <details className="besat-editor-setting-group" open>
+    <details className="besat-editor-setting-group">
       <summary>
         <EditorIcon name="search" className="size-4" />
         سئو و اشتراک‌گذاری

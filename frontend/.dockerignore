@@ -4,6 +4,28 @@ out/
 build/
 coverage/
 
+# FE-OPS-DOCKER-CONTEXT-001: generated QA/build artifact trees. `docker
+# build`'s context is whatever this file allows through regardless of git
+# status -- without a rule broad enough to cover them, `Dockerfile`'s
+# `COPY . .` picks up every alternate `.next-*` build output any QA/dev
+# run has ever left behind (a real Docker context transfer this session
+# hit 894MB from exactly this). Every isolated/disposable build uses its
+# own `.next-<label>` scratch dist-dir naming convention
+# (BESAT_NEXT_DIST_DIR) -- playwright, qg, qa, seo, and whatever the next
+# one is called -- so a single glob covering the whole `.next-*` family
+# (matching frontend/.gitignore's own equivalent fix) replaces the
+# previous exact-prefix list, which had already been caught out once
+# (only .next-playwright-*/.next-qg-* were listed; .next-qa-*/.next-seo-*
+# were never added after the fact) and would keep needing another entry
+# for every future naming convention otherwise.
+.next-*
+.next-*.tsconfig.json
+playwright-report/
+playwright-report-real-django/
+test-results/
+test-results-real-django/
+.agents/
+
 .env
 .env.*
 !.env.example
@@ -18,3 +40,17 @@ Thumbs.db
 
 .idea/
 .vscode/
+
+# OPS-MOCK-SEED-CREDENTIALS-001: mock-database.seed.json (tracked in git)
+# and its runtime-generated sibling mock-database.local.json both hold
+# plaintext demo account passwords for the dev-only mock backend
+# (src/lib/mock-api/store.ts). This Dockerfile's `COPY . .` would
+# otherwise ship them into every built image regardless of environment.
+# The mock backend can never actually activate here anyway --
+# lib/api/client.ts's getApiBaseUrl() rejects a loopback/private resolved
+# origin (which mock mode's own fallback is) whenever NODE_ENV is
+# "production", and this image always sets NODE_ENV=production -- so
+# excluding the directory only removes dead weight and an unnecessary
+# credential-disclosure surface, it does not change any code path this
+# image's `next start` can actually reach.
+data/

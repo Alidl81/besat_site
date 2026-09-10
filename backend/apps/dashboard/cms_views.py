@@ -1,13 +1,14 @@
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 
 from apps.accounts.models import UserProfile
+from apps.accounts.permissions import IsAuthenticatedAndActiveProfile
 from apps.accounts.selectors import get_or_create_user_profile
 from apps.news.permissions import get_accessible_unit_ids, is_general_manager
 
@@ -23,7 +24,7 @@ from .models import InternalMessage, Program, SchoolClass, Student
 
 
 class UnitScopedCMSViewSet(ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedAndActiveProfile]
     allowed_roles = (UserProfile.Role.GENERAL_MANAGER, UserProfile.Role.UNIT_MANAGER)
 
     def initial(self, request, *args, **kwargs):
@@ -52,6 +53,54 @@ class UnitScopedCMSViewSet(ModelViewSet):
 class CMSStudentViewSet(UnitScopedCMSViewSet):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
+
+    def get_queryset(self):
+        # STUDENT-CONCURRENCY-001: two concurrent partial PATCHes to the
+        # same Student are a classic read-validate-then-save lost-update
+        # race -- both requests can fetch the pre-transfer row, both
+        # validate cleanly against that (now stale) snapshot, and
+        # whichever's Model.save() runs last silently overwrites the
+        # other's already-committed change, since Django's default
+        # ModelSerializer.update() calls instance.save() with no
+        # update_fields and so rewrites every column from that request's
+        # in-memory instance -- including fields the PATCH never touched.
+        #
+        # select_for_update() here makes get_object() (called by
+        # update()/partial_update() below, itself wrapped in
+        # transaction.atomic()) take a row lock on the target Student
+        # BEFORE the serializer is even constructed, serializing any two
+        # concurrent update requests for the same student. The second
+        # request's select_for_update() blocks until the first commits,
+        # then reads the FIRST request's already-committed state -- so
+        # StudentSerializer.validate() (which falls back to
+        # self.instance.parent/self.instance.unit for whichever field
+        # this request didn't touch) validates against current data, not
+        # a stale pre-transfer snapshot, and instance.save() can no
+        # longer clobber the first request's committed fields with
+        # stale in-memory values. This can correctly cause the second
+        # request to now be rejected as invalid (e.g. a transfer that
+        # was valid against the old parent/unit pairing but is no longer
+        # valid against the pairing the first request just committed) --
+        # that is the intended, non-silent outcome, not a bug.
+        #
+        # Only applied to the single-object update actions: list/create/
+        # destroy have no comparable stale-instance overwrite risk, and
+        # locking rows unnecessarily on read-only actions would only add
+        # contention.
+        queryset = super().get_queryset()
+        if self.action in ("update", "partial_update"):
+            queryset = queryset.select_for_update()
+        return queryset
+
+    def update(self, request, *args, **kwargs):
+        # Holds the select_for_update() lock (see get_queryset() above)
+        # from get_object() through validate() through save() -- i.e.
+        # for the whole request -- not just around the final .save()
+        # call. Locking only inside save() would be too late: by then
+        # validate() has already run against whatever (possibly stale)
+        # self.instance get_object() returned before the lock existed.
+        with transaction.atomic():
+            return super().update(request, *args, **kwargs)
 
     @action(detail=False, methods=("get",), url_path="summary")
     def summary(self, request):
@@ -86,7 +135,7 @@ class CMSProgramViewSet(UnitScopedCMSViewSet):
 
 class CMSInternalMessageViewSet(ModelViewSet):
     queryset = InternalMessage.objects.all()
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedAndActiveProfile]
 
     def get_queryset(self):
         user = self.request.user

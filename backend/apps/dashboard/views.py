@@ -11,9 +11,11 @@ from apps.accounts.selectors import get_or_create_user_profile, get_user_units_p
 from apps.announcements.models import Announcement
 from apps.gallery.models import GalleryItem
 from apps.news.models import News
+from apps.registration.models import RegistrationRequest
+from apps.staff.models import StaffMember
 from apps.units.models import SchoolUnit
 
-from .models import InternalMessage
+from .models import InternalMessage, Student
 from .serializers import DashboardContextSerializer, DashboardResponseSerializer
 
 
@@ -64,6 +66,58 @@ def unit_payload(unit):
     }
 
 
+def unit_performance_payloads(units_queryset):
+    today = timezone.localdate()
+
+    def published_content_count(unit):
+        return (
+            News.objects.filter(
+                is_active=True,
+                status=News.Status.PUBLISHED,
+                scope=News.Scope.UNIT,
+                unit=unit,
+                published_at__isnull=False,
+                published_at__lte=today,
+            ).count()
+            + Announcement.objects.filter(
+                is_active=True,
+                status=Announcement.Status.PUBLISHED,
+                scope=Announcement.Scope.UNIT,
+                unit=unit,
+                published_at__isnull=False,
+                published_at__lte=today,
+            ).count()
+            + GalleryItem.objects.filter(
+                is_active=True,
+                status=GalleryItem.Status.PUBLISHED,
+                scope=GalleryItem.Scope.UNIT,
+                unit=unit,
+                published_at__isnull=False,
+                published_at__lte=today,
+            ).count()
+        )
+
+    return [
+        {
+            "id": unit.id,
+            "title": unit.title,
+            "students_count": Student.objects.filter(unit=unit).count(),
+            "staff_count": StaffMember.objects.filter(
+                is_active=True,
+                scope=StaffMember.Scope.UNIT,
+                unit=unit,
+            ).count(),
+            "new_registrations_count": RegistrationRequest.objects.filter(
+                requested_unit=unit,
+                created_at__year=today.year,
+            ).count(),
+            "published_content_count": published_content_count(unit),
+            "is_active": unit.is_active,
+        }
+        for unit in units_queryset
+    ]
+
+
 def profile_payload(user):
     profile = get_or_create_user_profile(user)
 
@@ -81,7 +135,7 @@ def profile_payload(user):
 
 def get_accessible_units_for_dashboard(user, allowed_roles: tuple[str, ...] | None = None):
     if user_is_general_manager(user):
-        return SchoolUnit.objects.filter(is_active=True).order_by("order", "id")
+        return SchoolUnit.objects.real().order_by("order", "id")
 
     queryset = UserUnitMembership.objects.select_related("unit").filter(
         user=user,
@@ -331,7 +385,8 @@ class GeneralManagerDashboardAPIView(APIView):
             gallery_queryset=gallery_queryset,
         )
 
-        active_units_count = SchoolUnit.objects.filter(is_active=True).count()
+        visible_units = SchoolUnit.objects.real().order_by("order", "id")
+        active_units_count = visible_units.count()
         active_users_count = User.objects.filter(is_active=True).count()
 
         stats = {
@@ -398,10 +453,8 @@ class GeneralManagerDashboardAPIView(APIView):
                 "role": UserProfile.Role.GENERAL_MANAGER,
                 "scope": "all",
                 "selected_unit": None,
-                "accessible_units": [
-                    unit_payload(unit)
-                    for unit in SchoolUnit.objects.filter(is_active=True).order_by("order", "id")
-                ],
+                "accessible_units": [unit_payload(unit) for unit in visible_units],
+                "units": unit_performance_payloads(visible_units),
                 "stats": stats,
                 "cards": cards,
                 "content_status": content_status,

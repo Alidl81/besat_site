@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PanelIcon } from "@/components/dashboard/panel-icons";
 import {
   getBesatSessionDisplayName,
   readBesatSession,
 } from "@/lib/auth/auth-session";
 import { getApiErrorMessage } from "@/lib/api/client";
+import { safePublicMediaUrl } from "@/lib/media/safe-url";
 import { panelService } from "@/services/panel-service";
 import type { PanelContext } from "@/types/panel-api";
 
@@ -37,13 +38,19 @@ function UnitContextSelect({
   context,
   selectedUnit,
   onSelect,
+  failed,
 }: {
   context: PanelContext | null;
   selectedUnit: string;
   onSelect: (value: string) => void;
+  failed: boolean;
 }) {
   if (!context) {
-    return <ContextUnavailable icon="building">در حال دریافت واحدهای مجاز…</ContextUnavailable>;
+    return (
+      <ContextUnavailable icon="building">
+        {failed ? "دریافت واحدهای مجاز ناموفق بود." : "در حال دریافت واحدهای مجاز…"}
+      </ContextUnavailable>
+    );
   }
 
   if (context.units.length === 0) {
@@ -81,7 +88,14 @@ export function DashboardTopbar({
   const queryString = searchParams.toString();
   const [context, setContext] = useState<PanelContext | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
   const [session, setSession] = useState<ReturnType<typeof readBesatSession>>(null);
+  // FE-DASH-CONTEXT-ERROR-RECOVERY-001: a plain ref (not state) guards
+  // against a second retry firing while one is already in flight -- reading/
+  // writing it inside the effect below never triggers the
+  // react-hooks/set-state-in-effect cascading-render lint, unlike a
+  // setState call would.
+  const contextInFlightRef = useRef(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSession(readBesatSession()), 0);
@@ -90,6 +104,7 @@ export function DashboardTopbar({
 
   useEffect(() => {
     let active = true;
+    contextInFlightRef.current = true;
     const params = new URLSearchParams(queryString);
     panelService
       .context({
@@ -105,11 +120,23 @@ export function DashboardTopbar({
       })
       .catch((reason: unknown) => {
         if (active) setError(getApiErrorMessage(reason));
+      })
+      .finally(() => {
+        if (active) contextInFlightRef.current = false;
       });
     return () => {
       active = false;
     };
-  }, [panel, queryString]);
+    // `retryToken` has no bearing on the request params themselves -- it
+    // exists purely so retryContext() below can force this effect to re-run
+    // and refetch after a failure, matching the same version-counter retry
+    // pattern already used by achievement-detail.tsx.
+  }, [panel, queryString, retryToken]);
+
+  function retryContext() {
+    if (contextInFlightRef.current) return;
+    setRetryToken((token) => token + 1);
+  }
 
   function select(name: "academic_year" | "unit" | "child", value: string) {
     const next = new URLSearchParams(queryString);
@@ -123,6 +150,11 @@ export function DashboardTopbar({
     context?.user.full_name ??
     (session ? getBesatSessionDisplayName(session) : "حساب کاربری");
   const roleTitle = context?.user.role_display ?? "";
+  // FE-DASH-AVATAR-MEDIA-ORIGIN-001: context.user.avatar_url is a backend-
+  // served media URL, the same possibly-wrong-host issue already fixed for
+  // every other media sink (FE-PUBLIC-MEDIA-ORIGIN-001) -- rendering it raw
+  // trips CSP's img-src allowlist (same-origin only).
+  const safeAvatar = safePublicMediaUrl(context?.user.avatar_url);
   const selectedUnit = String(
     searchParams.get("unit") ?? context?.selected_unit_id ?? "",
   );
@@ -139,6 +171,7 @@ export function DashboardTopbar({
         ? "/dashboard/content-manager/messages"
         : "/dashboard/admin/messages";
   const parentFiltersUnavailable = context && !hasAcademicYearFilters;
+  const contextFailed = Boolean(error) && !context;
 
   return (
     <header className="sticky top-0 z-30 border-b border-[#e7e9ec] bg-white/95 backdrop-blur-xl">
@@ -154,13 +187,16 @@ export function DashboardTopbar({
                 <ContextUnavailable icon="calendar">سال تحصیلی قابل انتخابی ثبت نشده است.</ContextUnavailable>
               )
             ) : (
-              <ContextUnavailable icon="calendar">در حال دریافت محدوده حساب…</ContextUnavailable>
+              <ContextUnavailable icon="calendar">
+                {contextFailed ? "دریافت محدوده حساب ناموفق بود." : "در حال دریافت محدوده حساب…"}
+              </ContextUnavailable>
             )
           ) : (
             <UnitContextSelect
               context={context}
               selectedUnit={selectedUnit}
               onSelect={(value) => select("unit", value)}
+              failed={contextFailed}
             />
           )}
         </div>
@@ -170,7 +206,9 @@ export function DashboardTopbar({
             {context ? (
               <ContextUnavailable icon="students">انتخاب فرزند از بخش «فرزندان من» انجام می‌شود.</ContextUnavailable>
             ) : (
-              <ContextUnavailable icon="students">در حال دریافت محدوده حساب…</ContextUnavailable>
+              <ContextUnavailable icon="students">
+                {contextFailed ? "دریافت محدوده حساب ناموفق بود." : "در حال دریافت محدوده حساب…"}
+              </ContextUnavailable>
             )}
           </div>
         ) : showAcademicYearZone ? (
@@ -197,12 +235,13 @@ export function DashboardTopbar({
 
           <Link
             href={profileHref}
+            aria-label={`پروفایل ${displayName}${roleTitle ? `، ${roleTitle}` : ""}`}
             className="flex min-w-0 items-center gap-2 rounded-xl p-1.5 text-right transition-colors hover:bg-[#f8f3eb] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c77f14]"
           >
-            {context?.user.avatar_url ? (
+            {safeAvatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={context.user.avatar_url}
+                src={safeAvatar}
                 alt=""
                 className="size-10 shrink-0 rounded-full object-cover"
               />
@@ -216,7 +255,7 @@ export function DashboardTopbar({
                 {displayName}
               </span>
               <span className="mt-0.5 block text-[11px] font-bold text-slate-500">
-                {roleTitle || (context ? "—" : "در حال دریافت نقش...")}
+                {roleTitle || (context ? "—" : contextFailed ? "دریافت نقش ناموفق بود" : "در حال دریافت نقش...")}
               </span>
             </span>
             <PanelIcon name="chevron" className="hidden size-4 rotate-90 text-slate-500 sm:block" />
@@ -225,23 +264,36 @@ export function DashboardTopbar({
       </div>
 
       {error ? (
-        <p role="status" className="border-t border-rose-100 bg-rose-50 px-4 py-2 text-xs font-bold leading-5 text-rose-700 sm:px-6">
-          دریافت محدوده پنل ناموفق بود: {error}
-        </p>
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-2 border-t border-rose-100 bg-rose-50 px-4 py-2 text-xs font-bold leading-5 text-rose-700 sm:px-6"
+        >
+          <span>دریافت محدوده پنل ناموفق بود: {error}</span>
+          <button
+            type="button"
+            onClick={retryContext}
+            className="shrink-0 rounded-lg border border-rose-300 px-2.5 py-1 text-[11px] font-black text-rose-700 transition hover:bg-rose-100"
+          >
+            تلاش دوباره
+          </button>
+        </div>
       ) : null}
 
       <div className="border-t border-slate-100 px-4 py-2 md:hidden sm:px-6">
         {panel === "parents" ? (
           <ContextUnavailable icon="students">
             {parentFiltersUnavailable
-              ? "سال تحصیلی تا زمان پشتیبانی API در دسترس نیست؛ انتخاب فرزند در بخش «فرزندان من» انجام می‌شود."
-              : "در حال دریافت محدوده حساب…"}
+              ? "سال تحصیلی قابل انتخابی ثبت نشده است؛ انتخاب فرزند در بخش «فرزندان من» انجام می‌شود."
+              : contextFailed
+                ? "دریافت محدوده حساب ناموفق بود."
+                : "در حال دریافت محدوده حساب…"}
           </ContextUnavailable>
         ) : (
           <UnitContextSelect
             context={context}
             selectedUnit={selectedUnit}
             onSelect={(value) => select("unit", value)}
+            failed={contextFailed}
           />
         )}
       </div>

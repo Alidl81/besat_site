@@ -114,7 +114,7 @@ export function ParentProgramsView() {
                 <div>
                   <h2 className="text-base font-black text-[#062452]">{program.title}</h2>
                   {program.description ? <p className="mt-1 text-sm font-bold text-slate-500">{program.description}</p> : null}
-                  {program.location ? <p className="mt-2 text-xs font-bold text-slate-400">{program.location}</p> : null}
+                  {program.location ? <p className="mt-2 text-xs font-bold text-slate-600">{program.location}</p> : null}
                 </div>
                 <time className="shrink-0 text-xs font-black text-blue-700">{formatDate(program.starts_at)}</time>
               </article>

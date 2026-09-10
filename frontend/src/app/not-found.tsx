@@ -8,13 +8,17 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Rendered per-request for whatever unmatched URL was visited -- must not
+// be statically generated as one shared page.
+export const dynamic = "force-dynamic";
+
 export default function NotFound() {
   return (
     <PublicPageLayout>
       <Container className="flex min-h-[60vh] flex-col items-center justify-center py-16 text-center">
-        <p className="text-sm font-black text-[#c98c3d]">۴۰۴</p>
+        <p className="text-sm font-black text-[#8a641f]">۴۰۴</p>
         <h1 className="mt-2 text-2xl font-black text-[#0a2848]">این صفحه پیدا نشد</h1>
-        <p className="mt-3 max-w-md text-sm font-bold leading-8 text-[#0a2848]/60">
+        <p className="mt-3 max-w-md text-sm font-bold leading-8 text-[#0a2848]/70">
           نشانی وارد‌شده در سایت وجود ندارد یا جابه‌جا شده است.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">

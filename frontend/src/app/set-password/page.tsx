@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   title: "تعیین رمز عبور | مدرسه بعثت",
 };
 
+// Depends on a per-request token query param -- must not be statically
+// generated as one shared page.
+export const dynamic = "force-dynamic";
+
 export default async function SetPasswordPage({
   searchParams,
 }: {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { sanitizeCmsHtml } from "@/lib/content/sanitize-cms-html";
 import {
   buildCalloutBlockHtml,
@@ -7,6 +7,7 @@ import {
   buildMediaBlockHtml,
   buildQuoteBlockHtml,
   normalizeSafeEmbedUrl,
+  safeStructuredMediaUrl,
 } from "@/lib/editor/structured-content";
 
 describe("structured CMS blocks", () => {
@@ -75,5 +76,69 @@ describe("structured CMS blocks", () => {
     );
     expect(clean).not.toContain("<iframe");
     expect(clean).not.toContain("javascript:");
+  });
+});
+
+// SEC-FE-RICH-MEDIA-PARSER-001: safeStructuredMediaUrl's absolute-URL
+// branch had the same bare-`new URL()` gap already fixed in
+// isSafeExternalHttpUrl and lib/media/safe-url.ts -- a backslash-scheme
+// form like "http:\evil.example/pixel.jpg" parses identically to the
+// honest forward-slash form and resolves to an attacker-controlled host.
+// Now delegates to the shared, hardened isSafeExternalHttpUrl(), which
+// also fixes sanitizeCmsHtml's <img src> sanitization since it calls
+// safeStructuredMediaUrl directly.
+describe("safeStructuredMediaUrl absolute parser-normalization boundary", () => {
+  it("rejects HTTP(S) values whose backslashes normalize to an external host", () => {
+    const candidates = [
+      "http:\\\\evil.example/pixel.jpg",
+      "http:/\\/evil.example/pixel.jpg",
+    ];
+
+    for (const candidate of candidates) {
+      expect(safeStructuredMediaUrl(candidate), candidate).toBeNull();
+      const clean = sanitizeCmsHtml(`<img src="${candidate}">`);
+      expect(clean, candidate).not.toContain("evil.example");
+    }
+  });
+
+  it("still accepts a genuine absolute https media URL", () => {
+    expect(safeStructuredMediaUrl("https://cdn.example.com/image.jpg")).toBe("https://cdn.example.com/image.jpg");
+  });
+});
+
+// SEC-FE-RICH-MEDIA-ORIGIN-001: safeStructuredMediaUrl() now delegates
+// entirely to safePublicMediaUrl() (FE-PUBLIC-MEDIA-ORIGIN-001), so a
+// persisted rich-content gallery/media `src` the backend built with the
+// wrong Host (e.g. absolute "http://localhost:3000/media/..." in a real
+// deployment) is rewritten to this app's own origin instead of rendering
+// a dead cross-origin <img> that trips the CSP img-src allowlist.
+describe("safeStructuredMediaUrl media-origin normalization", () => {
+  const originalLocation = window.location;
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    Object.defineProperty(window, "location", { configurable: true, value: originalLocation });
+  });
+
+  it("rewrites a wrong-origin /media/ URL to the site's own origin", () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://besat.example.com");
+    // FE-PUBLIC-MEDIA-ORIGIN-001 (reopened): safe-url.ts's effectiveSiteUrl()
+    // now prefers window.location.origin over NEXT_PUBLIC_SITE_URL whenever
+    // a window exists (this function is genuinely used client-side, in
+    // rich-content-renderer.tsx/rich-editor.tsx) -- jsdom always provides
+    // one, so this test's simulated "viewing from besat.example.com" needs
+    // it stubbed to match.
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...originalLocation, origin: "https://besat.example.com" },
+    });
+    expect(safeStructuredMediaUrl("http://localhost:3000/media/gallery/a.jpg")).toBe(
+      "https://besat.example.com/media/gallery/a.jpg",
+    );
+  });
+
+  it("does not rewrite a non-/media/ absolute URL even with a mismatched origin", () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://besat.example.com");
+    expect(safeStructuredMediaUrl("https://cdn.example.com/image.jpg")).toBe("https://cdn.example.com/image.jpg");
   });
 });

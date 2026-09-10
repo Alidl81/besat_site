@@ -16,9 +16,9 @@ export default function AchievementsPage() {
           <h1 className="text-3xl font-black leading-[1.4] text-[#0f2f4a] md:text-5xl">افتخارات مجتمع و واحدهای آموزشی</h1>
         </Container>
       </header>
-      <main className="bg-slate-50 py-14 md:py-16">
+      <div className="bg-slate-50 py-14 md:py-16">
         <Container><AchievementsList /></Container>
-      </main>
+      </div>
     </PublicPageLayout>
   );
 }

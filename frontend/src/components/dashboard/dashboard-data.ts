@@ -53,6 +53,7 @@ export const dashboardPages = {
       { key: "events", label: "تقویم و رویدادها", href: "/dashboard/admin/events", icon: "calendar", description: "تقویم و رویدادهای مجموعه", emptyText: emptyDetail },
       { key: "settings", label: "تنظیمات مجموعه", href: "/dashboard/admin/settings", icon: "settings", description: "تنظیمات عملیاتی مجموعه", emptyText: emptyDetail, roles: ["general_manager"] },
       { key: "units", label: "واحدهای آموزشی", href: "/dashboard/admin/units", icon: "units", description: "مدیریت واحدهای آموزشی", emptyText: emptyDetail, dividerBefore: true, roles: ["general_manager"] },
+      { key: "departments", label: "دپارتمان‌ها", href: "/dashboard/admin/departments", icon: "building", description: "مدیریت دپارتمان‌های تخصصی", emptyText: emptyDetail, roles: ["general_manager"] },
       { key: "content", label: "مدیریت محتوا", href: "/dashboard/admin/content", icon: "file", description: "مدیریت خبرها و اطلاعیه‌ها", emptyText: emptyDetail, dividerBefore: true, roles: ["general_manager"] },
       { key: "gallery", label: "رسانه و گالری", href: "/dashboard/admin/gallery", icon: "albums", description: "مدیریت رسانه‌ها و آلبوم‌های تصویری", emptyText: emptyDetail, roles: ["general_manager"] },
       { key: "virtualTour", label: "تور مجازی", href: "/dashboard/admin/virtual-tour", icon: "virtualTour", description: "مدیریت صحنه‌های تور مجازی واحدها و دپارتمان‌ها", emptyText: emptyDetail, roles: ["general_manager"] },

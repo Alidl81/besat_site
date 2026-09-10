@@ -216,3 +216,133 @@ class VirtualTourCMSPermissionTests(VirtualTourBaseTestCase):
         self.client.force_authenticate(self.unit_manager)
         response = self.client.delete(f"/api/cms/virtual-tour/scenes/{scene.id}/")
         self.assertIn(response.status_code, (403, 404))
+
+
+class VirtualTourHotspotWorkflowLockTests(VirtualTourBaseTestCase):
+    """AUTH-VTOUR-HOTSPOT-WORKFLOW-001: a hotspot is a child of its scene,
+    and mutating one is exactly as much a change to the scene's published
+    surface as editing the scene's own fields -- CMSTourHotspotViewSet
+    previously only checked unit/department ownership, never the scene's
+    workflow status, so a unit_media/unit_manager could freely add, edit,
+    or remove hotspots on an already APPROVED/PUBLISHED/ARCHIVED scene."""
+
+    LOCKED_STATUSES = (TourScene.Status.APPROVED, TourScene.Status.PUBLISHED, TourScene.Status.ARCHIVED)
+    EDITABLE_STATUSES = (TourScene.Status.DRAFT, TourScene.Status.WAITING_REVIEW, TourScene.Status.REJECTED)
+
+    def _make_locked_scene(self, status, **kwargs):
+        # PUBLISHED alone additionally requires panorama+published_at (see
+        # test_publishing_requires_panorama_and_published_at) -- supplying
+        # both unconditionally keeps this helper usable for all three
+        # locked statuses without a status-specific branch.
+        return self.make_scene(
+            status=status, panorama=make_test_image(), published_at=timezone.localdate(), **kwargs
+        )
+
+    def _make_hotspot(self, scene, target_scene):
+        return TourHotspot.objects.create(scene=scene, target_scene=target_scene, yaw=1, pitch=1)
+
+    def test_unit_media_and_unit_manager_cannot_edit_a_hotspot_on_a_locked_scene(self):
+        for role_user in (self.unit_media, self.unit_manager):
+            for status in self.LOCKED_STATUSES:
+                with self.subTest(role=role_user.username, status=status):
+                    scene = self._make_locked_scene(status, title=f"صحنه {status}-{role_user.username}")
+                    other = self.make_scene(title=f"مقصد {status}-{role_user.username}")
+                    hotspot = self._make_hotspot(scene, target_scene=other)
+
+                    self.client.force_authenticate(role_user)
+                    response = self.client.patch(
+                        f"/api/cms/virtual-tour/hotspots/{hotspot.id}/", {"label": "برچسب جدید"}, format="json"
+                    )
+                    self.assertEqual(response.status_code, 403, response.data)
+                    hotspot.refresh_from_db()
+                    self.assertEqual(hotspot.label, "")
+
+    def test_unit_media_and_unit_manager_cannot_create_a_hotspot_on_a_locked_scene(self):
+        for role_user in (self.unit_media, self.unit_manager):
+            for status in self.LOCKED_STATUSES:
+                with self.subTest(role=role_user.username, status=status):
+                    scene = self._make_locked_scene(status, title=f"صحنه ایجاد {status}-{role_user.username}")
+                    other = self.make_scene(title=f"مقصد ایجاد {status}-{role_user.username}")
+
+                    self.client.force_authenticate(role_user)
+                    response = self.client.post(
+                        "/api/cms/virtual-tour/hotspots/",
+                        {"scene": scene.id, "target_scene": other.id, "yaw": 0, "pitch": 0},
+                        format="json",
+                    )
+                    self.assertEqual(response.status_code, 403, response.data)
+                    self.assertFalse(TourHotspot.objects.filter(scene=scene).exists())
+
+    def test_unit_media_and_unit_manager_cannot_delete_a_hotspot_on_a_locked_scene(self):
+        for role_user in (self.unit_media, self.unit_manager):
+            for status in self.LOCKED_STATUSES:
+                with self.subTest(role=role_user.username, status=status):
+                    scene = self._make_locked_scene(status, title=f"صحنه حذف {status}-{role_user.username}")
+                    other = self.make_scene(title=f"مقصد حذف {status}-{role_user.username}")
+                    hotspot = self._make_hotspot(scene, target_scene=other)
+
+                    self.client.force_authenticate(role_user)
+                    response = self.client.delete(f"/api/cms/virtual-tour/hotspots/{hotspot.id}/")
+                    self.assertEqual(response.status_code, 403, response.data)
+                    self.assertTrue(TourHotspot.objects.filter(pk=hotspot.pk).exists())
+
+    def test_unit_media_can_still_manage_hotspots_on_editable_scenes(self):
+        for status in self.EDITABLE_STATUSES:
+            with self.subTest(status=status):
+                scene = self.make_scene(status=status, title=f"صحنه قابل ویرایش {status}")
+                other = self.make_scene(title=f"مقصد قابل ویرایش {status}")
+
+                self.client.force_authenticate(self.unit_media)
+                create_response = self.client.post(
+                    "/api/cms/virtual-tour/hotspots/",
+                    {"scene": scene.id, "target_scene": other.id, "yaw": 0, "pitch": 0},
+                    format="json",
+                )
+                self.assertEqual(create_response.status_code, 201, create_response.data)
+
+                hotspot_id = create_response.data["id"]
+                patch_response = self.client.patch(
+                    f"/api/cms/virtual-tour/hotspots/{hotspot_id}/", {"label": "برچسب"}, format="json"
+                )
+                self.assertEqual(patch_response.status_code, 200, patch_response.data)
+
+                delete_response = self.client.delete(f"/api/cms/virtual-tour/hotspots/{hotspot_id}/")
+                self.assertEqual(delete_response.status_code, 204)
+
+    def test_general_manager_can_still_manage_hotspots_on_a_locked_scene(self):
+        scene = self._make_locked_scene(TourScene.Status.PUBLISHED, title="صحنه مدیر کل")
+        other = self.make_scene(title="مقصد مدیر کل")
+        hotspot = self._make_hotspot(scene, target_scene=other)
+
+        self.client.force_authenticate(self.general_manager)
+        patch_response = self.client.patch(
+            f"/api/cms/virtual-tour/hotspots/{hotspot.id}/", {"label": "برچسب مدیر"}, format="json"
+        )
+        self.assertEqual(patch_response.status_code, 200, patch_response.data)
+
+        create_response = self.client.post(
+            "/api/cms/virtual-tour/hotspots/",
+            {"scene": scene.id, "target_scene": other.id, "yaw": 0, "pitch": 0},
+            format="json",
+        )
+        self.assertEqual(create_response.status_code, 201, create_response.data)
+
+        delete_response = self.client.delete(f"/api/cms/virtual-tour/hotspots/{hotspot.id}/")
+        self.assertEqual(delete_response.status_code, 204)
+
+    def test_unit_media_cannot_bypass_the_lock_by_reassigning_a_hotspot_to_an_editable_scene(self):
+        locked_scene = self._make_locked_scene(TourScene.Status.PUBLISHED, title="صحنه قفل‌شده")
+        editable_scene = self.make_scene(title="صحنه قابل ویرایش")
+        other = self.make_scene(title="مقصد")
+        hotspot = self._make_hotspot(locked_scene, target_scene=other)
+
+        self.client.force_authenticate(self.unit_media)
+        response = self.client.patch(
+            f"/api/cms/virtual-tour/hotspots/{hotspot.id}/",
+            {"scene": editable_scene.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403, response.data)
+        hotspot.refresh_from_db()
+        self.assertEqual(hotspot.scene_id, locked_scene.id)

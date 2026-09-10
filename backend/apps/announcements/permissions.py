@@ -3,8 +3,6 @@ from rest_framework.permissions import BasePermission, SAFE_METHODS
 from apps.accounts.models import UserProfile, UserUnitMembership
 from apps.accounts.selectors import get_or_create_user_profile
 
-from .models import Announcement, AnnouncementCategory
-
 
 def user_has_active_profile(user) -> bool:
     if not user or not user.is_authenticated:
@@ -79,92 +77,6 @@ def get_accessible_unit_ids(user, allowed_roles: tuple[str, ...] | None = None) 
     return list(queryset.values_list("unit_id", flat=True))
 
 
-def user_can_access_announcement_object(user, announcement: Announcement) -> bool:
-    if is_general_manager(user):
-        return True
-
-    if is_parent(user):
-        return False
-
-    if announcement.scope != Announcement.Scope.UNIT or announcement.unit_id is None:
-        return False
-
-    accessible_unit_ids = get_accessible_unit_ids(user)
-
-    return announcement.unit_id in accessible_unit_ids
-
-
-def user_can_write_announcement_object(user, announcement: Announcement) -> bool:
-    """Create/edit/submit-for-review access. Unit media may author their
-    own unit's announcements but may not delete them — see
-    user_can_delete_announcement_object."""
-    if is_general_manager(user):
-        return True
-
-    if announcement.scope != Announcement.Scope.UNIT or announcement.unit_id is None:
-        return False
-
-    if is_unit_manager(user):
-        allowed_roles = (UserUnitMembership.UnitRole.UNIT_MANAGER,)
-    elif is_unit_media(user):
-        allowed_roles = (UserUnitMembership.UnitRole.UNIT_MEDIA,)
-    else:
-        return False
-
-    accessible_unit_ids = get_accessible_unit_ids(user, allowed_roles=allowed_roles)
-
-    return announcement.unit_id in accessible_unit_ids
-
-
-def user_can_delete_announcement_object(user, announcement: Announcement) -> bool:
-    """Deletion stays out of the media role's reach even for its own unit."""
-    if is_general_manager(user):
-        return True
-
-    if not is_unit_manager(user):
-        return False
-
-    if announcement.scope != Announcement.Scope.UNIT or announcement.unit_id is None:
-        return False
-
-    accessible_unit_ids = get_accessible_unit_ids(
-        user,
-        allowed_roles=(
-            UserUnitMembership.UnitRole.UNIT_MANAGER,
-        ),
-    )
-
-    return announcement.unit_id in accessible_unit_ids
-
-
-def user_can_upload_announcement_media(user, announcement: Announcement) -> bool:
-    if is_general_manager(user):
-        return True
-
-    if announcement.scope != Announcement.Scope.UNIT or announcement.unit_id is None:
-        return False
-
-    if is_unit_manager(user):
-        allowed_roles = (
-            UserUnitMembership.UnitRole.UNIT_MANAGER,
-        )
-
-    elif is_unit_media(user):
-        allowed_roles = (
-            UserUnitMembership.UnitRole.UNIT_MEDIA,
-        )
-
-    else:
-        return False
-
-    accessible_unit_ids = get_accessible_unit_ids(
-        user,
-        allowed_roles=allowed_roles,
-    )
-
-    return announcement.unit_id in accessible_unit_ids
-
-
 class HasAnnouncementCategoryCMSPermission(BasePermission):
     def has_permission(self, request, view) -> bool:
         if not user_has_active_profile(request.user):
@@ -180,63 +92,3 @@ class HasAnnouncementCategoryCMSPermission(BasePermission):
             return is_unit_manager(request.user) or is_unit_media(request.user)
 
         return False
-
-
-class HasAnnouncementCMSPermission(BasePermission):
-    def has_permission(self, request, view) -> bool:
-        if not user_has_active_profile(request.user):
-            return False
-
-        if is_general_manager(request.user):
-            return True
-
-        if is_parent(request.user):
-            return False
-
-        action = getattr(view, "action", None)
-
-        if action == "upload_image":
-            return is_unit_manager(request.user) or is_unit_media(request.user)
-
-        if action == "submit_review":
-            return is_unit_manager(request.user) or is_unit_media(request.user)
-
-        if action in ("approve", "reject", "archive", "restore"):
-            return is_unit_manager(request.user)
-
-        if action == "publish":
-            return False
-
-        if request.method in SAFE_METHODS:
-            return is_unit_manager(request.user) or is_unit_media(request.user)
-
-        if request.method in ("POST", "PUT", "PATCH"):
-            return is_unit_manager(request.user) or is_unit_media(request.user)
-
-        if request.method == "DELETE":
-            return is_unit_manager(request.user)
-
-        return False
-
-    def has_object_permission(self, request, view, obj) -> bool:
-        if isinstance(obj, AnnouncementCategory):
-            return HasAnnouncementCategoryCMSPermission().has_permission(request, view)
-
-        if not isinstance(obj, Announcement):
-            return False
-
-        if is_general_manager(request.user):
-            return True
-
-        action = getattr(view, "action", None)
-
-        if action == "upload_image":
-            return user_can_upload_announcement_media(request.user, obj)
-
-        if request.method in SAFE_METHODS:
-            return user_can_access_announcement_object(request.user, obj)
-
-        if request.method == "DELETE":
-            return user_can_delete_announcement_object(request.user, obj)
-
-        return user_can_write_announcement_object(request.user, obj)

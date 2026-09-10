@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { DepartmentRecord } from "@/lib/data/domain-types";
 import { departmentsRepository } from "@/lib/data/repositories";
+import { safePublicMediaUrl } from "@/lib/media/safe-url";
 
 const fallbackImages = [
   "/images/official/hero/besat-hs-banner-03.jpg",
@@ -50,7 +51,10 @@ export function HomeDepartmentsSection() {
       <div className="mx-auto w-full max-w-[1400px]">
         <div className="mb-7 flex items-end justify-between gap-5">
           <div>
-            <p className="mb-2 flex items-center gap-3 text-xs font-black text-[#c98c3d]">
+            {/* FE-A11Y-CONTRAST-HOME-NEWS-001 (same defect pattern, proactively
+                applied here too): #c98c3d on this white background is
+                ~2.87:1, also failing AA's 4.5:1 for small text. */}
+            <p className="mb-2 flex items-center gap-3 text-xs font-black text-[#8a641f]">
               <span className="h-px w-8 bg-[#c98c3d]" />
               آموزش فراتر از کلاس درس
             </p>
@@ -73,7 +77,7 @@ export function HomeDepartmentsSection() {
             >
               <div className="relative overflow-hidden">
                 <img
-                  src={department.cover_image || fallbackImages[index % fallbackImages.length]}
+                  src={safePublicMediaUrl(department.cover_image) || fallbackImages[index % fallbackImages.length]}
                   alt={department.title}
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                   draggable={false}
@@ -85,7 +89,9 @@ export function HomeDepartmentsSection() {
                 <p className="mt-2 text-[10px] font-bold leading-5 text-slate-500 line-clamp-2">
                   {department.description || "برنامه‌های تخصصی و مهارت‌محور مجتمع بعثت"}
                 </p>
-                <span className="mt-3 text-[10px] font-black text-[#c98c3d]">بیشتر ←</span>
+                {/* FE-A11Y-CONTRAST-HOME-NEWS-001 (same defect pattern, proactively
+                    applied here too): same failing color/white-background pairing. */}
+                <span className="mt-3 text-[10px] font-black text-[#8a641f]">بیشتر ←</span>
               </div>
             </Link>
           ))}

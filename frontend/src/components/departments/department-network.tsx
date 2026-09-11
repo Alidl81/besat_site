@@ -119,7 +119,7 @@ export function DepartmentNetwork({
           </div>
         ))}
 
-        <div className="col-start-3 row-start-2 flex items-center justify-center">
+        <div className="col-start-2 row-start-2 flex items-center justify-center">
           <div className="flex min-h-24 w-36 flex-col items-center justify-center rounded-[1.5rem] border border-[#e2ae5b]/70 bg-[#0a2848] px-3 text-center text-white shadow-[0_18px_40px_rgba(8,30,55,0.2)]">
             <span className="text-sm font-black text-[#f1ca83]">{centerLabel}</span>
             <span className="mt-1 text-[0.68rem] font-bold leading-5 text-white/70">{centerDescription}</span>

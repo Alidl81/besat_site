@@ -9,9 +9,10 @@ import {
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { ContactForm } from "@/components/contact/contact-form";
+import { ContactUnitSelector } from "@/components/contact/contact-unit-selector";
 import { getApiErrorMessage } from "@/lib/api/client";
-import { getContactInfo } from "@/services/public-content-service";
-import type { ContactInfo } from "@/types/public-content";
+import { getContactInfo, getPublicUnits } from "@/services/public-content-service";
+import type { ContactInfo, PublicSchoolUnit } from "@/types/public-content";
 
 function telHref(value: string) {
   const primaryNumber = value.split(/\(|\[|داخلی/i, 1)[0];
@@ -71,6 +72,8 @@ function ContactLine({
 
 export function ContactPageContent() {
   const [contact, setContact] = useState<ContactInfo | null>(null);
+  const [units, setUnits] = useState<PublicSchoolUnit[] | null>(null);
+  const [unitsError, setUnitsError] = useState(false);
   const [error, setError] = useState("");
   const [version, setVersion] = useState(0);
 
@@ -87,6 +90,18 @@ export function ContactPageContent() {
         if (!cancelled) setError(getApiErrorMessage(reason));
       });
 
+    getPublicUnits()
+      .then((publicUnits) => {
+        if (cancelled) return;
+        setUnitsError(false);
+        setUnits(publicUnits);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setUnitsError(true);
+        setUnits([]);
+      });
+
     return () => {
       cancelled = true;
     };
@@ -101,6 +116,8 @@ export function ContactPageContent() {
           type="button"
           onClick={() => {
             setContact(null);
+            setUnits(null);
+            setUnitsError(false);
             setError("");
             setVersion((value) => value + 1);
           }}
@@ -126,34 +143,38 @@ export function ContactPageContent() {
 
   return (
     <div className="grid items-start gap-8 xl:grid-cols-[0.85fr_1.15fr]">
-      <section aria-labelledby="central-contact-title" className="rounded-[1.5rem] border border-[#e0e4e6] bg-white p-6 shadow-[0_14px_40px_rgba(15,35,57,0.06)] sm:p-8">
-        <p className="text-xs font-black tracking-[0.16em] text-[#8a641f]">ارتباط مستقیم</p>
-        <h2 id="central-contact-title" className="mt-3 text-2xl font-black leading-[1.45] text-[#0f2f4a]">با مجتمع بعثت در تماس باشید</h2>
-        <p className="mt-3 text-sm font-bold leading-8 text-slate-600">
-          برای پرسش، پیشنهاد یا پیگیری، از راه‌های ارتباطی رسمی زیر استفاده کنید. پیام‌های عمومی نیز از فرم همین صفحه دریافت می‌شوند.
-        </p>
-
-        {hasDetails ? (
-          <div className="mt-7">
-            {contact.address ? (
-              <ContactLine icon={<MapPin aria-hidden="true" className="size-4" />} label="نشانی مجموعه" value={contact.address} />
-            ) : null}
-            {contact.phone ? (
-              <ContactLine icon={<Phone aria-hidden="true" className="size-4" />} label="تلفن مجموعه" value={contact.phone} href={telHref(contact.phone)} ltr />
-            ) : null}
-            {contact.phone_secondary ? (
-              <ContactLine icon={<Phone aria-hidden="true" className="size-4" />} label="تلفن دوم" value={contact.phone_secondary} href={telHref(contact.phone_secondary)} ltr />
-            ) : null}
-            {contact.email ? (
-              <ContactLine icon={<Mail aria-hidden="true" className="size-4" />} label="ایمیل" value={contact.email} href={`mailto:${contact.email}`} ltr />
-            ) : null}
-          </div>
-        ) : (
-          <p role="status" className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm font-bold leading-7 text-slate-600">
-            اطلاعات تماس عمومی هنوز ثبت نشده است؛ پیام خود را از فرم روبه‌رو ارسال کنید.
+      <div className="grid min-w-0 gap-6">
+        <section aria-labelledby="central-contact-title" className="rounded-[1.5rem] border border-[#e0e4e6] bg-white p-6 shadow-[0_14px_40px_rgba(15,35,57,0.06)] sm:p-8">
+          <p className="text-xs font-black tracking-[0.16em] text-[#8a641f]">ارتباط مستقیم</p>
+          <h2 id="central-contact-title" className="mt-3 text-2xl font-black leading-[1.45] text-[#0f2f4a]">با مجتمع بعثت در تماس باشید</h2>
+          <p className="mt-3 text-sm font-bold leading-8 text-slate-600">
+            برای پرسش، پیشنهاد یا پیگیری، از راه‌های ارتباطی رسمی زیر استفاده کنید. پیام‌های عمومی نیز از فرم همین صفحه دریافت می‌شوند.
           </p>
-        )}
-      </section>
+
+          {hasDetails ? (
+            <div className="mt-7">
+              {contact.address ? (
+                <ContactLine icon={<MapPin aria-hidden="true" className="size-4" />} label="نشانی مجموعه" value={contact.address} />
+              ) : null}
+              {contact.phone ? (
+                <ContactLine icon={<Phone aria-hidden="true" className="size-4" />} label="تلفن مجموعه" value={contact.phone} href={telHref(contact.phone)} ltr />
+              ) : null}
+              {contact.phone_secondary ? (
+                <ContactLine icon={<Phone aria-hidden="true" className="size-4" />} label="تلفن دوم" value={contact.phone_secondary} href={telHref(contact.phone_secondary)} ltr />
+              ) : null}
+              {contact.email ? (
+                <ContactLine icon={<Mail aria-hidden="true" className="size-4" />} label="ایمیل" value={contact.email} href={`mailto:${contact.email}`} ltr />
+              ) : null}
+            </div>
+          ) : (
+            <p role="status" className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm font-bold leading-7 text-slate-600">
+              اطلاعات تماس عمومی هنوز ثبت نشده است؛ پیام خود را از فرم روبه‌رو ارسال کنید.
+            </p>
+          )}
+        </section>
+
+        <ContactUnitSelector units={units} error={unitsError} />
+      </div>
 
       <ContactForm />
     </div>

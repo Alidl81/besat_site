@@ -13,7 +13,7 @@ export default function DepartmentsPage() {
       <PageHero
         eyebrow="دپارتمان‌ها"
         title="دپارتمان‌های مدرسه بعثت"
-        description="برای مشاهده اطلاعات هر دپارتمان، آن را از گردونه انتخاب کنید."
+        description="حوزه‌های آموزشی و مهارتی بعثت را در یک نمای روشن و قابل انتخاب ببینید."
       />
       <UnitsExplorerSection variant="department" />
     </PublicPageLayout>

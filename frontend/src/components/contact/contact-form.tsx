@@ -4,16 +4,12 @@ import { CheckCircle2, Send } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { ApiError, getApiErrorMessage } from "@/lib/api/client";
 import { submitContactMessage } from "@/services/public-content-service";
-import type {
-  ContactMessagePayload,
-  PublicSchoolUnit,
-} from "@/types/public-content";
+import type { ContactMessagePayload } from "@/types/public-content";
 
 type FieldName =
   | "full_name"
   | "phone"
   | "email"
-  | "related_unit"
   | "message_type"
   | "subject"
   | "message";
@@ -32,7 +28,6 @@ const fieldLabels: Record<FieldName, string> = {
   full_name: "نام و نام خانوادگی",
   phone: "شماره تماس",
   email: "ایمیل",
-  related_unit: "واحد مرتبط",
   message_type: "نوع پیام",
   subject: "موضوع",
   message: "متن پیام",
@@ -43,7 +38,6 @@ const inputClass =
 
 export function validateContactMessage(
   payload: ContactMessagePayload,
-  units: PublicSchoolUnit[],
 ) {
   const nextErrors: FieldErrors = {};
 
@@ -60,13 +54,6 @@ export function validateContactMessage(
   if (payload.message.trim().length < 10) {
     nextErrors.message = "متن پیام باید حداقل ۱۰ کاراکتر باشد.";
   }
-  if (
-    payload.related_unit &&
-    !units.some((unit) => String(unit.id) === String(payload.related_unit))
-  ) {
-    nextErrors.related_unit = "واحد آموزشی انتخاب‌شده معتبر نیست.";
-  }
-
   return nextErrors;
 }
 
@@ -92,23 +79,12 @@ function errorMessage(reason: unknown) {
   return getApiErrorMessage(reason);
 }
 
-export function ContactForm({
-  units,
-  selectedUnitId,
-}: {
-  units: PublicSchoolUnit[];
-  selectedUnitId?: string;
-}) {
+export function ContactForm() {
   const [state, setState] = useState<
     "idle" | "submitting" | "success" | "error"
   >("idle");
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [relatedUnitId, setRelatedUnitId] = useState(() =>
-    selectedUnitId && units.some((unit) => String(unit.id) === selectedUnitId)
-      ? selectedUnitId
-      : "",
-  );
   const pendingRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const successRef = useRef<HTMLDivElement>(null);
@@ -131,7 +107,6 @@ export function ContactForm({
       full_name: String(formData.get("full_name") ?? "").trim(),
       phone: String(formData.get("phone") ?? "").trim() || undefined,
       email: String(formData.get("email") ?? "").trim() || undefined,
-      related_unit: relatedUnitId || null,
       message_type: String(
         formData.get("message_type") ?? "general",
       ) as ContactMessagePayload["message_type"],
@@ -172,7 +147,7 @@ export function ContactForm({
       return;
     }
 
-    const nextErrors = validateContactMessage(payloadFromForm(form), units);
+    const nextErrors = validateContactMessage(payloadFromForm(form));
 
     setErrors((current) => {
       const next = { ...current };
@@ -209,7 +184,7 @@ export function ContactForm({
 
     const form = event.currentTarget;
     const payload = payloadFromForm(form);
-    const nextErrors = validateContactMessage(payload, units);
+    const nextErrors = validateContactMessage(payload);
 
     setErrors(nextErrors);
 
@@ -231,7 +206,6 @@ export function ContactForm({
       setMessage(response.message || "پیام شما ثبت شد.");
       setErrors({});
       form.reset();
-      setRelatedUnitId("");
     } catch (reason) {
       const serverErrors: FieldErrors = {};
 
@@ -332,31 +306,6 @@ export function ContactForm({
               className={inputClass}
             />
             <FieldError field="full_name" errors={errors} />
-          </label>
-
-          <label>
-            <span className="mb-2 block text-sm font-black text-[#0f2f4a]">واحد مرتبط</span>
-            <select
-              id="related_unit"
-              name="related_unit"
-              value={relatedUnitId}
-              onChange={(event) => {
-                setRelatedUnitId(event.target.value);
-                clearFieldErrors(["related_unit"]);
-              }}
-              onBlur={() => validateFields(["related_unit"])}
-              aria-invalid={Boolean(errors.related_unit)}
-              aria-describedby={errors.related_unit ? "related_unit-error" : undefined}
-              className={inputClass}
-            >
-              <option value="">ارتباط با مجموعه</option>
-              {units.map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.title}
-                </option>
-              ))}
-            </select>
-            <FieldError field="related_unit" errors={errors} />
           </label>
 
           <label>

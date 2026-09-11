@@ -86,7 +86,7 @@ export function HomeDepartmentsSection() {
                 <div className="absolute inset-0 bg-gradient-to-t from-[#071b31]/28 to-transparent" />
               </div>
               <div className="flex flex-col justify-center p-4 text-right">
-                <h3 className="text-sm font-black leading-6 text-[#0a2848]">{department.title}</h3>
+                <h3 className="break-words text-sm font-black leading-6 text-[#0a2848] [text-wrap:balance]">{department.title}</h3>
                 <p className="mt-2 text-[10px] font-bold leading-5 text-slate-500 line-clamp-2">
                   {department.description || "برنامه‌های تخصصی و مهارت‌محور مجتمع بعثت"}
                 </p>

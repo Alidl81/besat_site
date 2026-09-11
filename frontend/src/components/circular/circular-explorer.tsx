@@ -81,13 +81,13 @@ export function CircularExplorer({ items, descriptions, variant, initialSlug }: 
       <div className="mx-auto w-full max-w-7xl">
         <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
           <div className="lg:sticky lg:top-28">
-            <div className="rounded-[2.5rem] border border-slate-200 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.08)] sm:p-8">
+            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-[0_16px_42px_rgba(15,23,42,0.06)] sm:p-6">
               <CircularSelector items={items} activeId={activeId} onSelect={handleSelect} />
               {/* A11Y-UNITS-ACHIEVEMENT-CONTRAST-001: same text-slate-500-on-white
                   contrast shortfall (~4.49:1, needs 4.5:1) fixed proactively
                   throughout this file, not just the one instance reported. */}
-              <p className="mt-5 text-center text-xs font-bold leading-7 text-slate-600">
-                برای انتخاب، روی {variant === "unit" ? "واحد" : "دپارتمان"} مورد نظر کلیک کنید یا گردونه را بچرخانید.
+              <p className="mt-4 text-center text-xs font-bold leading-7 text-slate-600">
+                برای مشاهده جزئیات، {variant === "unit" ? "واحد" : "حوزه"} مورد نظر را انتخاب کنید.
               </p>
             </div>
           </div>
@@ -97,7 +97,7 @@ export function CircularExplorer({ items, descriptions, variant, initialSlug }: 
               <p className="mb-1 text-sm font-black text-blue-600">
                 {variant === "unit" ? "واحد" : "دپارتمان"} انتخاب‌شده
               </p>
-              <h2 className="text-2xl font-black leading-[1.5] text-[#062452] sm:text-3xl">
+              <h2 className="break-words text-2xl font-black leading-[1.5] text-[#062452] [text-wrap:balance] sm:text-3xl">
                 {activeItem?.title}
               </h2>
             </div>

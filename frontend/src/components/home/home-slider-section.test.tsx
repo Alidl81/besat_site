@@ -57,13 +57,13 @@ describe("HomeSliderSection CMS href boundary", () => {
     render(<HomeSliderSection />);
 
     await waitFor(() => expect(screen.getByRole("region")).toBeInTheDocument());
-    const links = screen.getAllByRole("link");
+    const links = screen.queryAllByRole("link");
     const slideLink = links.find((link) => link.textContent?.includes("پیش‌ثبت‌نام") || link.getAttribute("href")?.includes("javascript:"));
 
     expect(slideLink?.getAttribute("href")).not.toBe("javascript:alert(1)");
   });
 
-  it("uses the configured CMS slide destination for its primary action", async () => {
+  it("uses the configured CMS slide destination with a neutral action label", async () => {
     slidesMock.mockResolvedValueOnce([
       {
         id: 10,
@@ -80,7 +80,7 @@ describe("HomeSliderSection CMS href boundary", () => {
     render(<HomeSliderSection />);
 
     await waitFor(() => expect(screen.getByRole("region")).toBeInTheDocument());
-    expect(screen.getByRole("link", { name: "مطالعه کامل خبر" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "مشاهده بیشتر" })).toHaveAttribute(
       "href",
       "/about?from=home-slide",
     );
@@ -103,13 +103,14 @@ describe("HomeSliderSection CMS href boundary", () => {
     render(<HomeSliderSection />);
 
     await waitFor(() => expect(screen.getByRole("region")).toBeInTheDocument());
-    expect(screen.getByRole("link", { name: "مطالعه کامل خبر" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "مشاهده بیشتر" })).toHaveAttribute(
       "href",
       "https://partner.example/program",
     );
+    expect(screen.getByRole("link", { name: "مشاهده بیشتر" })).toHaveAttribute("target", "_blank");
   });
 
-  it("falls back to the default CTA pair for a protocol-relative bypass href", async () => {
+  it("renders no primary CTA for a protocol-relative bypass href", async () => {
     slidesMock.mockResolvedValueOnce([
       {
         id: 12,
@@ -127,6 +128,53 @@ describe("HomeSliderSection CMS href boundary", () => {
 
     await waitFor(() => expect(screen.getByRole("region")).toBeInTheDocument());
     expect(screen.queryByRole("link", { name: "مطالعه کامل خبر" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /پیش‌ثبت‌نام/ })).toHaveAttribute("href", "/registration");
+    expect(screen.queryByRole("link", { name: "مشاهده بیشتر" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /پیش‌ثبت‌نام/ })).not.toBeInTheDocument();
+  });
+
+  it("uses the news route and news label for a featured news slide", async () => {
+    newsMock.mockResolvedValueOnce({
+      results: [
+        {
+          id: 17,
+          slug: "spring-news",
+          title: "خبر بهاری",
+          summary: "خلاصه خبر",
+          cover_image: "/media/news.jpg",
+          image: null,
+        },
+      ],
+    });
+
+    render(<HomeSliderSection />);
+
+    await waitFor(() => expect(screen.getByRole("region")).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "مطالعه کامل خبر" })).toHaveAttribute(
+      "href",
+      "/news/spring-news",
+    );
+  });
+
+  it("labels a unit slide as a unit destination", async () => {
+    slidesMock.mockResolvedValueOnce([
+      {
+        id: 13,
+        title: "واحد دخترانه",
+        subtitle: "معرفی واحد",
+        image: "/media/slide.jpg",
+        alt_text: "اسلاید",
+        href: "/units/girls-one",
+        is_active: true,
+        order: 0,
+      },
+    ]);
+
+    render(<HomeSliderSection />);
+
+    await waitFor(() => expect(screen.getByRole("region")).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "مشاهده واحد" })).toHaveAttribute(
+      "href",
+      "/units/girls-one",
+    );
   });
 });

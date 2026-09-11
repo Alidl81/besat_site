@@ -13,11 +13,9 @@ export default function ContactPage() {
       <header className="border-b border-slate-200 bg-[linear-gradient(135deg,#f8fbfd_0%,#ffffff_64%,#fffaf1_100%)]">
         <Container className="py-14 md:py-20">
           <p className="mb-4 text-sm font-black text-[#8a641f]">تماس با ما</p>
-          <h1 className="max-w-3xl text-3xl font-black leading-[1.45] text-[#0f2f4a] md:text-5xl">
-            راهی روشن برای ارتباط با مجموعه و واحدهای آموزشی
-          </h1>
+          <h1 className="max-w-3xl text-3xl font-black leading-[1.45] text-[#0f2f4a] md:text-5xl">ارتباط مستقیم با مجتمع بعثت</h1>
           <p className="mt-5 max-w-2xl text-base font-bold leading-8 text-slate-600">
-            راه ارتباطی مجموعه را ببینید، واحد آموزشی مرتبط را انتخاب کنید و در صورت نیاز پیام خود را با اطلاعات تماس مناسب ارسال کنید.
+            راه‌های ارتباطی رسمی را ببینید و برای پرسش، پیشنهاد یا پیگیری، پیام خود را برای مجموعه بفرستید.
           </p>
         </Container>
       </header>

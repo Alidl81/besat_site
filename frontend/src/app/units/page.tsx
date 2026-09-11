@@ -29,8 +29,8 @@ export default async function UnitsPage({ searchParams }: UnitsPageProps) {
     <PublicPageLayout>
       <PageHero
         eyebrow="واحدها"
-        title="واحدهای مدرسه بعثت"
-        description="برای مشاهده اطلاعات، اخبار، افتخارات و گالری هر واحد، آن را از گردونه انتخاب کنید."
+        title="واحدهای آموزشی"
+        description="واحدهای آموزشی را بر اساس جنسیت و مقطع ببینید و برای معرفی کامل انتخاب کنید."
       />
       <UnitsExplorerSection variant="unit" initialSlug={initialUnitSlug} />
     </PublicPageLayout>

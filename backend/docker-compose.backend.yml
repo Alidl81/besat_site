@@ -1,5 +1,10 @@
 name: besat_backend
 
+# Compatibility backend-only composition. The supported single-site
+# deployment is the repository-root docker-compose.prod.yml, which adds the
+# one-shot migration/static services and frontend/gateway topology. Do not use
+# this file for a multi-replica production rollout.
+
 services:
   db:
     image: postgres:16-alpine

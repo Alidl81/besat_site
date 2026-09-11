@@ -9,6 +9,9 @@ so it runs for every process that imports production settings (gunicorn,
 happen to invoke `manage.py check --deploy`.
 """
 
+import ipaddress
+from urllib.parse import urlparse
+
 from django.core.exceptions import ImproperlyConfigured
 
 MIN_SECRET_KEY_LENGTH = 32
@@ -39,6 +42,42 @@ def is_placeholder_value(value: str) -> bool:
     return any(marker in lowered for marker in PLACEHOLDER_MARKERS)
 
 
+def validate_public_origin(value: str) -> str | None:
+    """Return an error when a server-generated public origin is unsafe."""
+
+    if not value or is_placeholder_value(value):
+        return "FRONTEND_BASE_URL must be a real public HTTPS origin."
+
+    parsed = urlparse(value)
+    if parsed.scheme != "https" or not parsed.hostname:
+        return "FRONTEND_BASE_URL must use https:// and include a hostname."
+    if (
+        parsed.username
+        or parsed.password
+        or parsed.path not in ("", "/")
+        or parsed.query
+        or parsed.fragment
+    ):
+        return "FRONTEND_BASE_URL must be a bare origin without credentials, path, query, or fragment."
+    try:
+        port = parsed.port
+    except ValueError:
+        return "FRONTEND_BASE_URL contains an invalid port."
+    if port is not None:
+        return "FRONTEND_BASE_URL must not include a non-standard port."
+
+    hostname = parsed.hostname.lower().rstrip(".")
+    if hostname in {"localhost", "localhost.localdomain"}:
+        return "FRONTEND_BASE_URL must not point to localhost."
+    try:
+        address = ipaddress.ip_address(hostname)
+    except ValueError:
+        address = None
+    if address is not None and not address.is_global:
+        return "FRONTEND_BASE_URL must not point to a private or loopback IP."
+    return None
+
+
 def validate_production_settings(
     *,
     debug: bool,
@@ -50,6 +89,7 @@ def validate_production_settings(
     csrf_cookie_secure: bool,
     database_engine: str | None = None,
     shop_payment_provider: str | None = None,
+    frontend_base_url: str | None = None,
 ) -> None:
     """Raise ImproperlyConfigured (refusing to start) if any of these are
     in a state that must never be true for a production deployment.
@@ -88,6 +128,11 @@ def validate_production_settings(
 
     if not csrf_cookie_secure:
         errors.append("CSRF_COOKIE_SECURE must be True in production.")
+
+    if frontend_base_url is not None:
+        origin_error = validate_public_origin(frontend_base_url)
+        if origin_error:
+            errors.append(origin_error)
 
     if database_engine is not None and "sqlite" in database_engine:
         errors.append(

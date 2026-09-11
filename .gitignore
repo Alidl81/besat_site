@@ -1,5 +1,7 @@
 ﻿# Local backups
 _backups/
+deploy/production.compose.env
+deploy/backups/
 
 # Scratch/reference workspace (venv, npm cache, stale snapshots) --
 # never meant to be version-controlled; was tracked by accident.

@@ -1,5 +1,10 @@
 # Production Deployment (SEC-CONFIG-001)
 
+> Current operator runbook: use [`docs/PRODUCTION-DEPLOYMENT.md`](../PRODUCTION-DEPLOYMENT.md)
+> for the single-site deployment sequence, backup ordering, migration steps,
+> and rollback. This file retains the architectural rationale and historical
+> security-remediation record.
+
 This document exists because the repository previously had exactly one
 Docker Compose file (`docker-compose.yml`, the root-level developer/local-
 QA composition), which hardcodes `DJANGO_SETTINGS_MODULE=config.settings.
@@ -34,9 +39,10 @@ the pieces a production deployment needs:
 
 - **Gunicorn**, not `runserver`, is already what `backend/entrypoint.sh`
   execs unconditionally — true for both compose files, nothing to change.
-- **`next start`**, not `next dev`, is already `frontend/Dockerfile`'s own
-  `CMD` — the production image was already correct; only the *developer*
-  compose overrides it to `npm run dev` for hot-reload convenience.
+- **`next start`**, not `next dev`, remains `frontend/Dockerfile`'s own
+  `CMD`; the production image now keeps that runtime in a multi-stage,
+  non-root image while only the *developer* compose overrides it to
+  `npm run dev` for hot-reload convenience.
 - **`config/settings/production.py`** already hardcoded `DEBUG = False`,
   required `SECRET_KEY` from the environment with no fallback, forced
   `SESSION_COOKIE_SECURE`/`CSRF_COOKIE_SECURE = True`, and set sensible
@@ -92,11 +98,11 @@ the pieces a production deployment needs:
    test accounts with guessable usernames) now technically refuses to run
    at all when `settings.DEBUG` is false, backing up what its docstring
    already claimed. See `apps/accounts/test_seed_dev_accounts.py`.
-4. **`docker-compose.prod.yml`** (repo root) — db + backend + frontend,
-   production settings/images only, no source bind-mounts, no public
-   Postgres port, reuses `backend/docker.env` (required, gitignored) for
-   backend/db config and a new `frontend/.env.production` (required,
-   gitignored) for frontend config.
+4. **`docker-compose.prod.yml`** (repo root) — db + one-shot migration/static
+   services + backend + frontend, production settings/images only, no source
+   bind-mounts, no public Postgres port, loopback-only application ports,
+   reuses `backend/docker.env` (required, gitignored) for backend/db config
+   and `frontend/.env.production` (required, gitignored) for frontend config.
 5. **`frontend/.env.production.example`** — template for the frontend's
    production runtime config (site URL, internal backend URL). No secrets
    involved on the frontend side.
@@ -220,21 +226,19 @@ logic in two places.
   static HTML for unexpected hosts, plus an actual `/media/<known-file>`
   and canonical-URL check against a real running deployment, remains the
   stronger check and is not automated here.
-- **No reverse proxy / TLS termination is defined in this repository.**
-  `docker-compose.prod.yml` publishes the backend and frontend ports
-  directly; a real deployment needs a reverse proxy (nginx, Caddy, a cloud
-  load balancer, ...) in front handling TLS and setting
-  `X-Forwarded-Proto` correctly, with `TRUST_PROXY_HEADERS=true` only set
-  once that's confirmed working (see `backend/docker.env.example`'s
-  `SECURE_SSL_REDIRECT`/`SECURE_HSTS_*` defaults, deliberately left *off*
-  in the template to avoid an operator hitting a redirect loop before the
-  proxy is correctly configured — turn them on once it is).
+- **No reverse proxy / TLS termination runtime is defined in this repository.**
+  The application ports are loopback-only and
+  `deploy/nginx/besat.org.conf.example` is the host-gateway template. A real
+  deployment still needs nginx, Caddy, or a cloud load balancer in front
+  handling TLS and overwriting `X-Forwarded-Proto`/`X-Forwarded-For`.
+  Enable `TRUST_PROXY_HEADERS=true` and
+  `BESAT_TRUST_FORWARDED_FOR=true` only after that boundary is verified.
 - **Public topology** (`besat.org`, `www.besat.org`, `api.besat.org`,
-  future `ops.besat.org`/`status.besat.org`) is conceptual/expected, not
-  provisioned by anything in this repository — no DNS, certificates, or
-  reverse-proxy config exist here. `ops.besat.org`/`status.besat.org` are
-  intentionally not referenced anywhere in `ALLOWED_HOSTS`/CORS defaults
-  since those services don't exist yet.
+  future `ops.besat.org`/`status.besat.org`) still requires external DNS and
+  certificates. The repository now includes a host-gateway template, but does
+  not provision DNS, certificates, or the host's nginx service. The future
+  operational hosts remain intentionally absent from application origin
+  defaults until they exist.
 - **This has not been deployed to a real production host.** Everything
   above was validated in isolated, disposable contexts (unit tests,
   subprocess tests, one fresh throwaway Docker image build/run, all

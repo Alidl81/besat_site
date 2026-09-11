@@ -1,5 +1,11 @@
 # Backup & Disaster Recovery
 
+> Current operator commands are in [`docs/BACKUP-RESTORE.md`](../BACKUP-RESTORE.md)
+> and `ops/backup-postgres.sh`, `ops/restore-postgres.sh`,
+> `ops/backup-media.sh`, and `ops/restore-media.sh`. This file preserves the
+> historical isolated restore-drill evidence and the remaining DR design
+> decisions.
+
 **A backup that has never been restored is not proven.** This document
 covers both the design for real automated backups (not yet built — see
 "What's designed but not automated" below) and a real, executed

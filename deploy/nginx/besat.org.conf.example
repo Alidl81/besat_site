@@ -1,0 +1,67 @@
+# Host-managed TLS gateway for the production Compose stack.
+#
+# Install as an nginx http-context include (for example,
+# /etc/nginx/conf.d/besat.org.conf) after replacing the certificate paths.
+# The application containers listen only on 127.0.0.1:3080/8080; PostgreSQL
+# is never published to the host.
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+upstream besat_frontend {
+    server 127.0.0.1:3080;
+    keepalive 32;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name besat.org www.besat.org;
+
+    return 301 https://besat.org$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name www.besat.org;
+
+    ssl_certificate     /etc/letsencrypt/live/besat.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/besat.org/privkey.pem;
+
+    return 301 https://besat.org$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name besat.org;
+
+    ssl_certificate     /etc/letsencrypt/live/besat.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/besat.org/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    # Install this block only after both HTTPS hosts and certificate renewal
+    # are confirmed. If any future subdomain is not HTTPS, remove
+    # `includeSubDomains` before enabling the gateway.
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    client_max_body_size 25m;
+
+    location / {
+        proxy_pass http://besat_frontend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        # Overwrite rather than append: Django and Next only trust forwarded
+        # headers when this gateway is the known direct hop.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 60s;
+    }
+}

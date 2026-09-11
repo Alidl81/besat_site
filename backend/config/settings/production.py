@@ -30,4 +30,5 @@ validate_production_settings(
     csrf_cookie_secure=CSRF_COOKIE_SECURE,
     database_engine=DATABASES["default"].get("ENGINE"),
     shop_payment_provider=SHOP_PAYMENT_PROVIDER,
+    frontend_base_url=FRONTEND_BASE_URL,
 )

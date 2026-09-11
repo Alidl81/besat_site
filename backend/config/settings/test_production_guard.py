@@ -11,7 +11,11 @@ from django.conf import settings as django_settings
 from django.core.exceptions import ImproperlyConfigured
 from django.test import SimpleTestCase
 
-from ._production_guard import is_placeholder_value, validate_production_settings
+from ._production_guard import (
+    is_placeholder_value,
+    validate_production_settings,
+    validate_public_origin,
+)
 
 VALID_KWARGS = {
     "debug": False,
@@ -22,6 +26,7 @@ VALID_KWARGS = {
     "session_cookie_secure": True,
     "csrf_cookie_secure": True,
     "database_engine": "django.db.backends.postgresql",
+    "frontend_base_url": "https://besat.org",
 }
 
 
@@ -35,6 +40,15 @@ class IsPlaceholderValueTests(SimpleTestCase):
 
     def test_a_real_looking_random_secret_is_not_flagged(self):
         self.assertFalse(is_placeholder_value("k3f9-2xQ!7mZpL8vR-random-generated-secret-9284"))
+
+    def test_public_origin_accepts_the_canonical_https_origin(self):
+        self.assertIsNone(validate_public_origin("https://besat.org"))
+
+    def test_public_origin_rejects_http_loopback_and_placeholder_values(self):
+        self.assertIsNotNone(validate_public_origin("http://localhost:3000"))
+        self.assertIsNotNone(validate_public_origin("https://127.0.0.1"))
+        self.assertIsNotNone(validate_public_origin("https://your-domain.example"))
+        self.assertIsNotNone(validate_public_origin("https://besat.org:not-a-port"))
 
 
 class ValidateProductionSettingsTests(SimpleTestCase):
@@ -143,6 +157,7 @@ class RealProductionModuleFailClosedTests(SimpleTestCase):
             "ALLOWED_HOSTS": "besat.org,www.besat.org",
             "CORS_ALLOWED_ORIGINS": "https://besat.org",
             "CSRF_TRUSTED_ORIGINS": "https://besat.org",
+            "FRONTEND_BASE_URL": "https://besat.org",
             # Syntactically valid PostgreSQL URL -- `manage.py check` only
             # parses this into DATABASES, it never opens a real connection,
             # so this doesn't need a reachable database.
@@ -207,6 +222,7 @@ class RealProductionModuleFailClosedTests(SimpleTestCase):
             "ALLOWED_HOSTS": "besat.org,www.besat.org",
             "CORS_ALLOWED_ORIGINS": "https://besat.org",
             "CSRF_TRUSTED_ORIGINS": "https://besat.org",
+            "FRONTEND_BASE_URL": "https://besat.org",
             "SHOP_PAYMENT_PROVIDER": "a-real-gateway-not-mock",
         }
         base_env.pop("DATABASE_URL", None)

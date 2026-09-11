@@ -23,12 +23,13 @@ moving it to object storage is a later, explicit architecture decision.
 
 ## First installation on a new server
 
-Run from a clean checkout of the approved SHA. Do not use an unrecorded
-`latest` checkout:
+Run from a clean checkout of the exact SHA recorded for this handoff. Do not
+use an unrecorded `latest` checkout. Set the approved SHA through the release
+record (the current prepared package SHA is reported with this handoff):
 
 ```sh
 git fetch --tags origin
-git checkout --detach 5ecc20a01a42d0ecbf48a51273b5889a7ac0b4f1
+git checkout --detach <approved-release-sha>
 git rev-parse HEAD
 ```
 

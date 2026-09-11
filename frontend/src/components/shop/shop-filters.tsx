@@ -61,6 +61,8 @@ export function ShopFilters({ value, onChange, categories }: ShopFiltersProps) {
     const typeId = `${baseId}-type-${scope}`;
     const categoryId = `${baseId}-category-${scope}`;
     const orderingId = `${baseId}-ordering-${scope}`;
+    const priceMinId = `${baseId}-price-min-${scope}`;
+    const priceMaxId = `${baseId}-price-max-${scope}`;
 
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -137,10 +139,13 @@ export function ShopFilters({ value, onChange, categories }: ShopFiltersProps) {
           </select>
         </div>
 
-        <div className="sm:col-span-2 lg:col-span-2">
-          <span className="mb-1.5 block text-xs font-black text-[#0a2848]/70">بازه قیمت (تومان)</span>
+        <fieldset className="sm:col-span-2 lg:col-span-2">
+          <legend className="mb-1.5 block text-xs font-black text-[#0a2848]/70">بازه قیمت (تومان)</legend>
           <div className="flex items-center gap-2">
+            <label htmlFor={priceMinId} className="sr-only">حداقل قیمت (تومان)</label>
             <input
+              id={priceMinId}
+              name={`price_min_${scope}`}
               type="number"
               inputMode="numeric"
               min={0}
@@ -149,8 +154,11 @@ export function ShopFilters({ value, onChange, categories }: ShopFiltersProps) {
               placeholder="از"
               className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm font-bold text-[#0a2848] placeholder:text-[#0a2848]/35 focus:border-[#c98c3d] focus:outline-none focus:ring-4 focus:ring-[#c98c3d]/20"
             />
-            <span className="text-[#0a2848]/40">—</span>
+            <span aria-hidden="true" className="text-[#0a2848]/40">—</span>
+            <label htmlFor={priceMaxId} className="sr-only">حداکثر قیمت (تومان)</label>
             <input
+              id={priceMaxId}
+              name={`price_max_${scope}`}
               type="number"
               inputMode="numeric"
               min={0}
@@ -160,7 +168,7 @@ export function ShopFilters({ value, onChange, categories }: ShopFiltersProps) {
               className="w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm font-bold text-[#0a2848] placeholder:text-[#0a2848]/35 focus:border-[#c98c3d] focus:outline-none focus:ring-4 focus:ring-[#c98c3d]/20"
             />
           </div>
-        </div>
+        </fieldset>
 
         {activeCount > 0 ? (
           <div className="flex items-end sm:col-span-2 lg:col-span-1">

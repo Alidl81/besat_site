@@ -10,6 +10,8 @@ from rest_framework.views import APIView
 from apps.accounts.permissions import IsAuthenticatedAndActiveProfile
 from apps.accounts.selectors import get_or_create_user_profile
 from apps.registration.models import RegistrationRequest
+from apps.site_settings.models import SiteSettings
+from apps.units.models import SchoolUnit
 
 from .models import PanelService, Program, Student
 from .views import unit_performance_payloads, user_is_general_manager, user_is_parent
@@ -208,6 +210,72 @@ class ReportsExportAPIView(ReportsOverviewAPIView):
         for unit in overview.data["units"]:
             writer.writerow((unit["title"], unit["students_count"], unit["new_registrations_count"]))
         return response
+
+
+def panel_settings_payload(settings_obj):
+    options = settings_obj.panel_options or {}
+    return {
+        "school_name": settings_obj.school_name or "",
+        "current_academic_year_id": options.get("current_academic_year_id"),
+        "default_unit_id": options.get("default_unit_id"),
+        "notify_new_registration": bool(options.get("notify_new_registration", True)),
+        "show_published_on_home": bool(options.get("show_published_on_home", True)),
+        "autosave_forms": bool(options.get("autosave_forms", True)),
+        "internal_messages_enabled": bool(options.get("internal_messages_enabled", True)),
+        "academic_years": [],
+        "units": [
+            {"id": unit.id, "title": unit.title}
+            for unit in SchoolUnit.objects.real().order_by("order", "id")
+        ],
+    }
+
+
+class CMSSettingsAPIView(APIView):
+    permission_classes = [IsAuthenticatedAndActiveProfile]
+
+    def _authorize(self, request):
+        if not user_is_general_manager(request.user):
+            raise PermissionDenied("Only general managers can manage site settings.")
+
+    def get(self, request):
+        self._authorize(request)
+        settings_obj = SiteSettings.objects.get_active()
+        if settings_obj is None:
+            settings_obj = SiteSettings.objects.create(school_name=None, panel_options={})
+        return Response(panel_settings_payload(settings_obj))
+
+    def patch(self, request):
+        self._authorize(request)
+        settings_obj = SiteSettings.objects.get_active()
+        if settings_obj is None:
+            settings_obj = SiteSettings(panel_options={})
+
+        payload = request.data if isinstance(request.data, dict) else {}
+        school_name = str(payload.get("school_name", settings_obj.school_name or "")).strip()
+        default_unit_id = payload.get("default_unit_id") or None
+        if default_unit_id is not None:
+            try:
+                default_unit_id = int(default_unit_id)
+            except (TypeError, ValueError):
+                return Response({"default_unit_id": "واحد انتخاب‌شده معتبر نیست."}, status=400)
+            if not SchoolUnit.objects.real().filter(pk=default_unit_id).exists():
+                return Response({"default_unit_id": "واحد انتخاب‌شده معتبر نیست."}, status=400)
+
+        current = settings_obj.panel_options or {}
+        options = {
+            **current,
+            "current_academic_year_id": payload.get("current_academic_year_id") or None,
+            "default_unit_id": default_unit_id,
+            "notify_new_registration": bool(payload.get("notify_new_registration", current.get("notify_new_registration", True))),
+            "show_published_on_home": bool(payload.get("show_published_on_home", current.get("show_published_on_home", True))),
+            "autosave_forms": bool(payload.get("autosave_forms", current.get("autosave_forms", True))),
+            "internal_messages_enabled": bool(payload.get("internal_messages_enabled", current.get("internal_messages_enabled", True))),
+        }
+        settings_obj.school_name = school_name or None
+        settings_obj.panel_options = options
+        settings_obj.is_active = True
+        settings_obj.save()
+        return Response(panel_settings_payload(settings_obj))
 
 
 class PanelServicesAPIView(APIView):

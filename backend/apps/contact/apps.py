@@ -5,3 +5,6 @@ class ContactConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "apps.contact"
     verbose_name = "تماس با ما"
+
+    def ready(self):
+        from . import checks  # noqa: F401

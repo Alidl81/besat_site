@@ -1,4 +1,5 @@
 from pathlib import Path
+import importlib.util
 from datetime import timedelta
 
 import environ
@@ -26,6 +27,11 @@ def csv_env(name: str, default: str = "") -> list[str]:
 
 SECRET_KEY = env("SECRET_KEY", default="unsafe-development-key-change-me")
 DEBUG = env.bool("DEBUG", default=False)
+# The production image installs django-prometheus from requirements. Keeping a
+# capability flag makes local/audit containers with an older cached image
+# degrade to the internal metrics fallback instead of failing the whole API at
+# import time; a fresh release still uses the real package.
+PROMETHEUS_AVAILABLE = importlib.util.find_spec("django_prometheus") is not None
 ENABLE_API_DOCS = env.bool("ENABLE_API_DOCS", default=DEBUG)
 
 ALLOWED_HOSTS = csv_env("ALLOWED_HOSTS", "localhost,127.0.0.1")
@@ -54,8 +60,9 @@ THIRD_PARTY_APPS = [
     "django_filters",
     "drf_spectacular",
     "rest_framework_simplejwt.token_blacklist",
-    "django_prometheus",
 ]
+if PROMETHEUS_AVAILABLE:
+    THIRD_PARTY_APPS.append("django_prometheus")
 
 LOCAL_APPS = [
     "apps.core",
@@ -82,7 +89,7 @@ LOCAL_APPS = [
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 
-MIDDLEWARE = [
+MIDDLEWARE = ([
     # Outermost per django-prometheus's own requirement: sees the request
     # first and (because Django unwinds the response phase in reverse
     # middleware order) the response last, so its timing wraps everything
@@ -103,7 +110,18 @@ MIDDLEWARE = [
     # PrometheusAfterMiddleware so it still sees that same final state.
     "apps.core.middleware.RequestLoggingMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
-]
+] if PROMETHEUS_AVAILABLE else [
+    "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "apps.core.middleware.RequestLoggingMiddleware",
+])
 
 
 ROOT_URLCONF = "config.urls"

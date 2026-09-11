@@ -61,6 +61,8 @@ export function ShopExplorer() {
   const lastWrittenQueryRef = useRef<string | null>(null);
   const searchParamsKey = searchParams.toString();
   const [categories, setCategories] = useState<ShopCategory[]>([]);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  const [categoriesError, setCategoriesError] = useState(false);
   const [products, setProducts] = useState<ProductListItem[] | null>(null);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -136,8 +138,15 @@ export function ShopExplorer() {
 
   useEffect(() => {
     getShopCategories()
-      .then(setCategories)
-      .catch(() => setCategories([]));
+      .then((items) => {
+        setCategories(items);
+        setCategoriesError(false);
+      })
+      .catch(() => {
+        setCategories([]);
+        setCategoriesError(true);
+      })
+      .finally(() => setCategoriesLoaded(true));
   }, []);
 
   useEffect(() => {
@@ -195,6 +204,16 @@ export function ShopExplorer() {
 
   return (
     <div className="grid gap-6">
+      {categoriesLoaded && categoriesError ? (
+        <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold leading-7 text-amber-800">
+          دسته‌بندی‌های فروشگاه فعلاً در دسترس نیست؛ می‌توانید از جست‌وجو و فیلتر نوع محصول استفاده کنید.
+        </div>
+      ) : null}
+      {categoriesLoaded && !categoriesError && categories.length === 0 ? (
+        <p role="status" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold leading-7 text-slate-600">
+          دسته‌بندی‌های فروشگاه هنوز برای نمایش عمومی ثبت نشده است.
+        </p>
+      ) : null}
       <ShopFilters value={filters} onChange={handleFiltersChange} categories={categories} />
 
       <div aria-live="polite" className="sr-only">

@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- CMS gallery media is runtime-configured and may be an approved external asset. */
 
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { CrudManager, FormActions, type Column } from "@/components/crud/crud-manager";

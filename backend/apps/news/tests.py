@@ -346,3 +346,27 @@ class NewsModelValidationTests(TestCase):
 
         with self.assertRaises(ValidationError):
             news.full_clean()
+
+    def test_published_news_rejects_empty_table_headers(self):
+        news = News(
+            title="خبر جدول",
+            summary="خلاصه خبر",
+            scope=News.Scope.SCHOOL,
+            status=News.Status.PUBLISHED,
+            published_at=timezone.localdate(),
+            content_json=valid_content_json(),
+            editor_json={
+                "type": "doc",
+                "content": [{
+                    "type": "table",
+                    "content": [{
+                        "type": "tableRow",
+                        "content": [{"type": "tableHeader", "content": [{"type": "paragraph"}]}],
+                    }],
+                }],
+            },
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            news.full_clean()
+        self.assertIn("editor_json", context.exception.message_dict)

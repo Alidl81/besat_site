@@ -23,6 +23,7 @@ from .panel_views import (
     PanelServicesAPIView,
     ReportsExportAPIView,
     ReportsOverviewAPIView,
+    CMSSettingsAPIView,
 )
 
 
@@ -36,6 +37,7 @@ urlpatterns = [
     path("cms/reports/overview/", ReportsOverviewAPIView.as_view(), name="cms-reports-overview"),
     path("cms/reports/export/", ReportsExportAPIView.as_view(), name="cms-reports-export"),
     path("cms/services/", PanelServicesAPIView.as_view(), name="cms-services"),
+    path("cms/settings/", CMSSettingsAPIView.as_view(), name="cms-settings"),
     path(
         "dashboard/context/",
         DashboardContextAPIView.as_view(),

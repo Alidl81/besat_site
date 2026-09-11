@@ -9,7 +9,11 @@ from django.utils.text import slugify
 
 from apps.core.models import ActiveModel, OrderedModel, SEOFieldsModel, TimeStampedModel
 from apps.core.utils import normalize_text
-from apps.content.rich_text import extract_tiptap_plain_text, validate_tiptap_document
+from apps.content.rich_text import (
+    extract_tiptap_plain_text,
+    has_empty_table_header_cells,
+    validate_tiptap_document,
+)
 
 from .utils import (
     default_news_content_json,
@@ -315,6 +319,9 @@ class News(TimeStampedModel, ActiveModel, SEOFieldsModel):
 
             if not self.content_text:
                 errors["content_json"] = "برای انتشار خبر، متن خبر الزامی است."
+
+            if self.editor_json is not None and has_empty_table_header_cells(self.editor_json):
+                errors["editor_json"] = "برای انتشار خبر، همه عنوان‌های جدول باید نام‌گذاری شوند."
 
             if self.category and not self.category.is_active:
                 errors["category"] = "خبر منتشرشده نباید در دسته‌بندی غیرفعال باشد."

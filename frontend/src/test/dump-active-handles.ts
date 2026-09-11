@@ -40,7 +40,6 @@ if (process.env.BESAT_TEST_HANDLE_DUMP) {
         (handle as { constructor?: { name?: string } })?.constructor?.name ?? typeof handle;
       counts[type] = (counts[type] ?? 0) + 1;
     }
-    // eslint-disable-next-line no-console -- deliberate opt-in diagnostic output
     console.error(
       `[handle-dump pid=${process.pid}] last test started: ${currentTest} | activeHandles=${handles.length} ${JSON.stringify(counts)} | activeRequests=${requests.length} | rss=${Math.round(process.memoryUsage().rss / 1024 / 1024)}MiB`,
     );

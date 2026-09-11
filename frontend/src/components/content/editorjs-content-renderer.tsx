@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- EditorJS stores runtime media URLs; forcing a build-time remote allow-list would break authored content. */
 
 import { sanitizeCmsHtml } from "@/lib/content/sanitize-cms-html";
 import { safePublicMediaUrl } from "@/lib/media/safe-url";

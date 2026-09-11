@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- published CMS media is runtime-configured and not safely enumerable at build time. */
 
 import { Award, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";

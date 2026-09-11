@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- news images are CMS/runtime URLs with safe URL normalization. */
 
 import Link from "next/link";
 import { useEffect, useState } from "react";

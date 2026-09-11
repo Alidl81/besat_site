@@ -38,7 +38,7 @@ class CMSShopCategorySerializer(AbsoluteMediaURLMixin, serializers.ModelSerializ
         model = ShopCategory
         fields = (
             "id", "title", "slug", "description", "cover_image", "cover_image_url",
-            "is_active", "order", "created_at", "updated_at",
+            "is_active", "is_internal", "order", "created_at", "updated_at",
         )
         read_only_fields = ("id", "created_at", "updated_at")
 
@@ -141,7 +141,7 @@ class CMSProductListSerializer(AbsoluteMediaURLMixin, serializers.ModelSerialize
         fields = (
             "id", "product_type", "title", "slug", "category", "category_title",
             "featured_image", "price_amount", "sale_price_amount", "status",
-            "is_active", "is_featured", "is_important", "published_at", "updated_at",
+            "is_active", "is_internal", "is_featured", "is_important", "published_at", "updated_at",
         )
         read_only_fields = fields
 

@@ -5,7 +5,10 @@ import time
 from django.conf import settings
 from django.db import DatabaseError, connections
 from django.http import HttpResponse
-from django_prometheus import exports as prometheus_exports
+try:
+    from django_prometheus import exports as prometheus_exports
+except ImportError:  # cached local images may predate the optional dependency
+    from . import prometheus_fallback as prometheus_exports
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny

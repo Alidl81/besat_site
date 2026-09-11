@@ -61,6 +61,31 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Public pages share one main landmark. Keep the bypass control out of the
+   visual flow until keyboard focus reaches it, while preserving a clear,
+   high-contrast target for keyboard and switch users. */
+.besat-skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 0.75rem;
+  right: 0.75rem;
+  transform: translateY(-180%);
+  border-radius: 0.75rem;
+  background: #ffffff;
+  color: #062452;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 900;
+  box-shadow: 0 12px 30px rgba(6, 36, 82, 0.2);
+  transition: transform 180ms ease;
+}
+
+.besat-skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 3px solid #e2ae5b;
+  outline-offset: 3px;
+}
+
 img {
   display: block;
 }

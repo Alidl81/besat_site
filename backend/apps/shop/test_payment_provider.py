@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from urllib.parse import urlsplit
 
 from apps.shop.models import Order, PaymentAttempt
 from apps.shop.payments import get_payment_provider
@@ -31,6 +32,7 @@ class MockPaymentProviderTests(TestCase):
         self.assertEqual(intent.amount, 150_000)
         self.assertIn(f"/shop/payment/mock/{self.attempt.pk}/", intent.redirect_url)
         self.assertIn("token=", intent.redirect_url)
+        self.assertEqual(urlsplit(intent.redirect_url).netloc, "")
 
     def test_verify_callback_succeeds_with_valid_token_and_amount_comes_from_attempt(self):
         intent = self.provider.start_payment(attempt=self.attempt, return_url="https://example.test/return")

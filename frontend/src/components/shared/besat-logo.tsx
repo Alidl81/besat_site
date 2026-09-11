@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- logo source is runtime-configurable site settings. */
 type BesatLogoMarkProps = {
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;

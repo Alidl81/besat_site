@@ -31,9 +31,8 @@ class MockPaymentProvider(PaymentProvider):
 
     def start_payment(self, *, attempt, return_url: str) -> PaymentIntent:
         token = _sign_mock_token(attempt)
-        frontend_base = getattr(settings, "FRONTEND_BASE_URL", "http://localhost:3000").rstrip("/")
         redirect_url = (
-            f"{frontend_base}/shop/payment/mock/{attempt.pk}/"
+            f"/shop/payment/mock/{attempt.pk}/"
             f"?token={token}&return_url={quote(return_url, safe='')}"
         )
         provider_reference = f"MOCK-{attempt.idempotency_key}"

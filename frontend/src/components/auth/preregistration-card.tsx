@@ -232,12 +232,11 @@ export function PreregistrationCard({
     return (
       <main
         className="mx-auto w-full max-w-3xl rounded-[2rem] border border-rose-200 bg-white p-8 text-center shadow-sm"
-        role="alert"
       >
         <h1 className="text-2xl font-black text-[#0f2f4a]">
           دریافت اطلاعات پیش‌ثبت‌نام انجام نشد
         </h1>
-        <p className="mt-3 text-sm font-bold text-rose-700">{loadError}</p>
+        <div role="alert" className="mt-3 text-sm font-bold text-rose-700">{loadError}</div>
         <button
           type="button"
           onClick={() => {
@@ -251,6 +250,12 @@ export function PreregistrationCard({
           <RefreshCw aria-hidden="true" className="size-4" />
           تلاش دوباره
         </button>
+        <Link
+          href="/contact?subject=%D9%BE%DB%8C%DA%AF%DB%8C%D8%B1%DB%8C%20%D8%B2%D9%85%D8%A7%D9%86%20%D8%AB%D8%A8%D8%AA%E2%80%8C%D9%86%D8%A7%D9%85"
+          className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-[#12395b] px-5 text-sm font-black text-[#12395b] transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 motion-reduce:transition-none"
+        >
+          تماس برای پیگیری زمان ثبت‌نام
+        </Link>
       </main>
     );
   }
@@ -335,6 +340,12 @@ export function PreregistrationCard({
             <p className="mt-3 text-sm font-bold leading-7 text-amber-900">
               {unavailableReason}
             </p>
+            <Link
+              href="/contact?subject=%D9%BE%DB%8C%DA%AF%DB%8C%D8%B1%DB%8C%20%D8%B2%D9%85%D8%A7%D9%86%20%D9%BE%DB%8C%D8%B4%E2%80%8C%D8%AB%D8%A8%D8%AA%E2%80%8C%D9%86%D8%A7%D9%85"
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#12395b] px-5 text-sm font-black text-white transition hover:bg-[#0d2f4d] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200"
+            >
+              تماس برای پیگیری زمان ثبت‌نام
+            </Link>
           </div>
         ) : state === "success" ? (
           <div

@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
 export default function RemovedUnitSettingsAlias() {
-  notFound();
+  redirect("/dashboard/content-manager/profile");
 }

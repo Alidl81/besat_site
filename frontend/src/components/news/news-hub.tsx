@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- news media is runtime CMS content with safe URL handling. */
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";

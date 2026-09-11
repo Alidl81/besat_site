@@ -154,6 +154,36 @@ class DashboardAPITests(TestCase):
         self.assertIn("cards", response.data)
         self.assertGreaterEqual(response.data["stats"]["content_total"], 4)
 
+    def test_general_manager_settings_have_safe_defaults_and_persist(self):
+        self.authenticate(self.general_manager)
+
+        response = self.client.get("/api/cms/settings/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["school_name"], "")
+        self.assertTrue(response.data["notify_new_registration"])
+        self.assertEqual(response.data["units"][0]["id"], self.unit_1.id)
+
+        response = self.client.patch(
+            "/api/cms/settings/",
+            {
+                "school_name": "مجموعه بعثت",
+                "default_unit_id": self.unit_1.id,
+                "notify_new_registration": False,
+                "show_published_on_home": True,
+                "autosave_forms": False,
+                "internal_messages_enabled": True,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["school_name"], "مجموعه بعثت")
+        self.assertEqual(response.data["default_unit_id"], self.unit_1.id)
+        self.assertFalse(response.data["notify_new_registration"])
+
+    def test_non_general_manager_cannot_manage_settings(self):
+        self.authenticate(self.unit_manager)
+        self.assertEqual(self.client.get("/api/cms/settings/").status_code, 403)
+
     def test_general_manager_dashboard_reports_real_per_unit_performance(self):
         self.authenticate(self.general_manager)
 

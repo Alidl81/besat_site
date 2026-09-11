@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- department covers are CMS/runtime URLs. */
 
 import Link from "next/link";
 import { useEffect, useState } from "react";

@@ -16,7 +16,9 @@ def get_or_create_user_profile(user) -> UserProfile:
 def get_role_redirect_path(role: str) -> str:
     mapping = {
         UserProfile.Role.GENERAL_MANAGER: "/dashboard/admin",
-        UserProfile.Role.UNIT_MANAGER: "/dashboard/unit-manager",
+        # Unit Manager uses the same scoped content shell as unit media; the
+        # role still has stronger review/own-unit permissions server-side.
+        UserProfile.Role.UNIT_MANAGER: "/dashboard/content-manager",
         UserProfile.Role.UNIT_MEDIA: "/dashboard/media",
         UserProfile.Role.PARENT: "/dashboard/parents",
     }

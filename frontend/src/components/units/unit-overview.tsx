@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- unit cover media is runtime-configured. */
 
 import { Clock3, Mail, MapPin, Phone, RefreshCw, School } from "lucide-react";
 import { useEffect, useState } from "react";

@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- unit covers are runtime CMS media. */
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";

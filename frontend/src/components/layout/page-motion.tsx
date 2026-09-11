@@ -21,6 +21,8 @@ export function PageMotion({ children }: { children: ReactNode }) {
   return (
     <main
       key={pathname}
+      id="main-content"
+      tabIndex={-1}
       className={animating ? "besat-page-enter flex-1" : "flex-1"}
       onAnimationEnd={() => setAnimating(false)}
     >

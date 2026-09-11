@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- CMS media may be external or runtime-configured; safe URL handling and intrinsic CSS sizing are intentional. */
 
 import {
   Flag,

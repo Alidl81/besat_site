@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- published CMS media can use approved external URLs. */
 
 import Link from "next/link";
 import { useGSAP } from "@gsap/react";

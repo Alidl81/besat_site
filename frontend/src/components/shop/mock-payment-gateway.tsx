@@ -100,10 +100,11 @@ export function MockPaymentGateway({ attemptId }: { attemptId: number }) {
 
   if (invalidAttemptId) {
     return (
-      <Container className="flex min-h-[70vh] items-center justify-center py-12">
+      <main aria-labelledby="mock-payment-title" className="min-h-[70vh]">
+        <Container className="flex min-h-[70vh] items-center justify-center py-12">
         <div className="w-full max-w-md rounded-2xl border-2 border-dashed border-rose-300 bg-rose-50 p-6 text-center">
           <ShieldAlert aria-hidden="true" className="mx-auto size-10 text-rose-600" />
-          <h1 className="mt-3 text-lg font-black text-rose-900">پیوند پرداخت آزمایشی نامعتبر است</h1>
+          <h1 id="mock-payment-title" className="mt-3 text-lg font-black text-rose-900">پیوند پرداخت آزمایشی نامعتبر است</h1>
           <p role="alert" className="mt-2 text-sm font-bold leading-7 text-rose-800">
             این پیوند پرداخت آزمایشی معتبر نیست یا منقضی شده است.
           </p>
@@ -115,15 +116,17 @@ export function MockPaymentGateway({ attemptId }: { attemptId: number }) {
             بازگشت به فروشگاه
           </Link>
         </div>
-      </Container>
+        </Container>
+      </main>
     );
   }
 
   return (
-    <Container className="flex min-h-[70vh] items-center justify-center py-12">
+    <main aria-labelledby="mock-payment-title" className="min-h-[70vh]">
+      <Container className="flex min-h-[70vh] items-center justify-center py-12">
       <div className="w-full max-w-md rounded-2xl border-2 border-dashed border-amber-400 bg-amber-50 p-6 text-center">
         <ShieldAlert aria-hidden="true" className="mx-auto size-10 text-amber-600" />
-        <h1 className="mt-3 text-lg font-black text-amber-900">این یک درگاه پرداخت آزمایشی است</h1>
+        <h1 id="mock-payment-title" className="mt-3 text-lg font-black text-amber-900">این یک درگاه پرداخت آزمایشی است</h1>
         <p className="mt-2 text-sm font-bold leading-7 text-amber-800">
           این صفحه شبیه‌ساز پرداخت است و صرفاً برای محیط توسعه و تست استفاده می‌شود. هیچ پرداخت واقعی انجام
           نمی‌شود.
@@ -149,7 +152,7 @@ export function MockPaymentGateway({ attemptId }: { attemptId: number }) {
               type="button"
               onClick={() => handleChoice("success")}
               disabled={submitting !== null}
-              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-black text-white transition hover:bg-emerald-700 disabled:opacity-60"
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 text-sm font-black text-white transition hover:bg-emerald-800 disabled:opacity-60"
             >
               {submitting === "success" ? (
                 <Loader2 aria-hidden="true" className="size-4 animate-spin" />
@@ -174,6 +177,7 @@ export function MockPaymentGateway({ attemptId }: { attemptId: number }) {
           </div>
         )}
       </div>
-    </Container>
+      </Container>
+    </main>
   );
 }

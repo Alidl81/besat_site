@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- hero media is runtime CMS content and may use an approved external origin. */
 
 import Link from "next/link";
 import { useEffect, useState, type KeyboardEvent } from "react";
@@ -46,6 +47,9 @@ export function HomeSliderSection() {
   const [paused, setPaused] = useState(false);
   const reducedMotion = useReducedMotion();
   const visibleSlides = slides ?? [];
+  const activeSlideTitle = visibleSlides[activeIndex]?.title?.trim() || "پیوند آموزش و بصیرت دینی";
+  const activeSlideSubtitle = visibleSlides[activeIndex]?.subtitle?.trim()
+    || "به وب‌سایت رسمی مجتمع آموزشی، تربیتی و فرهنگی بعثت خوش آمدید.";
   const { setHasVisibleHero } = useHeroVisibility();
 
   useEffect(() => {
@@ -222,7 +226,7 @@ export function HomeSliderSection() {
       className="relative min-h-[660px] overflow-hidden bg-[#071b31] text-white outline-none sm:min-h-[700px] lg:min-h-[720px] focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/60"
     >
       <div aria-live="polite" className="sr-only">
-        {visibleSlides[activeIndex]?.title}
+        {activeSlideTitle}
       </div>
       <div className="absolute inset-0">
         {visibleSlides.map((slide, index) => (
@@ -248,10 +252,10 @@ export function HomeSliderSection() {
             مجتمع آموزشی، تربیتی و فرهنگی بعثت
           </p>
           <h1 className="besat-hero-line besat-hero-line-2 max-w-[640px] text-[2.25rem] font-black leading-[1.45] text-white drop-shadow-sm sm:text-5xl lg:text-[3.55rem] lg:leading-[1.35]">
-            {visibleSlides[activeIndex]?.title}
+            {activeSlideTitle}
           </h1>
           <p className="besat-hero-line besat-hero-line-3 mt-5 max-w-[610px] text-sm font-bold leading-8 text-white/82 sm:text-base sm:leading-9">
-            {visibleSlides[activeIndex]?.subtitle}
+            {activeSlideSubtitle}
           </p>
 
           <div className="besat-hero-line besat-hero-line-4 mt-8 flex flex-wrap items-center gap-3 sm:gap-4">

@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from uuid import uuid4
 
@@ -18,6 +19,21 @@ from apps.core.utils import normalize_text
 
 from ..sanitize import sanitize_product_html
 from ..validators import validate_product_image_file
+
+
+_INTERNAL_CONTENT_MARKERS = ("qa", "e2e", "fixture", "test", "آزمون مرورگر")
+
+
+def contains_internal_content_marker(*values) -> bool:
+    """Return true for explicit fixture/staging markers, not language heuristics."""
+    haystack = " ".join(str(value or "").casefold() for value in values)
+    return any(
+        re.search(
+            rf"(?<![a-z0-9]){re.escape(marker.casefold())}(?![a-z0-9])",
+            haystack,
+        )
+        for marker in _INTERNAL_CONTENT_MARKERS
+    )
 
 
 def product_featured_image_upload_to(instance, filename):
@@ -57,6 +73,15 @@ class ShopCategory(TimeStampedModel, ActiveModel, OrderedModel):
         verbose_name="تصویر کاور",
     )
     cover_image_url = models.TextField(null=True, blank=True, verbose_name="نشانی تصویر کاور")
+    # Internal records are retained for QA/E2E and editorial staging but are
+    # never eligible for the public catalog or sitemap.  Keeping the boundary
+    # on the record makes publication safe even when a fixture is accidentally
+    # left active in a shared database.
+    is_internal = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="رکورد داخلی/آزمایشی؟",
+    )
 
     class Meta:
         verbose_name = "دسته‌بندی فروشگاه"
@@ -167,6 +192,11 @@ class Product(TimeStampedModel, ActiveModel, OrderedModel, SEOFieldsModel, Conte
     is_featured = models.BooleanField(default=False, db_index=True, verbose_name="محصول ویژه؟")
     is_important = models.BooleanField(default=False, db_index=True, verbose_name="محصول مهم؟")
     published_at = models.DateField(null=True, blank=True, db_index=True, verbose_name="تاریخ انتشار")
+    is_internal = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="رکورد داخلی/آزمایشی؟",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -248,6 +278,12 @@ class Product(TimeStampedModel, ActiveModel, OrderedModel, SEOFieldsModel, Conte
                 errors["description"] = "برای انتشار محصول، توضیحات کامل الزامی است."
             if self.category and not self.category.is_active:
                 errors["category"] = "محصول منتشرشده نباید در دسته‌بندی غیرفعال باشد."
+            if self.is_internal:
+                errors["is_internal"] = "رکورد داخلی/آزمایشی قابل انتشار عمومی نیست."
+            if self.category and self.category.is_internal:
+                errors["category"] = "محصول منتشرشده نباید در دسته‌بندی داخلی باشد."
+            if contains_internal_content_marker(self.title, self.slug):
+                errors["title"] = "رکوردهای آزمایشی یا QA قابل انتشار عمومی نیستند."
 
         if errors:
             raise ValidationError(errors)

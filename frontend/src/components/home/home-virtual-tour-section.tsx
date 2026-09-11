@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- virtual-tour media is runtime scene content. */
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";

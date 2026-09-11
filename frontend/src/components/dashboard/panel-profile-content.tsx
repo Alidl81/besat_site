@@ -1,5 +1,6 @@
 ﻿"use client";
 
+/* eslint-disable @next/next/no-img-element -- profile media is user/CMS supplied and may be externally hosted. */
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import {
   changePassword,

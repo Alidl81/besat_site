@@ -42,7 +42,7 @@ describe("ContentBlockInserter upload guard", () => {
     const pending = deferred<{ url: string; media_type: "image"; alt_text: string; caption: string }>();
     uploadMock.mockReturnValue(pending.promise);
 
-    const view = render(
+    render(
       <ContentBlockInserter value="" onChange={vi.fn()} variant="sidebar" />,
     );
     fireEvent.click(screen.getByRole("button", { name: /گالری/ }));

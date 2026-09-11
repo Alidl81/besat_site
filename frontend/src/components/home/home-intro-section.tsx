@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- introduction media may be an approved CMS URL outside the build-time origin. */
 import type { ReactNode } from "react";
 import { homeIntroContent } from "@/lib/home/home-intro-data";
 

@@ -27,6 +27,13 @@ ACCOUNTS = (
         "password_env": "DEV_MEDIA_PASSWORD",
     },
     {
+        "username": "dev_unit_manager",
+        "email": "dev-unit-manager@example.invalid",
+        "full_name": "مدیر واحد آزمایشی توسعه",
+        "role": UserProfile.Role.UNIT_MANAGER,
+        "password_env": "DEV_UNIT_MANAGER_PASSWORD",
+    },
+    {
         "username": "dev_parent",
         "email": "dev-parent@example.invalid",
         "full_name": "والد آزمایشی توسعه",
@@ -40,10 +47,10 @@ DEV_UNIT_SLUG = "dev-accounts-unit"
 
 class Command(BaseCommand):
     help = (
-        "Seed development/testing accounts for the three primary roles "
-        "(general_manager, unit_media, parent). DEVELOPMENT ONLY -- reads "
+        "Seed development/testing accounts for the supported panel roles "
+        "(general_manager, unit_manager, unit_media, parent). DEVELOPMENT ONLY -- reads "
         "passwords from environment variables (DEV_ADMIN_PASSWORD, "
-        "DEV_MEDIA_PASSWORD, DEV_PARENT_PASSWORD) so nothing is hardcoded "
+        "DEV_MEDIA_PASSWORD, DEV_UNIT_MANAGER_PASSWORD, DEV_PARENT_PASSWORD) so nothing is hardcoded "
         "in source; refuses to run if any is unset. Never run this against "
         "a production database. Idempotent -- safe to rerun after a "
         "database reset (also resyncs the password to the current env "

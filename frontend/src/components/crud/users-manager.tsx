@@ -14,17 +14,16 @@ import type {
   WithoutSystemFields,
 } from "@/lib/data/domain-types";
 
-// Includes the legacy unit_manager value so existing accounts still render a
-// label; it is intentionally excluded from assignableRoleOptions below.
 const roleLabels: Record<AccountRole, string> = {
   general_manager: "مدیر کل",
-  unit_manager: "مدیر واحد (نقش قدیمی)",
+  unit_manager: "مدیر واحد",
   unit_media: "همکار رسانه",
   parent: "والدین",
 };
 
 const assignableRoleOptions: { value: AccountRole; label: string }[] = [
   { value: "general_manager", label: roleLabels.general_manager },
+  { value: "unit_manager", label: roleLabels.unit_manager },
   { value: "unit_media", label: roleLabels.unit_media },
   { value: "parent", label: roleLabels.parent },
 ];
@@ -300,11 +299,6 @@ function UserForm({
         </Field>
         <Field label="نقش کاربری">
           <Select value={role} onChange={(e) => setRole(e.target.value as AccountRole)}>
-            {initial?.role === "unit_manager" ? (
-              <option value="unit_manager" disabled>
-                {roleLabels.unit_manager} — این نقش دیگر قابل انتخاب نیست
-              </option>
-            ) : null}
             {assignableRoleOptions.map(({ value, label }) => (
               <option key={value} value={value}>{label}</option>
             ))}

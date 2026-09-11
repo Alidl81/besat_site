@@ -28,8 +28,12 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         category, _ = ShopCategory.objects.get_or_create(
-            slug=CATEGORY_SLUG, defaults={"title": "دسته‌بندی آزمون مرورگر"}
+            slug=CATEGORY_SLUG,
+            defaults={"title": "دسته‌بندی آزمون مرورگر", "is_internal": True},
         )
+        if not category.is_internal:
+            category.is_internal = True
+            category.save(update_fields=["is_internal"])
 
         today = timezone.localdate()
 
@@ -44,8 +48,12 @@ class Command(BaseCommand):
                 price_amount=250_000,
                 status=Product.Status.PUBLISHED,
                 published_at=today,
+                is_internal=True,
             ),
         )
+        if not book.is_internal:
+            book.is_internal = True
+            book.save(update_fields=["is_internal"])
         PhysicalProductDetail.objects.get_or_create(
             product=book,
             defaults=dict(sku="SHOP-E2E-BOOK", inventory_qty=50, requires_shipping=True),
@@ -62,8 +70,12 @@ class Command(BaseCommand):
                 price_amount=400_000,
                 status=Product.Status.PUBLISHED,
                 published_at=today,
+                is_internal=True,
             ),
         )
+        if not course.is_internal:
+            course.is_internal = True
+            course.save(update_fields=["is_internal"])
         OnlineCourseDetail.objects.get_or_create(
             product=course,
             defaults=dict(

@@ -1,13 +1,36 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from apps.accounts.models import UserProfile
 
 from apps.contact.models import ContactInfo, ContactMessage
+from apps.contact.checks import production_contact_info_check
 
 
 User = get_user_model()
+
+
+class ContactPublicationCheckTests(TestCase):
+    @override_settings(DEBUG=False, TESTING=False)
+    def test_production_check_requires_an_active_contact_record(self):
+        errors = production_contact_info_check(None)
+
+        self.assertEqual([error.id for error in errors], ["besat.E001"])
+
+    @override_settings(DEBUG=False, TESTING=False)
+    def test_production_check_requires_an_actionable_channel(self):
+        ContactInfo.objects.create(title="تماس", is_active=True)
+
+        errors = production_contact_info_check(None)
+
+        self.assertEqual([error.id for error in errors], ["besat.E002"])
+
+    @override_settings(DEBUG=False, TESTING=False)
+    def test_production_check_accepts_an_approved_actionable_channel(self):
+        ContactInfo.objects.create(title="تماس", phone="02100000000", is_active=True)
+
+        self.assertEqual(production_contact_info_check(None), [])
 
 
 class ContactPublicAPITests(TestCase):

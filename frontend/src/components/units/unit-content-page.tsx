@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- unit content images are authored CMS media. */
 
 import Link from "next/link";
 import { ImageIcon, Newspaper, RefreshCw } from "lucide-react";

@@ -188,6 +188,16 @@ export function LoginCard() {
               {isSubmitting ? "در حال ورود" : "ورود"}
             </button>
 
+            <p className="text-center text-xs font-bold leading-6 text-slate-500">
+              به حساب دسترسی ندارید یا لینک تعیین رمز را گم کرده‌اید؟{" "}
+              <Link
+                href="/contact?subject=%D8%AF%D8%B1%D8%AE%D9%88%D8%A7%D8%B3%D8%AA%20%D8%AF%D8%B3%D8%AA%D8%B1%D8%B3%DB%8C%20%D8%A8%D9%87%20%D8%AD%D8%B3%D8%A7%D8%A8"
+                className="font-black text-[#0c5794] underline decoration-2 underline-offset-4"
+              >
+                درخواست راهنمایی از مدرسه
+              </Link>
+            </p>
+
             <div className="flex justify-center">
               <Link
                 href="/"

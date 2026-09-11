@@ -48,6 +48,7 @@ services:
       # auto-invoked by the entrypoint) -- development-only role accounts.
       DEV_ADMIN_PASSWORD: ${DEV_ADMIN_PASSWORD:-DevAdmin!2026}
       DEV_MEDIA_PASSWORD: ${DEV_MEDIA_PASSWORD:-DevMedia!2026}
+      DEV_UNIT_MANAGER_PASSWORD: ${DEV_UNIT_MANAGER_PASSWORD:-DevUnitManager!2026}
       DEV_PARENT_PASSWORD: ${DEV_PARENT_PASSWORD:-DevParent!2026}
     ports:
       - "8000:8000"

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element, jsx-a11y/alt-text -- image is a lightweight test double for the child avatar component. */
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ManagementStudentsWorkspace } from "@/components/dashboard/management-students-workspace";

@@ -13,6 +13,17 @@ export const dashboardAccessProfiles: DashboardAccessProfile[] = [
     canSeeOwnChildren: false,
   },
   {
+    role: "unit_manager",
+    title: "مدیر واحد",
+    description: "مدیریت محتوای واحد، بررسی انتشار و دسترسی به پرونده‌های واحد خودش",
+    dashboardPath: "/dashboard/content-manager",
+    canSeeAllUnits: false,
+    canManageOwnUnit: true,
+    canPublishOwnUnitContent: false,
+    canReviewAllContent: true,
+    canSeeOwnChildren: false,
+  },
+  {
     role: "unit_media",
     title: "همکار رسانه",
     description: "مدیریت خبر، اطلاعیه، گالری و پوشش رسانه‌ای مربوط به واحد خودش",

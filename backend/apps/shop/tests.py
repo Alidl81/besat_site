@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.test import TestCase
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -88,6 +89,41 @@ class ShopPublicCatalogAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
         titles = [item["title"] for item in response.data["results"]]
         self.assertEqual(titles, ["کتاب منتشرشده"])
+
+    def test_internal_products_and_categories_never_reach_public_catalog(self):
+        internal_product = make_physical_product(
+            title="QA fixture book",
+            slug="qa-fixture-book",
+            is_internal=True,
+            status=Product.Status.DRAFT,
+            published_at=None,
+        )
+        Product.objects.filter(pk=internal_product.pk).update(
+            status=Product.Status.PUBLISHED,
+            published_at=timezone.localdate(),
+        )
+        public = make_physical_product(title="کتاب عمومی", slug="public-book", category=self.category)
+        internal_category = ShopCategory.objects.create(title="دسته داخلی", slug="internal-category", is_internal=True)
+        category_product = make_physical_product(
+            title="محصول داخلی",
+            slug="internal-book",
+            category=internal_category,
+            status=Product.Status.DRAFT,
+            published_at=None,
+        )
+        Product.objects.filter(pk=category_product.pk).update(
+            status=Product.Status.PUBLISHED,
+            published_at=timezone.localdate(),
+        )
+
+        response = self.client.get("/api/shop/products/")
+        self.assertEqual([item["id"] for item in response.data["results"]], [public.id])
+        category_response = self.client.get("/api/shop/categories/")
+        self.assertEqual([item["slug"] for item in category_response.data], [self.category.slug])
+
+    def test_published_fixture_marker_is_rejected(self):
+        with self.assertRaises(ValidationError):
+            make_physical_product(title="e2e test fixture", slug="e2e-test-fixture")
 
     def test_detail_returns_type_specific_fields_without_leaking_private_access_data(self):
         course = make_online_course()

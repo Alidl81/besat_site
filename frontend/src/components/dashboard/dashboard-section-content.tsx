@@ -28,10 +28,13 @@ import { ShopSettingsManager } from "@/components/shop/admin/shop-settings-manag
 import { ShopShippingManager } from "@/components/shop/admin/shop-shipping-manager";
 import type { AccountRole } from "@/lib/data/domain-types";
 import {
+  ManagementReportsWorkspace,
   ParentRegistrationWorkspace,
   ServicesWorkspace,
   SettingsWorkspace,
 } from "@/components/dashboard/supplementary-workspaces";
+import { ManagementStudentsWorkspace } from "@/components/dashboard/management-students-workspace";
+import { HomeSliderWorkspace, StaffWorkspace, StaticPagesWorkspace } from "@/components/dashboard/legacy-admin-workspaces";
 
 type DashboardSectionContentProps = {
   panel: "admin" | "contentManager" | "parents";
@@ -88,6 +91,16 @@ export function DashboardSectionContent({
         // entry (dashboard-data.ts) always advertised this route as real,
         // it was simply never wired to its own component.
         return <SettingsWorkspace />;
+      case "homeSlider":
+        return <HomeSliderWorkspace />;
+      case "pages":
+        return <StaticPagesWorkspace />;
+      case "reports":
+        return <ManagementReportsWorkspace />;
+      case "staff":
+        return <StaffWorkspace />;
+      case "students":
+        return <ManagementStudentsWorkspace unitId={scopedUnitId} />;
       case "units":
         return <UnitsManager />;
       case "departments":

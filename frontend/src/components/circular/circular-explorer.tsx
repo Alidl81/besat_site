@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- circular content media is runtime data and may be externally hosted. */
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";

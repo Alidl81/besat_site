@@ -2,7 +2,12 @@ import json
 
 from django.test import SimpleTestCase, override_settings
 
-from .rich_text import render_tiptap_html, sanitize_stored_tiptap_document, validate_tiptap_document
+from .rich_text import (
+    has_empty_table_header_cells,
+    render_tiptap_html,
+    sanitize_stored_tiptap_document,
+    validate_tiptap_document,
+)
 
 
 class RenderTiptapImageTests(SimpleTestCase):
@@ -317,6 +322,30 @@ class RenderTiptapTableTests(SimpleTestCase):
 
         self.assertIn("<thead><tr><th>", html)
         self.assertIn("</thead><tbody><tr><td>", html)
+
+    def test_empty_header_row_is_downgraded_to_data_cells(self):
+        rows = [{
+            "type": "tableRow",
+            "content": [{"type": "tableHeader", "content": [{"type": "paragraph"}]}],
+        }]
+        html = render_tiptap_html(self._table_doc(rows=rows))
+
+        self.assertNotIn("<thead>", html)
+        self.assertNotIn("<th>", html)
+        self.assertIn("<tbody><tr><td>", html)
+
+    def test_empty_header_detector_distinguishes_named_headers(self):
+        empty = self._table_doc(rows=[{
+            "type": "tableRow",
+            "content": [{"type": "tableHeader", "content": [{"type": "paragraph"}]}],
+        }])
+        named = self._table_doc(rows=[{
+            "type": "tableRow",
+            "content": [{"type": "tableHeader", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "عنوان"}]}]}],
+        }])
+
+        self.assertTrue(has_empty_table_header_cells(empty))
+        self.assertFalse(has_empty_table_header_cells(named))
 
     def test_merged_cell_colspan_rowspan_survive(self):
         rows = [

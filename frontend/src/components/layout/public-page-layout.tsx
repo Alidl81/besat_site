@@ -15,6 +15,12 @@ export function PublicPageLayout({ children }: PublicPageLayoutProps) {
     <ShopCartProvider>
       <HeroVisibilityProvider>
         <div className="flex min-h-dvh flex-col overflow-x-clip">
+          <a
+            href="#main-content"
+            className="besat-skip-link"
+          >
+            رفتن به محتوای اصلی
+          </a>
           <SiteHeader />
           <PageMotion>{children}</PageMotion>
           <SiteFooter />

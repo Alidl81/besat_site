@@ -10,7 +10,7 @@ from django.test import TestCase, override_settings
 
 User = get_user_model()
 
-ENV_VARS = ("DEV_ADMIN_PASSWORD", "DEV_MEDIA_PASSWORD", "DEV_PARENT_PASSWORD")
+ENV_VARS = ("DEV_ADMIN_PASSWORD", "DEV_MEDIA_PASSWORD", "DEV_UNIT_MANAGER_PASSWORD", "DEV_PARENT_PASSWORD")
 
 
 class SeedDevAccountsTests(TestCase):
@@ -24,7 +24,7 @@ class SeedDevAccountsTests(TestCase):
     @override_settings(DEBUG=False)
     def test_refuses_to_run_when_debug_is_false(self):
         os.environ.update(
-            DEV_ADMIN_PASSWORD="x", DEV_MEDIA_PASSWORD="x", DEV_PARENT_PASSWORD="x"
+            DEV_ADMIN_PASSWORD="x", DEV_MEDIA_PASSWORD="x", DEV_UNIT_MANAGER_PASSWORD="x", DEV_PARENT_PASSWORD="x"
         )
         with self.assertRaises(CommandError):
             call_command("seed_dev_accounts")
@@ -41,10 +41,12 @@ class SeedDevAccountsTests(TestCase):
         os.environ.update(
             DEV_ADMIN_PASSWORD="DevAdminPw1",
             DEV_MEDIA_PASSWORD="DevMediaPw1",
+            DEV_UNIT_MANAGER_PASSWORD="DevUnitManagerPw1",
             DEV_PARENT_PASSWORD="DevParentPw1",
         )
         call_command("seed_dev_accounts")
 
         self.assertTrue(User.objects.filter(username="dev_admin").exists())
         self.assertTrue(User.objects.filter(username="dev_media").exists())
+        self.assertTrue(User.objects.filter(username="dev_unit_manager").exists())
         self.assertTrue(User.objects.filter(username="dev_parent").exists())

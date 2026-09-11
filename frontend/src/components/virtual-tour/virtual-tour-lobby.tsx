@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- virtual-tour scene URLs are runtime CMS data and may be external. */
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -270,6 +271,9 @@ export function VirtualTourLobby() {
   if (lobbyStatus === "error") {
     return (
       <div dir="rtl" className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[#06182d] px-5 text-center text-white">
+        <h1 className="text-2xl font-black text-white">
+          تور مجازی در دسترس نیست
+        </h1>
         <p role="alert" className="text-base font-black text-white/90">
           بارگذاری لابی تور مجازی با خطا مواجه شد.
         </p>

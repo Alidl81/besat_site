@@ -153,6 +153,10 @@ class SiteSettings(TimeStampedModel):
         default=True,
         verbose_name="فعال است؟",
     )
+    # Dashboard-only operational toggles are deliberately kept separate from
+    # the public presentation fields above.  A JSON object lets the panel add
+    # bounded flags without inventing a second settings singleton/table.
+    panel_options = models.JSONField(default=dict, blank=True, verbose_name="گزینه‌های پنل")
 
     objects = SiteSettingsManager()
 
@@ -212,4 +216,3 @@ class SiteSettings(TimeStampedModel):
                 is_active=False
             )
         super().save(*args, **kwargs)
-

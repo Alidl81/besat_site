@@ -53,7 +53,7 @@ class ShopCategoryListAPIView(ListAPIView):
         if getattr(self, "swagger_fake_view", False):
             return ShopCategory.objects.none()
 
-        return ShopCategory.objects.filter(is_active=True).order_by("order", "id")
+        return ShopCategory.objects.filter(is_active=True, is_internal=False).order_by("order", "id")
 
 
 @extend_schema_view(
@@ -121,11 +121,12 @@ class ProductViewSet(ReadOnlyModelViewSet):
             .prefetch_related("gallery_images", "variants")
             .filter(
                 is_active=True,
+                is_internal=False,
                 status=Product.Status.PUBLISHED,
                 published_at__isnull=False,
                 published_at__lte=today,
             )
-            .filter(Q(category__isnull=True) | Q(category__is_active=True))
+            .filter(Q(category__isnull=True) | Q(category__is_active=True, category__is_internal=False))
         )
 
         product_type = params.get("type")

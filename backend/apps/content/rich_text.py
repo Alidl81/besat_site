@@ -101,6 +101,34 @@ def extract_tiptap_plain_text(value):
     return " ".join(part.strip() for part in fragments if part.strip())
 
 
+def has_empty_table_header_cells(value):
+    """Return true when a table header row contains an unnamed cell.
+
+    Empty header cells are not a harmless presentation detail: the public
+    renderer exposes them as ``<th>`` elements and assistive technology then
+    receives a table with no usable column name.  Keep this check at the
+    publication boundary while allowing the read renderer to downgrade old
+    records safely (legacy rows can exist before validation was introduced).
+    """
+    if not isinstance(value, dict):
+        return False
+
+    def walk(node):
+        if not isinstance(node, dict):
+            return False
+        if node.get("type") == "table":
+            for row in node.get("content") or []:
+                if not isinstance(row, dict) or row.get("type") != "tableRow":
+                    continue
+                cells = [cell for cell in row.get("content") or [] if isinstance(cell, dict)]
+                headers = [cell for cell in cells if cell.get("type") == "tableHeader"]
+                if headers and len(headers) == len(cells) and any(not _plain_text_of(cell).strip() for cell in headers):
+                    return True
+        return any(walk(child) for child in node.get("content") or [])
+
+    return walk(value)
+
+
 def _safe_url(value):
     """Mirrors frontend/src/lib/url-safety.ts's isSafeRelativePath()/
     isSafeExternalHttpUrl() (SEC-FE-RICH-LINK-001): a bare
@@ -447,13 +475,25 @@ def _render_table(node, attrs):
     split = 0
     while split < len(rows):
         cells = [cell for cell in (rows[split].get("content") or []) if isinstance(cell, dict)]
-        if rows[split].get("type") == "tableRow" and cells and all(cell.get("type") == "tableHeader" for cell in cells):
+        if (
+            rows[split].get("type") == "tableRow"
+            and cells
+            and all(cell.get("type") == "tableHeader" for cell in cells)
+            and all(_plain_text_of(cell).strip() for cell in cells)
+        ):
             split += 1
         else:
             break
 
-    thead_html = "".join(render_tiptap_node(row) for row in rows[:split])
-    tbody_html = "".join(render_tiptap_node(row) for row in rows[split:])
+    thead_html = "".join(_render_table_row(row) for row in rows[:split])
+    # Legacy documents may contain a leading empty header row. Render that
+    # row as ordinary data cells instead of emitting empty <th> elements;
+    # this fixes the public DOM immediately while the publish-time model
+    # validation prevents new invalid documents.
+    tbody_html = "".join(
+        _render_table_row(row, force_header_as_cell=split == 0)
+        for row in rows[split:]
+    )
     caption_html = f"<caption>{escape(caption)}</caption>" if caption else ""
     colgroup_html = _colgroup_html(rows)
     thead_wrap = f"<thead>{thead_html}</thead>" if thead_html else ""
@@ -464,6 +504,19 @@ def _render_table(node, attrs):
         f"{caption_html}{colgroup_html}{thead_wrap}<tbody>{tbody_html}</tbody></table>"
     )
     return f'<div class="besat-table-wrapper">{table_html}</div>'
+
+
+def _render_table_row(row, *, force_header_as_cell=False):
+    cells = []
+    for cell in row.get("content") or []:
+        if not isinstance(cell, dict):
+            continue
+        if force_header_as_cell and cell.get("type") == "tableHeader":
+            attrs = cell.get("attrs") if isinstance(cell.get("attrs"), dict) else {}
+            cells.append(_render_table_cell("td", attrs, _render_children(cell)))
+        else:
+            cells.append(render_tiptap_node(cell))
+    return f"<tr>{''.join(cells)}</tr>"
 
 
 def _render_table_cell(tag, attrs, children):
@@ -664,7 +717,7 @@ def render_tiptap_node(node):
     if node_type == "table":
         return _render_table(node, attrs)
     if node_type == "tableRow":
-        return f"<tr>{children}</tr>"
+        return _render_table_row(node)
     if node_type == "tableHeader":
         return _render_table_cell("th", attrs, children)
     if node_type == "tableCell":

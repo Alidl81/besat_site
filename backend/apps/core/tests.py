@@ -9,6 +9,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.throttling import BaseThrottle
 
 from apps.core import views as core_views
+from apps.core.throttling import BFFAnonRateThrottle, BFFScopedRateThrottle
 
 
 def _raise_db_error(*args, **kwargs):
@@ -312,10 +313,8 @@ class ThrottleIdentitySpoofingTest(TestCase):
     fix in config/settings/base.py this test fails because get_ident()
     returns the attacker-controlled '198.51.100.9' instead of REMOTE_ADDR.
 
-    This repo's own docker-compose.yml sets TRUST_PROXY_HEADERS=true in the
-    backend container's real environment (for legitimate BFF reasons,
-    unrelated to this fix), so REST_FRAMEWORK["NUM_PROXIES"] is genuinely 1
-    when these tests run in their own home container. DRF's `api_settings`
+    The BFF now signs a separate browser identity, while direct/backend
+    callers still follow the explicit proxy trust setting. DRF's `api_settings`
     reads NUM_PROXIES live (not cached at import time), and Django's
     `override_settings` on the REST_FRAMEWORK dict correctly fires DRF's
     `setting_changed` receiver to refresh it -- confirmed interactively:
@@ -333,13 +332,27 @@ class ThrottleIdentitySpoofingTest(TestCase):
         """config/settings/base.py computes NUM_PROXIES = 1 if
         TRUST_PROXY_HEADERS else 0 once, at settings-load time. Assert that
         invariant against whatever TRUST_PROXY_HEADERS actually is in this
-        environment (True in this repo's own docker-compose.yml, False by
-        default elsewhere) rather than hard-coding one side of it -- so this
+        environment (False in the single-site compose file, unless an
+        operator explicitly places a trusted gateway in front) rather than
+        hard-coding one side of it -- so this
         test is correct under both deployments instead of only ever passing
         in an environment that happens to match a hard-coded expectation.
         """
         expected_num_proxies = 1 if settings.TRUST_PROXY_HEADERS else 0
         self.assertEqual(settings.REST_FRAMEWORK["NUM_PROXIES"], expected_num_proxies)
+
+    def test_throttle_cache_is_shared_filesystem_backend(self):
+        """Throttle counters must be visible across Gunicorn workers.
+
+        A process-local cache is unsafe and silently multiplies every configured
+        rate by the worker count. The default cache is intentionally a shared
+        file backend for the single-container deployment; operators can point
+        DJANGO_CACHE_LOCATION at a shared cache filesystem when scaling out.
+        """
+        self.assertEqual(
+            settings.CACHES["default"]["BACKEND"],
+            "django.core.cache.backends.filebased.FileBasedCache",
+        )
 
     def test_spoofed_x_forwarded_for_is_ignored_for_throttle_identity(self):
         """Untrusted-default path: no reverse proxy in front of Django, so
@@ -417,3 +430,50 @@ class ThrottleIdentitySpoofingTest(TestCase):
                 idents.add(throttle.get_ident(request))
 
             self.assertEqual(idents, {"203.0.113.5"})
+
+    @override_settings(
+        BESAT_ANON_THROTTLE_SECRET="test-bff-throttle-secret",
+        REST_FRAMEWORK={
+            "DEFAULT_THROTTLE_CLASSES": ["apps.core.throttling.BFFAnonRateThrottle"],
+            "DEFAULT_THROTTLE_RATES": {"anon": "10/minute"},
+        },
+    )
+    def test_signed_bff_identity_is_used_for_anonymous_and_scoped_throttles(self):
+        request = self.factory.get(
+            "/api/units/",
+            REMOTE_ADDR="172.20.0.4",
+            HTTP_X_BESAT_ANONYMOUS_ID=(
+                "browser-identity-1234."
+                "invalid"
+            ),
+        )
+        anon_throttle = object.__new__(BFFAnonRateThrottle)
+        scoped_throttle = object.__new__(BFFScopedRateThrottle)
+        self.assertEqual(anon_throttle.get_ident(request), "172.20.0.4")
+
+        import hashlib
+        import hmac
+
+        identity = "browser-identity-1234"
+        signature = hmac.new(
+            b"test-bff-throttle-secret", identity.encode(), hashlib.sha256
+        ).hexdigest()
+        request.META["HTTP_X_BESAT_ANONYMOUS_ID"] = f"{identity}.{signature}"
+        self.assertEqual(anon_throttle.get_ident(request), f"bff:{identity}")
+        self.assertEqual(scoped_throttle.get_ident(request), f"bff:{identity}")
+
+    @override_settings(
+        BESAT_ANON_THROTTLE_SECRET="test-bff-throttle-secret",
+        REST_FRAMEWORK={
+            "DEFAULT_THROTTLE_CLASSES": ["apps.core.throttling.BFFAnonRateThrottle"],
+            "DEFAULT_THROTTLE_RATES": {"anon": "10/minute"},
+        },
+    )
+    def test_invalid_bff_identity_cannot_spoof_a_bucket(self):
+        request = self.factory.get(
+            "/api/units/",
+            REMOTE_ADDR="172.20.0.4",
+            HTTP_X_BESAT_ANONYMOUS_ID="attacker.00" * 20,
+        )
+        throttle = object.__new__(BFFAnonRateThrottle)
+        self.assertEqual(throttle.get_ident(request), "172.20.0.4")

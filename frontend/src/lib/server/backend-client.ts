@@ -41,6 +41,7 @@ const REQUEST_HEADERS_TO_REMOVE = [
   "x-forwarded-for",
   "x-forwarded-host",
   "x-forwarded-proto",
+  "x-besat-anonymous-id",
 ];
 
 export type BackendRequest = {
@@ -61,6 +62,7 @@ export type BackendRequest = {
    * since some callers (login, registration) intentionally send a minimal
    * header set upstream. */
   inboundHost?: string | null;
+  anonymousIdentity?: string | null;
 };
 
 export function getConfiguredBackendApiUrl() {
@@ -142,7 +144,8 @@ function createUpstreamHeaders({
   headers: sourceHeaders,
   accessToken,
   inboundHost,
-}: Pick<BackendRequest, 'requestUrl' | 'requestId' | 'headers' | 'accessToken' | 'inboundHost'>) {
+  anonymousIdentity,
+}: Pick<BackendRequest, 'requestUrl' | 'requestId' | 'headers' | 'accessToken' | 'inboundHost' | 'anonymousIdentity'>) {
   const headers = new Headers(sourceHeaders);
   const inboundForwardedFor = TRUST_FORWARDED_FOR
     ? headers.get('x-forwarded-for')
@@ -160,6 +163,9 @@ function createUpstreamHeaders({
   if (inboundForwardedFor) {
     headers.set('x-forwarded-for', inboundForwardedFor);
   }
+  if (anonymousIdentity) {
+    headers.set('x-besat-anonymous-id', anonymousIdentity);
+  }
   if (accessToken && !headers.has('authorization')) {
     headers.set('authorization', `Bearer ${accessToken}`);
   }
@@ -175,6 +181,7 @@ export async function requestBackend({
   requestId,
   accessToken,
   inboundHost,
+  anonymousIdentity,
 }: BackendRequest) {
   let configuredBackendUrl: string;
   try {
@@ -206,6 +213,7 @@ export async function requestBackend({
     headers,
     accessToken,
     inboundHost,
+    anonymousIdentity,
   });
 
   if (configuredBackendUrl === MOCK_BACKEND_API_URL) {

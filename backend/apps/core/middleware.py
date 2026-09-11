@@ -13,7 +13,7 @@ class RequestLoggingMiddleware:
     """One structured log line per request, with a request_id that
     correlates this request across the frontend BFF proxy, this backend,
     and (where applicable) any outgoing dependency call -- see
-    docs/reliability/OBSERVABILITY.md for the full propagation chain.
+    docs/BACKEND.md for the full propagation chain.
 
     Accepts an inbound X-Request-ID (set by the frontend's BFF proxy, see
     frontend/src/app/api/backend/[...path]/route.ts) so a single browser

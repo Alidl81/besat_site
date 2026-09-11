@@ -3,11 +3,11 @@ from rest_framework import filters, status
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
 from apps.core.utils import throttle_rate_configured
+from apps.core.throttling import BFFScopedRateThrottle
 
 from apps.accounts.models import UserProfile, UserUnitMembership
 from apps.accounts.selectors import get_or_create_user_profile
@@ -51,7 +51,7 @@ class RegistrationInfoAPIView(APIView):
     def get_throttles(self):
         if self.request.method == "POST" and throttle_rate_configured("registration"):
             self.throttle_scope = "registration"
-            return [ScopedRateThrottle()]
+            return [BFFScopedRateThrottle()]
         return super().get_throttles()
 
     @extend_schema(

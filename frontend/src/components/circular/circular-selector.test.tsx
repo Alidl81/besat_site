@@ -15,7 +15,7 @@ const departments: CircularItem[] = [
 ];
 
 describe("CircularSelector", () => {
-  it("restores the orbital desktop selector while keeping long Persian labels readable", () => {
+  it("renders one shared orbital selector with readable real labels", () => {
     const onSelect = vi.fn();
     render(<CircularSelector items={departments} activeId="education" onSelect={onSelect} />);
 
@@ -23,13 +23,23 @@ describe("CircularSelector", () => {
     expect(screen.getByText("مجموعه بعثت")).toBeInTheDocument();
 
     for (const department of departments) {
-      const buttons = screen.getAllByRole("button", { name: department.title });
-      expect(buttons).toHaveLength(2);
-      expect(buttons.every((button) => button.outerHTML.includes("text-wrap:balance"))).toBe(true);
+      expect(screen.getByRole("button", { name: department.title })).toBeInTheDocument();
     }
 
-    fireEvent.click(screen.getAllByRole("button", { name: departments[1].title })[0]);
+    fireEvent.click(screen.getByRole("button", { name: departments[1].title }));
     expect(onSelect).toHaveBeenCalledWith("research");
+  });
+
+  it("keeps the wheel available at mobile sizes and suppresses a click after a drag", () => {
+    const onSelect = vi.fn();
+    render(<CircularSelector items={departments} activeId="education" onSelect={onSelect} />);
+    const wheel = screen.getByLabelText("گردونه انتخاب حوزه");
+    expect(wheel).toHaveClass("aspect-square");
+    fireEvent.pointerDown(wheel, { pointerId: 1, pointerType: "touch", clientX: 160, clientY: 80 });
+    fireEvent.pointerMove(wheel, { pointerId: 1, pointerType: "touch", clientX: 210, clientY: 100 });
+    fireEvent.pointerUp(wheel, { pointerId: 1, pointerType: "touch", clientX: 210, clientY: 100 });
+    fireEvent.click(screen.getByRole("button", { name: departments[1].title }));
+    expect(onSelect).not.toHaveBeenCalledWith("research");
   });
 
   it("supports keyboard movement through the real department set", () => {

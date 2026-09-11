@@ -1,7 +1,7 @@
 """Structured JSON logging + central redaction.
 
 Built as part of the observability foundation -- see
-docs/reliability/OBSERVABILITY.md. Every HTTP request produces exactly one
+docs/BACKEND.md. Every HTTP request produces exactly one
 structured log line (apps.core.middleware.RequestLoggingMiddleware) with a
 consistent, machine-parseable shape, and every log record -- not just the
 request-summary line -- passes through the redaction filter below before
@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 
 # Matched against dict KEYS (case-insensitively) wherever they appear,
 # at any nesting depth, in anything passed to a log call. Mirrors the
-# "never log" list in docs/security/DATA_CLASSIFICATION.md exactly --
+# "never log" list in docs/BACKEND.md exactly --
 # keep the two in sync.
 _SENSITIVE_KEY_PATTERN = re.compile(
     r"(password|passwd|pwd|secret|token|authorization|auth_header|cookie|"

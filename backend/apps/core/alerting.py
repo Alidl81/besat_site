@@ -1,12 +1,12 @@
 """Minimal, real, testable alert-firing -- the seed of Phase 13 (real
-alerting), not the full system. See docs/reliability/ALERTING.md for what
+alerting), not the full system. See docs/BACKEND.md for what
 this deliberately is and is not.
 
 No Alertmanager/PagerDuty/Slack integration exists yet (adding one is a
 concrete infrastructure decision, not something to invent unilaterally
 here). What this module guarantees today: firing an alert ALWAYS produces
 a real, structured, high-severity log line (so it's visible in
-`docs/reliability/OBSERVABILITY.md`'s logging pipeline the moment that
+`docs/BACKEND.md`'s logging pipeline the moment that
 pipeline is actually watched by something), and ADDITIONALLY sends a real
 email via Django's already-configured EMAIL_BACKEND when
 ALERT_RECIPIENT_EMAIL is set -- console backend in dev (visible in
@@ -26,9 +26,9 @@ alert_logger = logging.getLogger("besat.alert")
 # call the same DB probe; without this, a sustained DB outage would fire
 # (and email) an alert on every single poll. This is a deliberately simple
 # in-process cooldown, not real deduplication/grouping (that needs a
-# shared store once multiple app instances exist -- see FAILURE_MATRIX.md's
-# existing note on LocMemCache not being shared across gunicorn workers,
-# which applies here too) -- documented as a known limitation, not hidden.
+# shared store once multiple app instances exist -- the current cooldown is
+# intentionally per-process and does not claim cross-worker deduplication --
+# documented as a known limitation, not hidden.
 _DEFAULT_COOLDOWN_SECONDS = 300
 _last_fired: dict[str, float] = {}
 

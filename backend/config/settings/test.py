@@ -4,7 +4,7 @@
 # throttle rates (login: 5/min, payment_callback: 60/hour, etc. -- see
 # config/settings/base.py), not this file's intentionally-disabled ones.
 # Under local settings, a full-suite run's cumulative login()/checkout()/
-# payment-callback calls exhaust those shared-LocMemCache quotas well
+# payment-callback calls exhaust those shared throttle-cache quotas well
 # before the suite finishes, producing a long tail of unrelated-looking
 # 429 failures that have nothing to do with the code under test --
 # confirmed directly this session: the exact same full suite went from

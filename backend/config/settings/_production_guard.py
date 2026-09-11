@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 from django.core.exceptions import ImproperlyConfigured
 
 MIN_SECRET_KEY_LENGTH = 32
+MIN_ANONYMOUS_THROTTLE_SECRET_LENGTH = 32
 
 # Substrings (case-insensitive) that appear in every placeholder value this
 # codebase's own example env files use. Deliberately a denylist of known
@@ -26,6 +27,7 @@ PLACEHOLDER_MARKERS = (
     "change-me",
     "changeme",
     "replace-me",
+    "replace-with",
     "your-secret",
     "your-domain",
     "example.com",
@@ -90,6 +92,7 @@ def validate_production_settings(
     database_engine: str | None = None,
     shop_payment_provider: str | None = None,
     frontend_base_url: str | None = None,
+    anonymous_throttle_secret: str | None = None,
 ) -> None:
     """Raise ImproperlyConfigured (refusing to start) if any of these are
     in a state that must never be true for a production deployment.
@@ -133,6 +136,22 @@ def validate_production_settings(
         origin_error = validate_public_origin(frontend_base_url)
         if origin_error:
             errors.append(origin_error)
+
+    if anonymous_throttle_secret is not None:
+        if (
+            not anonymous_throttle_secret
+            or len(anonymous_throttle_secret) < MIN_ANONYMOUS_THROTTLE_SECRET_LENGTH
+        ):
+            errors.append(
+                "BESAT_ANON_THROTTLE_SECRET must be set and at least "
+                f"{MIN_ANONYMOUS_THROTTLE_SECRET_LENGTH} characters long."
+            )
+        elif is_placeholder_value(anonymous_throttle_secret):
+            errors.append(
+                "BESAT_ANON_THROTTLE_SECRET looks like a placeholder value "
+                "copied from an example env file -- generate a real random "
+                "secret shared only by the frontend BFF and backend."
+            )
 
     if database_engine is not None and "sqlite" in database_engine:
         errors.append(

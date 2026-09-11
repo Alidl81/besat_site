@@ -24,12 +24,12 @@ from django.db import IntegrityError, transaction
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.core.utils import normalize_text, throttle_rate_configured
+from apps.core.throttling import BFFScopedRateThrottle
 
 from .models import UserProfile
 from .selectors import get_or_create_user_profile, get_role_redirect_path
@@ -100,7 +100,7 @@ class PublicCustomerRegisterAPIView(APIView):
 
     def get_throttles(self):
         if throttle_rate_configured(self.throttle_scope):
-            return [ScopedRateThrottle()]
+            return [BFFScopedRateThrottle()]
         return super().get_throttles()
 
     @extend_schema(

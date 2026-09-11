@@ -3,6 +3,9 @@ import { GET, POST } from "@/app/api/backend/[...path]/route";
 
 const originalBackendApiUrl = process.env.BESAT_BACKEND_API_URL;
 const originalTrustForwardedFor = process.env.BESAT_TRUST_FORWARDED_FOR;
+const originalAnonymousThrottleSecret = process.env.BESAT_ANON_THROTTLE_SECRET;
+const originalNodeEnv = process.env.NODE_ENV;
+const mutableEnv = process.env as Record<string, string | undefined>;
 
 afterEach(() => {
   if (originalBackendApiUrl === undefined) {
@@ -15,6 +18,13 @@ afterEach(() => {
   } else {
     process.env.BESAT_TRUST_FORWARDED_FOR = originalTrustForwardedFor;
   }
+  if (originalAnonymousThrottleSecret === undefined) {
+    delete process.env.BESAT_ANON_THROTTLE_SECRET;
+  } else {
+    process.env.BESAT_ANON_THROTTLE_SECRET = originalAnonymousThrottleSecret;
+  }
+  if (originalNodeEnv === undefined) delete mutableEnv.NODE_ENV;
+  else mutableEnv.NODE_ENV = originalNodeEnv;
   vi.unstubAllGlobals();
 });
 
@@ -102,6 +112,53 @@ describe("backend API proxy route normalization", () => {
     const headers = new Headers(init?.headers);
     expect(headers.get("authorization")).toBe("Bearer server-only-token");
     expect(headers.get("cookie")).toBeNull();
+  });
+
+  it("gives the backend a signed per-browser identity and sets it once", async () => {
+    process.env.BESAT_BACKEND_API_URL = "http://backend:8000/api/";
+    process.env.BESAT_ANON_THROTTLE_SECRET = "test-throttle-secret";
+    const fetchMock = vi.fn(async (...requestArgs: Parameters<typeof fetch>) => {
+      void requestArgs;
+      return Response.json({ units: [] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = await GET(
+      new Request("http://frontend:3000/api/backend/units/"),
+      { params: Promise.resolve({ path: ["units"] }) },
+    );
+    const firstCookie = first.headers.get("set-cookie");
+    expect(firstCookie).toMatch(/besat_anon_id=[0-9a-f-]+;/i);
+
+    const [, firstInit] = fetchMock.mock.calls[0] ?? [];
+    const firstIdentity = new Headers(firstInit?.headers).get("x-besat-anonymous-id");
+    expect(firstIdentity).toMatch(/^[0-9a-f-]+\.[0-9a-f]{64}$/i);
+
+    await GET(
+      new Request("http://frontend:3000/api/backend/units/", {
+        headers: { Cookie: firstCookie?.split(";")[0] ?? "" },
+      }),
+      { params: Promise.resolve({ path: ["units"] }) },
+    );
+    const [, secondInit] = fetchMock.mock.calls[1] ?? [];
+    expect(new Headers(secondInit?.headers).get("x-besat-anonymous-id")).toBe(firstIdentity);
+  });
+
+  it("fails closed in production when the shared throttle secret is missing", async () => {
+    mutableEnv.NODE_ENV = "production";
+    delete process.env.BESAT_ANON_THROTTLE_SECRET;
+    process.env.BESAT_BACKEND_API_URL = "http://backend:8000/api/";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await GET(
+      new Request("https://besat.org/api/backend/units/"),
+      { params: Promise.resolve({ path: ["units"] }) },
+    );
+
+    expect(response.status).toBe(503);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(await response.json()).toMatchObject({ code: "backend_not_configured" });
   });
 
   it("refreshes an expired server-side session once and rotates only HttpOnly cookies", async () => {

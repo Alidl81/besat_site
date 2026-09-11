@@ -29,8 +29,8 @@ logger = logging.getLogger("besat.health")
 # A short in-process cache means: worst case, one real query per worker
 # process per window, no matter how many callers ask inside it. Per-worker
 # (a module-level dict, not Django's cache framework) is intentional --
-# this app has no shared cache backend yet, and a health debounce does not
-# need cross-process consistency, only "not every single request".
+# the health debounce only needs to reduce repeated probes within each
+# worker; throttle counters use the configured shared cache separately.
 _DB_CHECK_DEBOUNCE_SECONDS = 2.0
 _db_check_cache: dict[str, dict] = {}
 
@@ -196,7 +196,7 @@ def deep_health_check(request):
     unrestricted public surface regardless of what each individual field
     contains. Extend the checks dict as real dependencies (cache, storage,
     queue) are actually added; there is nothing here to check for those
-    yet because none exist (see docs/reliability/ARCHITECTURE.md).
+    yet because none exist (see docs/BACKEND.md).
 
     Un-throttled like the two views above: access control here is the
     internal token, not DRF's anonymous-traffic throttle, and a future

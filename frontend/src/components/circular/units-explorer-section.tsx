@@ -3,9 +3,7 @@
 import { useEffect, useState } from "react";
 import { CircularExplorer } from "@/components/circular/circular-explorer";
 import type { CircularItem } from "@/components/circular/circular-selector";
-import { PublicUnitsDirectory } from "@/components/units/public-units-directory";
 import { getOfficialUnitShortTitle } from "@/lib/units/unit-display";
-import type { PublicSchoolUnit } from "@/types/public-content";
 import {
   getPublicDepartments,
   getPublicUnits,
@@ -18,7 +16,6 @@ type ExplorerSectionProps = {
 
 export function UnitsExplorerSection({ variant, initialSlug }: ExplorerSectionProps) {
   const [items, setItems] = useState<CircularItem[] | null>(null);
-  const [units, setUnits] = useState<PublicSchoolUnit[] | null>(null);
   const [descriptions, setDescriptions] = useState<Record<string, string | null>>({});
   // FE-UNITS-EXPLORER-LOAD-ERROR-001: `.catch(() => setItems([]))`
   // collapsed a genuine load failure (a 503, a network drop) into the
@@ -57,11 +54,6 @@ export function UnitsExplorerSection({ variant, initialSlug }: ExplorerSectionPr
       });
 
       setDescriptions(descs);
-      if (variant === "unit") {
-        setUnits(items as PublicSchoolUnit[]);
-      } else {
-        setUnits(null);
-      }
       setItems(
         items.map((x) => ({
           id: String(x.id),
@@ -123,15 +115,6 @@ export function UnitsExplorerSection({ variant, initialSlug }: ExplorerSectionPr
           </div>
         </div>
       </section>
-    );
-  }
-
-  if (variant === "unit") {
-    return (
-      <PublicUnitsDirectory
-        units={units ?? []}
-        initialSlug={initialSlug}
-      />
     );
   }
 

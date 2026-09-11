@@ -31,4 +31,5 @@ validate_production_settings(
     database_engine=DATABASES["default"].get("ENGINE"),
     shop_payment_provider=SHOP_PAYMENT_PROVIDER,
     frontend_base_url=FRONTEND_BASE_URL,
+    anonymous_throttle_secret=BESAT_ANON_THROTTLE_SECRET,
 )

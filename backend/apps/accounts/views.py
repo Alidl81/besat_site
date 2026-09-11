@@ -3,11 +3,11 @@ from rest_framework import status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.core.utils import throttle_rate_configured
+from apps.core.throttling import BFFScopedRateThrottle
 
 from .permissions import IsAuthenticatedAndActiveProfile
 from .selectors import (
@@ -220,7 +220,7 @@ class SetPasswordAPIView(APIView):
 
     def get_throttles(self):
         if throttle_rate_configured(self.throttle_scope):
-            return [ScopedRateThrottle()]
+            return [BFFScopedRateThrottle()]
         return super().get_throttles()
 
     @extend_schema(

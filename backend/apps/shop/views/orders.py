@@ -3,12 +3,12 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAuthenticatedAndActiveProfile
 from apps.core.pagination import StandardResultsSetPagination
 from apps.core.utils import throttle_rate_configured
+from apps.core.throttling import BFFScopedRateThrottle
 
 from ..models import Address, Order, ShippingMethod
 from ..serializers import OrderDetailSerializer, OrderListSerializer, PlaceOrderRequestSerializer
@@ -22,7 +22,7 @@ class OrderListCreateAPIView(APIView):
         if self.request.method == "POST":
             self.throttle_scope = "checkout"
             if throttle_rate_configured("checkout"):
-                return [ScopedRateThrottle()]
+                return [BFFScopedRateThrottle()]
             return []
         return super().get_throttles()
 

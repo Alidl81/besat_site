@@ -1,5 +1,5 @@
 """IDOR/ownership tests for cart item mutation, added as part of the
-ASVS/authorization audit in docs/security/.
+ASVS/authorization audit recorded in docs/BACKEND.md.
 
 apps/shop/test_order_ownership.py already covers order/address ownership.
 Cart item mutation (CartItemDetailAPIView.patch/delete) was not covered by

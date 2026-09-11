@@ -1,5 +1,5 @@
 """Tests for apps.core.alerting -- the "first tested alert" required by
-this session's checkpoint. See docs/reliability/ALERTING.md.
+this session's checkpoint. See docs/BACKEND.md.
 """
 
 from unittest.mock import patch

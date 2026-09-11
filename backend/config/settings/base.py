@@ -151,14 +151,34 @@ DATABASES = {
     )
 }
 
-# PostgreSQL-only server-side safety timeouts -- see
-# docs/reliability/POSTGRESQL_RELIABILITY.md for the reasoning and the
-# capacity math behind each value. Skipped for sqlite (the local
+# DRF's throttle counters must be visible to every Gunicorn worker. Django's
+# implicit LocMemCache is process-local, so the nominal limit could otherwise
+# be multiplied by the number of workers and a client could hop between
+# buckets. A file cache is deliberately used here instead of silently adding a
+# Redis dependency: the supported single-container deployment has a shared
+# filesystem across its workers, and the location is configurable when an
+# operator provides a shared cache service/filesystem later. The cache holds
+# only short-lived throttle metadata in this project.
+DJANGO_CACHE_LOCATION = env(
+    "DJANGO_CACHE_LOCATION",
+    default="/tmp/besat-django-cache",
+)
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": DJANGO_CACHE_LOCATION,
+        "TIMEOUT": 3600,
+        "OPTIONS": {"MAX_ENTRIES": 100_000},
+    }
+}
+
+# PostgreSQL-only server-side safety timeouts -- see docs/BACKEND.md for the
+# reasoning and the capacity notes behind each value. Skipped for sqlite (the local
 # no-Docker fallback default above), which doesn't understand libpq
 # connection options. All three default to unlimited (0) in a stock
 # PostgreSQL install, which is exactly the "long-running request"/
 # "long transaction"/"lock wait forever" failure mode documented in
-# docs/reliability/FAILURE_MATRIX.md -- this closes it at the connection
+# docs/BACKEND.md -- this closes it at the connection
 # level, independent of any one view remembering to set its own timeout.
 if DATABASES["default"].get("ENGINE") == "django.db.backends.postgresql":
     DATABASES["default"].setdefault("OPTIONS", {})
@@ -209,6 +229,11 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="besat@localhost")
 # Used only to build the absolute set-password link embedded in invitation
 # emails (the CMS UI itself builds the link from its own browser origin).
 FRONTEND_BASE_URL = env("FRONTEND_BASE_URL", default="http://localhost:3000")
+
+# Signed by the server-side Next BFF for per-browser anonymous throttling.
+# Falling back to SECRET_KEY keeps local deployments coherent while allowing
+# production to use a separately rotated value shared only by the two servers.
+BESAT_ANON_THROTTLE_SECRET = env("BESAT_ANON_THROTTLE_SECRET", default=SECRET_KEY)
 
 # Payment-provider abstraction (apps.shop.payments): "mock" is the only
 # registered provider until a real gateway is selected -- see the shop
@@ -281,7 +306,7 @@ INTERNAL_HEALTH_TOKEN = env("INTERNAL_HEALTH_TOKEN", default="")
 
 # apps.core.alerting.fire_alert's email channel. Empty by default (no
 # alert email sent, only the structured log line) -- see
-# docs/reliability/ALERTING.md for exactly what this is and is not.
+# docs/BACKEND.md for exactly what this is and is not.
 ALERT_RECIPIENT_EMAIL = env("ALERT_RECIPIENT_EMAIL", default="")
 
 
@@ -297,13 +322,17 @@ REST_FRAMEWORK = {
     ],
 
     "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
+        "apps.core.throttling.BFFAnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
-        "rest_framework.throttling.ScopedRateThrottle",
+        "apps.core.throttling.BFFScopedRateThrottle",
     ],
 
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "100/hour",
+        # A browser can legitimately fan out to several public resources per
+        # page.  The signed BFF identity makes this per browser rather than a
+        # single shared container-IP bucket; 600/hour remains a bounded abuse
+        # control while avoiding normal-navigation lockouts.
+        "anon": "600/hour",
         "user": "1000/hour",
         "login": "5/min",
         "refresh": "20/min",
@@ -373,7 +402,7 @@ SIMPLE_JWT = {
 }
 
 
-# Structured JSON logging -- see docs/reliability/OBSERVABILITY.md.
+# Structured JSON logging -- see docs/BACKEND.md.
 # Previously: no LOGGING setting existed at all, meaning Django's bare
 # implicit default applied (unstructured console output, no redaction,
 # no per-request correlation). "besat.request" (one line per HTTP

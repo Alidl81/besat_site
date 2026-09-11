@@ -1,6 +1,6 @@
 """Object-level authorization (IDOR) tests for the Parent panel.
 
-Written as part of the ASVS/authorization audit in docs/security/. Prior
+Written as part of the ASVS/authorization audit recorded in docs/BACKEND.md. Prior
 coverage exercised same-role/other-unit access (see
 apps.gallery.tests.test_unit_media_cannot_create_gallery_item_for_other_unit
 and apps.dashboard.tests.test_unit_manager_cannot_access_other_unit_dashboard)

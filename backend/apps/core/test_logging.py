@@ -1,6 +1,6 @@
 """Tests for the redaction and structured-logging utilities in
 apps.core.logging_utils -- part of the observability foundation, see
-docs/reliability/OBSERVABILITY.md and docs/security/DATA_CLASSIFICATION.md
+docs/BACKEND.md
 (the "never log" field list these tests enforce).
 """
 

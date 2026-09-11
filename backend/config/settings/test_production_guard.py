@@ -27,6 +27,7 @@ VALID_KWARGS = {
     "csrf_cookie_secure": True,
     "database_engine": "django.db.backends.postgresql",
     "frontend_base_url": "https://besat.org",
+    "anonymous_throttle_secret": "a-sufficiently-long-anonymous-throttle-secret-123456",
 }
 
 
@@ -121,6 +122,23 @@ class ValidateProductionSettingsTests(SimpleTestCase):
     def test_a_real_payment_provider_name_is_not_rejected(self):
         validate_production_settings(**{**VALID_KWARGS, "shop_payment_provider": "some-real-gateway"})
 
+    def test_short_anonymous_throttle_secret_is_rejected(self):
+        with self.assertRaises(ImproperlyConfigured) as ctx:
+            validate_production_settings(
+                **{**VALID_KWARGS, "anonymous_throttle_secret": "short"}
+            )
+        self.assertIn("BESAT_ANON_THROTTLE_SECRET", str(ctx.exception))
+
+    def test_placeholder_anonymous_throttle_secret_is_rejected(self):
+        with self.assertRaises(ImproperlyConfigured) as ctx:
+            validate_production_settings(
+                **{
+                    **VALID_KWARGS,
+                    "anonymous_throttle_secret": "replace-with-a-long-random-shared-value-padding",
+                }
+            )
+        self.assertIn("BESAT_ANON_THROTTLE_SECRET", str(ctx.exception))
+
     def test_omitted_payment_provider_does_not_raise(self):
         # Optional parameter -- callers that don't pass it (or future ones
         # not yet updated) aren't newly broken by this check.
@@ -158,6 +176,7 @@ class RealProductionModuleFailClosedTests(SimpleTestCase):
             "CORS_ALLOWED_ORIGINS": "https://besat.org",
             "CSRF_TRUSTED_ORIGINS": "https://besat.org",
             "FRONTEND_BASE_URL": "https://besat.org",
+            "BESAT_ANON_THROTTLE_SECRET": "a-sufficiently-long-anonymous-throttle-secret-123456",
             # Syntactically valid PostgreSQL URL -- `manage.py check` only
             # parses this into DATABASES, it never opens a real connection,
             # so this doesn't need a reachable database.
@@ -223,6 +242,7 @@ class RealProductionModuleFailClosedTests(SimpleTestCase):
             "CORS_ALLOWED_ORIGINS": "https://besat.org",
             "CSRF_TRUSTED_ORIGINS": "https://besat.org",
             "FRONTEND_BASE_URL": "https://besat.org",
+            "BESAT_ANON_THROTTLE_SECRET": "a-sufficiently-long-anonymous-throttle-secret-123456",
             "SHOP_PAYMENT_PROVIDER": "a-real-gateway-not-mock",
         }
         base_env.pop("DATABASE_URL", None)

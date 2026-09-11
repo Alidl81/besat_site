@@ -2,11 +2,11 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema
 from rest_framework import filters, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
 from apps.core.utils import throttle_rate_configured
+from apps.core.throttling import BFFScopedRateThrottle
 
 from .models import ContactInfo, ContactMessage
 from .permissions import HasContactMessageCMSPermission
@@ -46,7 +46,7 @@ class ContactInfoAPIView(APIView):
     def get_throttles(self):
         if self.request.method == "POST" and throttle_rate_configured("contact"):
             self.throttle_scope = "contact"
-            return [ScopedRateThrottle()]
+            return [BFFScopedRateThrottle()]
         return super().get_throttles()
 
     @extend_schema(

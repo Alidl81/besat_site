@@ -32,13 +32,12 @@ services:
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://192.168.10.65:3000,http://192.168.10.71:3000}
       CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://192.168.10.65:3000,http://192.168.10.71:3000}
       # The Next.js BFF proxy (frontend/src/app/api/backend/[...path]/route.ts)
-      # is the only reverse proxy in front of this backend in this compose
-      # setup, and it already overwrites (not appends) X-Forwarded-Host/-Proto
-      # with the real browser origin -- see backend-client.ts. Without this,
-      # request.build_absolute_uri() emits the internal "backend:8000"
-      # Docker hostname for every uploaded media file (gallery, shop, virtual
-      # tour panoramas, avatars), which the browser cannot reach.
-      TRUST_PROXY_HEADERS: "true"
+      # overwrites X-Forwarded-Host/-Proto for absolute media URLs, but it is
+      # not an IP-trusting gateway. Keep forwarded client-IP trust disabled in
+      # this direct developer topology; enable it only with a real gateway
+      # that strips/overwrites the headers before Django sees them.
+      TRUST_PROXY_HEADERS: "false"
+      BESAT_ANON_THROTTLE_SECRET: ${BESAT_ANON_THROTTLE_SECRET:-local-anonymous-throttle-secret}
       SEED_PUBLIC_DATA: "1"
       CMS_ADMIN_USERNAME: ${CMS_ADMIN_USERNAME:-besat_admin}
       CMS_ADMIN_PASSWORD: ${CMS_ADMIN_PASSWORD:-change-me-local-dev-only}
@@ -75,6 +74,7 @@ services:
       NEXT_PUBLIC_API_BASE_URL: /api/backend
       NEXT_SERVER_API_BASE_URL: http://backend:8000/api
       BESAT_BACKEND_API_URL: http://backend:8000/api
+      BESAT_ANON_THROTTLE_SECRET: ${BESAT_ANON_THROTTLE_SECRET:-local-anonymous-throttle-secret}
       WATCHPACK_POLLING: "true"
     ports:
       - "3000:3000"

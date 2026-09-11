@@ -4,9 +4,11 @@ import {
 } from "@/lib/server/backend-client";
 import { isCrossOriginMutation } from "@/lib/server/cross-origin-guard";
 import { isNonEmptyToken } from "@/lib/server/token-validation";
+import { getOrCreateAnonymousThrottleIdentity } from "@/lib/server/anonymous-throttle";
 import {
   appendSessionCookies,
   clearSessionCookies,
+  appendAnonymousThrottleCookie,
   readCookie,
   sessionCookieNames,
 } from "@/lib/server/session-cookies";
@@ -243,6 +245,12 @@ async function forwardToBackend(
     );
   }
 
+  const anonymousIdentity = getOrCreateAnonymousThrottleIdentity(request.headers.get("cookie"));
+  if (process.env.NODE_ENV === "production" && !anonymousIdentity) {
+    console.error("[besat-backend-proxy]", requestId, "BESAT_ANON_THROTTLE_SECRET is missing.");
+    return createConfigurationError(requestId);
+  }
+
   try {
     const { path } = await params;
     const body =
@@ -268,6 +276,7 @@ async function forwardToBackend(
       requestId,
       accessToken: access,
       inboundHost,
+      anonymousIdentity: anonymousIdentity?.headerValue,
     });
     let refreshedTokens: { access: string; refresh: string } | null = null;
     let clearCookies = false;
@@ -282,6 +291,7 @@ async function forwardToBackend(
           body: JSON.stringify({ refresh }),
           requestId,
           inboundHost,
+          anonymousIdentity: anonymousIdentity?.headerValue,
         });
         return readRefreshPayload(refreshResponse);
       });
@@ -298,6 +308,7 @@ async function forwardToBackend(
           requestId,
           accessToken: refreshedTokens.access,
           inboundHost,
+          anonymousIdentity: anonymousIdentity?.headerValue,
         });
       } else if (recentSuccessfulRotations.has(refresh)) {
         // No shared in-flight attempt was available to join (this request
@@ -341,6 +352,7 @@ async function forwardToBackend(
     }
     if (refreshedTokens) appendSessionCookies(responseHeaders, refreshedTokens);
     if (clearCookies) clearSessionCookies(responseHeaders);
+    if (anonymousIdentity?.isNew) appendAnonymousThrottleCookie(responseHeaders, anonymousIdentity.cookieValue);
 
     if (request.method === "HEAD") {
       return new Response(null, {

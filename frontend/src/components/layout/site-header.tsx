@@ -158,15 +158,17 @@ function Logo({ compact = false }: { compact?: boolean }) {
 function MobileAccordion({
   label,
   items,
-  pathname,
   onNavigate,
 }: {
   label: string;
   items: HeaderItem[];
-  pathname: string;
   onNavigate: () => void;
 }) {
-  const [open, setOpen] = useState(items.some((item) => activePath(pathname, item.href)));
+  // Keep the public education destinations visible on first open. The
+  // desktop dropdown is intentionally collapsible, but hiding its two most
+  // important mobile routes behind a second tap made the owner-facing menu
+  // appear to omit Units and Departments entirely.
+  const [open, setOpen] = useState(true);
   return <div className={`overflow-hidden rounded-xl border transition-all duration-300 ${open ? "border-white/15 bg-white/[.07]" : "border-transparent bg-white/[.035]"}`}>
     <button type="button" onClick={() => setOpen((value) => !value)} className="flex w-full items-center justify-between px-4 py-3.5 text-right text-[15px] font-black">
       {label}<Chevron open={open} />
@@ -209,6 +211,7 @@ export function SiteHeader() {
   const [scrolled, setScrolled] = useState(false);
   const mobileTriggerRef = useRef<HTMLButtonElement>(null);
   const mobileDrawerRef = useRef<HTMLDivElement>(null);
+  const pathnameReadyRef = useRef(false);
 
   // FE-MOBILE-MENU-OPEN-REGRESSION-001: an earlier revision moved this
   // synchronous mirroring of `mobileOpen` into React's "adjust state
@@ -367,6 +370,10 @@ export function SiteHeader() {
   }, [mobileOpen, mobileVisible]);
 
   useEffect(() => {
+    if (!pathnameReadyRef.current) {
+      pathnameReadyRef.current = true;
+      return;
+    }
     const frame = window.requestAnimationFrame(() => {
       setMobileOpen(false);
     });
@@ -445,7 +452,7 @@ export function SiteHeader() {
         <div className="flex items-center justify-between border-b border-white/10 pb-5"><Logo compact /><button onClick={() => setMobileOpen(false)} className="flex size-10 items-center justify-center rounded-xl bg-white/10" aria-label="بستن"><MenuIcon open /></button></div>
         <nav className="mt-5 grid gap-2 overflow-y-auto pb-4">
           <Link href="/" onClick={() => setMobileOpen(false)} className="rounded-xl bg-white/[.035] px-4 py-3 text-sm font-black">صفحه نخست</Link>
-          {menus.map((menu) => <MobileAccordion key={menu.key} label={menu.label} items={menu.items} pathname={pathname} onNavigate={() => setMobileOpen(false)} />)}
+          {menus.map((menu) => <MobileAccordion key={menu.key} label={menu.label} items={menu.items} onNavigate={() => setMobileOpen(false)} />)}
           {mainItems.slice(1).map((item) => <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className="rounded-xl bg-white/[.035] px-4 py-3 text-sm font-black text-white/82 transition hover:bg-white/10">{item.label}</Link>)}
         </nav>
         <div className="mt-auto grid gap-3 border-t border-white/10 pt-4">

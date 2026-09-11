@@ -75,3 +75,11 @@ export function clearSessionCookies(headers: Headers) {
     serializeCookie(sessionCookieNames.hasSession, '', 0, { httpOnly: false }),
   );
 }
+
+export function appendAnonymousThrottleCookie(headers: Headers, value: string) {
+  const attributes = ["Path=/", "SameSite=Lax", "Max-Age=31536000", "HttpOnly"];
+  if (process.env.NODE_ENV === "production") attributes.push("Secure");
+  headers.append("set-cookie", `${ANONYMOUS_THROTTLE_COOKIE_NAME}=${encodeURIComponent(value)}; ${attributes.join("; ")}`);
+}
+
+export const ANONYMOUS_THROTTLE_COOKIE_NAME = "besat_anon_id";

@@ -16,6 +16,6 @@ django-prometheus>=2.3,<3.0
 # project -- pulled in by the base image / other packages above). Pinned
 # explicitly here because a fresh `pip install -r requirements.txt` would
 # otherwise resolve an older, vulnerable version. See
-# docs/security/DEPENDENCY_SECURITY.md for the Trivy scan that found these.
+# docs/BACKEND.md records the dependency-scan evidence and its limitations.
 msgpack>=1.2.1  # CVE (GHSA-6v7p-g79w-8964)
 setuptools>=78.1.1  # CVE-2025-47273 (path traversal)

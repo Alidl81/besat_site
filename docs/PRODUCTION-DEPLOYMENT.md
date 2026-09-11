@@ -21,6 +21,17 @@ Redis, Celery, or another queue is not introduced because the current product
 does not require one. Uploaded media remains on the persistent Docker volume;
 moving it to object storage is a later, explicit architecture decision.
 
+## Host sizing and resource limits
+
+The Compose file intentionally does not impose hard CPU or memory limits:
+those values depend on the provisioned VPS, traffic profile, and approved
+upload workload. After a baseline window, tune Docker/host quotas,
+`WEB_CONCURRENCY`, `GUNICORN_THREADS`, worker timeout, PostgreSQL disk space,
+and log/backup retention together. Monitor CPU, memory, disk, container
+restarts, PostgreSQL connections, and OOM events before increasing replicas;
+do not add replicas without revisiting migration ownership and connection
+capacity.
+
 ## First installation on a new server
 
 Run from a clean checkout of the exact SHA recorded for this handoff. Do not

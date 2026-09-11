@@ -28,7 +28,7 @@ Run from a clean checkout of the approved SHA. Do not use an unrecorded
 
 ```sh
 git fetch --tags origin
-git checkout --detach a6b39fa023bb6a5f9ff660de5cdddc450688fc50
+git checkout --detach 5ecc20a01a42d0ecbf48a51273b5889a7ac0b4f1
 git rev-parse HEAD
 ```
 

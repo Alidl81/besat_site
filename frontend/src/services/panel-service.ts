@@ -463,7 +463,6 @@ export const panelService = {
     return apiDownload(
       withQuery(`${apiEndpoints.cms.reports}export/`, {
         ...params,
-        format: "xlsx",
       }),
       {},
     );

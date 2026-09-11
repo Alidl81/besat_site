@@ -77,7 +77,7 @@ describe("ManagementReportsWorkspace export mutation boundary", () => {
     });
 
     render(<ManagementReportsWorkspace />);
-    const button = screen.getByRole("button", { name: /دریافت خروجی/ });
+    const button = screen.getByRole("button", { name: /دریافت CSV/ });
 
     await act(async () => {
       fireEvent.click(button);

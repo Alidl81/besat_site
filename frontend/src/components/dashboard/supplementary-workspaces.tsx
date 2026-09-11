@@ -74,7 +74,7 @@ export function ManagementReportsWorkspace() {
       const url = URL.createObjectURL(result.blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = decodeURIComponent(result.filename ?? "school-report.xlsx");
+      anchor.download = decodeURIComponent(result.filename ?? "school-report.csv");
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (reason) {
@@ -92,7 +92,7 @@ export function ManagementReportsWorkspace() {
         {request.data.metrics.map((metric) => <article key={metric.key} className="panel-card"><span className="flex size-10 items-center justify-center rounded-full bg-[#eef4fb] text-[#1760a9]"><PanelIcon name={icon(metric.icon)} className="size-5" /></span><p className="mt-4 text-xs font-black text-slate-500">{metric.title}</p><b className="mt-2 block text-3xl text-[#172b43]">{metric.value ?? "—"}</b>{metric.detail ? <p className="mt-2 text-xs text-slate-500">{metric.detail}</p> : null}</article>)}
       </section>
       <section className="panel-card">
-        <header className="mb-5 flex flex-wrap items-center justify-between gap-3"><h2 className="text-base font-black text-[#172b43]">گزارش عملکرد واحدها</h2><button type="button" onClick={() => void download()} disabled={exporting} className="panel-secondary-button"><PanelIcon name="download" className="size-4" />{exporting ? "در حال دریافت..." : "دریافت خروجی"}</button></header>
+        <header className="mb-5 flex flex-wrap items-center justify-between gap-3"><h2 className="text-base font-black text-[#172b43]">گزارش عملکرد واحدها</h2><button type="button" onClick={() => void download()} disabled={exporting} className="panel-secondary-button"><PanelIcon name="download" className="size-4" />{exporting ? "در حال دریافت..." : "دریافت CSV"}</button></header>
         {request.data.units.length ? <div className="overflow-x-auto rounded-lg border border-slate-200"><table className="panel-table min-w-[48rem]"><thead><tr><th>واحد آموزشی</th><th>دانش‌آموزان</th><th>کادر</th><th>ثبت‌نام جدید</th><th>محتوای منتشرشده</th><th>وضعیت</th></tr></thead><tbody>{request.data.units.map((unit) => <tr key={unit.id}><td className="font-black text-[#172b43]">{unit.title}</td><td>{unit.students_count}</td><td>{unit.staff_count}</td><td>{unit.new_registrations_count}</td><td>{unit.published_content_count}</td><td><span className={`panel-status ${unit.is_active ? "is-success" : "is-danger"}`}>{unit.is_active ? "فعال" : "غیرفعال"}</span></td></tr>)}</tbody></table></div> : <PanelEmpty title="داده‌ای برای واحدها وجود ندارد." />}
       </section>
     </div>

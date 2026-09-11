@@ -230,7 +230,7 @@ export function PreregistrationCard({
 
   if (loadError) {
     return (
-      <main
+      <div
         className="mx-auto w-full max-w-3xl rounded-[2rem] border border-rose-200 bg-white p-8 text-center shadow-sm"
       >
         <h1 className="text-2xl font-black text-[#0f2f4a]">
@@ -256,7 +256,7 @@ export function PreregistrationCard({
         >
           تماس برای پیگیری زمان ثبت‌نام
         </Link>
-      </main>
+      </div>
     );
   }
 

@@ -373,6 +373,25 @@ class DashboardAPITests(TestCase):
         self.assertIn("metrics", allowed.data)
         self.assertEqual(denied.status_code, 403)
 
+    def test_reports_export_is_a_general_manager_only_csv_download(self):
+        self.authenticate(self.general_manager)
+
+        allowed = self.client.get("/api/cms/reports/export/")
+
+        self.assertEqual(allowed.status_code, 200)
+        self.assertEqual(allowed["Content-Type"], "text/csv; charset=utf-8")
+        self.assertEqual(
+            allowed["Content-Disposition"],
+            'attachment; filename="panel-report.csv"',
+        )
+        self.assertIn("unit".encode(), allowed.content)
+        self.assertIn(self.unit_1.title.encode(), allowed.content)
+
+        self.authenticate(self.unit_manager)
+        denied = self.client.get("/api/cms/reports/export/")
+
+        self.assertEqual(denied.status_code, 403)
+
 
 class InternalMessageAPITests(TestCase):
     def setUp(self):

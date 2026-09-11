@@ -119,7 +119,7 @@ export function StaticPagesWorkspace() {
     { key: "slug", header: "اسلاگ", render: (item) => <span dir="ltr">{item.slug}</span> },
     { key: "status", header: "وضعیت", render: (item) => <StatusBadge status={item.is_published ? "published" : "inactive"} /> },
   ];
-  return <CrudManager<StaticPageRecord> title="صفحات ایستا" description="صفحات معرفی مجموعه را از یک مسیر کنترل‌شده و قابل ویرایش مدیریت کنید." repository={staticPagesRepository} columns={columns} emptyText="صفحه‌ای ثبت نشده است." addLabel="صفحه جدید" rowLabel={(item) => item.title || item.slug} renderForm={(props) => <StaticPageForm {...props} />} />;
+  return <CrudManager<StaticPageRecord> title="صفحه درباره ما" description="فقط صفحه از پیش تعریف‌شده درباره ما را از یک مسیر کنترل‌شده و قابل ویرایش مدیریت کنید." repository={staticPagesRepository} columns={columns} emptyText="صفحه درباره ما ثبت نشده است." addLabel="ویرایش صفحه" canCreate={false} rowLabel={(item) => item.title || item.slug} renderForm={(props) => <StaticPageForm {...props} />} />;
 }
 
 function StaticPageForm({ initial, onSubmit, onCancel, submitting }: {

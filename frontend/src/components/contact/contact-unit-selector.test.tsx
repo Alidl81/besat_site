@@ -102,4 +102,30 @@ describe("ContactUnitSelector", () => {
     await waitFor(() => expect(screen.getByRole("tab", { name: /واحد ۳/ })).toHaveAttribute("aria-selected", "true"));
     expect(screen.getAllByRole("tab")).toHaveLength(4);
   });
+
+  it("uses the Home slider swipe threshold without swallowing a real Unit link click", async () => {
+    render(<ContactUnitSelector units={units} />);
+    const tablist = screen.getByRole("tablist", { name: "انتخاب واحد آموزشی برای تماس مستقیم" });
+
+    fireEvent.pointerDown(tablist, { pointerId: 1, pointerType: "mouse", button: 0, clientX: 220 });
+    fireEvent.pointerMove(tablist, { pointerId: 1, clientX: 150 });
+    fireEvent.pointerUp(tablist, { pointerId: 1, clientX: 150 });
+    await waitFor(() => expect(screen.getByRole("tab", { name: /واحد ۳/ })).toHaveAttribute("aria-selected", "true"));
+
+    fireEvent.click(screen.getByRole("link", { name: "مشاهده واحد" }));
+    expect(screen.getByRole("link", { name: "مشاهده واحد" })).toHaveAttribute("href", "/units?unit=unit-3");
+  });
+
+  it("keeps negligible pointer movement as a click for keyboard and pointer users", () => {
+    render(<ContactUnitSelector units={units} />);
+    const tablist = screen.getByRole("tablist", { name: "انتخاب واحد آموزشی برای تماس مستقیم" });
+    const neighbor = screen.getByRole("tab", { name: /واحد ۳/ });
+
+    fireEvent.pointerDown(tablist, { pointerId: 2, pointerType: "mouse", button: 0, clientX: 220 });
+    fireEvent.pointerMove(tablist, { pointerId: 2, clientX: 225 });
+    fireEvent.pointerUp(tablist, { pointerId: 2, clientX: 225 });
+    fireEvent.click(neighbor);
+
+    return waitFor(() => expect(screen.getByRole("tab", { name: /واحد ۳/ })).toHaveAttribute("aria-selected", "true"));
+  });
 });

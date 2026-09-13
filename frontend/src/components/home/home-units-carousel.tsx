@@ -2,9 +2,10 @@
 /* eslint-disable @next/next/no-img-element -- unit covers are runtime CMS media. */
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { safePublicMediaUrl } from "@/lib/media/safe-url";
 import type { PublicSchoolUnit } from "@/types/public-content";
+import { useHorizontalCarouselGesture } from "@/hooks/use-horizontal-carousel-gesture";
 
 import { getOfficialUnitShortTitle } from "@/lib/units/unit-display";
 type HomeUnitsCarouselProps = {
@@ -29,7 +30,6 @@ const kindLabels: Record<string, string> = {
 export function HomeUnitsCarousel({ units }: HomeUnitsCarouselProps) {
   const [active, setActive] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const dragStartX = useRef<number | null>(null);
   const total = units.length;
 
   function goTo(index: number) {
@@ -65,22 +65,10 @@ export function HomeUnitsCarousel({ units }: HomeUnitsCarouselProps) {
     return () => window.clearInterval(timer);
   }, [isPaused, total]);
 
-  function onDragStart(clientX: number) {
-    dragStartX.current = clientX;
-  }
-
-  function onDragEnd(clientX: number) {
-    if (dragStartX.current === null) return;
-    const delta = clientX - dragStartX.current;
-    const threshold = 50;
-    if (delta > threshold) {
-      // کشیدن به راست → قبلی (در RTL)
-      prev();
-    } else if (delta < -threshold) {
-      next();
-    }
-    dragStartX.current = null;
-  }
+  const { handlers: gestureHandlers } = useHorizontalCarouselGesture({
+    onPrevious: prev,
+    onNext: next,
+  });
 
   if (total === 0) return null;
 
@@ -118,14 +106,10 @@ export function HomeUnitsCarousel({ units }: HomeUnitsCarouselProps) {
         <div
           className="relative flex h-[27rem] items-center justify-center select-none sm:h-[31rem]"
           style={{ perspective: "1600px", transformStyle: "preserve-3d" }}
-          onMouseDown={(e) => onDragStart(e.clientX)}
-          onMouseUp={(e) => onDragEnd(e.clientX)}
-          onTouchStart={(e) => onDragStart(e.touches[0].clientX)}
-          onTouchEnd={(e) => onDragEnd(e.changedTouches[0].clientX)}
+          {...gestureHandlers}
           onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={(e) => {
+          onMouseLeave={() => {
             setIsPaused(false);
-            onDragEnd(e.clientX);
           }}
           onFocusCapture={() => setIsPaused(true)}
           onBlurCapture={() => setIsPaused(false)}

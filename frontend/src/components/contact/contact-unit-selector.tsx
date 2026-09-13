@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { ArrowLeft, ChevronLeft, ChevronRight, Mail, MapPin, Phone } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useHorizontalCarouselGesture } from "@/hooks/use-horizontal-carousel-gesture";
 import { getOfficialUnitShortTitle } from "@/lib/units/unit-display";
 import type { PublicSchoolUnit } from "@/types/public-content";
 
@@ -43,11 +44,8 @@ type PublicUnitVisibility = PublicSchoolUnit & { is_internal?: boolean };
 
 export function ContactUnitSelector({ units, error = false }: ContactUnitSelectorProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState(0);
   const [step, setStep] = useState(148);
   const viewportRef = useRef<HTMLDivElement | null>(null);
-  const pointerRef = useRef<{ id: number; startX: number; lastX: number; moved: boolean } | null>(null);
-  const suppressClickRef = useRef(false);
 
   const visibleUnits = useMemo(
     () => (units ?? []).filter((unit) => !(unit as PublicUnitVisibility).is_internal),
@@ -70,12 +68,17 @@ export function ContactUnitSelector({ units, error = false }: ContactUnitSelecto
     if (!visibleUnits.length) return;
     const next = (index + visibleUnits.length) % visibleUnits.length;
     setSelectedId(String(visibleUnits[next].id));
-    setDragOffset(0);
   }
 
   function moveBy(offset: number) {
     selectIndex(selectedIndex + offset);
   }
+
+  const { dragOffset, handlers: gestureHandlers } = useHorizontalCarouselGesture({
+    onPrevious: () => moveBy(-1),
+    onNext: () => moveBy(1),
+  });
+  const boundedDragOffset = Math.max(-step * 0.62, Math.min(step * 0.62, dragOffset));
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key === "ArrowLeft") {
@@ -93,35 +96,18 @@ export function ContactUnitSelector({ units, error = false }: ContactUnitSelecto
     }
   }
 
-  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-    pointerRef.current = { id: event.pointerId, startX: event.clientX, lastX: event.clientX, moved: false };
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-  }
+  function handleViewportClick(event: React.MouseEvent<HTMLDivElement>) {
+    const target = event.target;
+    if (target instanceof Element && target.closest("a,button")) return;
 
-  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
-    const pointer = pointerRef.current;
-    if (!pointer || pointer.id !== event.pointerId) return;
-    const offset = event.clientX - pointer.startX;
-    if (Math.abs(offset) > 8) pointer.moved = true;
-    if (!pointer.moved) return;
-    event.preventDefault();
-    pointer.lastX = event.clientX;
-    setDragOffset(Math.max(-step * 0.62, Math.min(step * 0.62, offset)));
-  }
-
-  function onPointerUp(event: PointerEvent<HTMLDivElement>) {
-    const pointer = pointerRef.current;
-    if (!pointer || pointer.id !== event.pointerId) return;
-    pointerRef.current = null;
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
-    const offset = event.clientX - pointer.startX;
-    if (pointer.moved) {
-      suppressClickRef.current = true;
-      if (Math.abs(offset) > step * 0.24) moveBy(offset < 0 ? 1 : -1);
-      else setDragOffset(0);
-      window.setTimeout(() => { suppressClickRef.current = false; }, 0);
-    }
+    const card = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("[data-contact-unit-card]"))
+      .filter((element) => element.dataset.contactUnitVisible === "true")
+      .find((element) => {
+        const rect = element.getBoundingClientRect();
+        return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+      });
+    const index = card ? Number(card.dataset.contactUnitIndex) : Number.NaN;
+    if (Number.isInteger(index)) selectIndex(index);
   }
 
   return (
@@ -133,7 +119,7 @@ export function ContactUnitSelector({ units, error = false }: ContactUnitSelecto
           <p className="mt-1 text-xs font-bold leading-6 text-slate-600">واحد موردنظر را انتخاب کنید.</p>
         </div>
         {visibleUnits.length > 1 ? (
-          <div className="flex shrink-0 items-center gap-1" dir="ltr">
+          <div className="flex shrink-0 items-center gap-1" dir="rtl">
             <button type="button" onClick={() => moveBy(-1)} aria-label="واحد قبلی" className="flex size-9 items-center justify-center rounded-xl border border-[#d8e0e6] bg-white text-[#0a2848] transition hover:border-[#d9aa62] hover:bg-[#fff8ed] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35 motion-reduce:transition-none"><ChevronLeft aria-hidden="true" className="size-4" /></button>
             <button type="button" onClick={() => moveBy(1)} aria-label="واحد بعدی" className="flex size-9 items-center justify-center rounded-xl border border-[#d8e0e6] bg-white text-[#0a2848] transition hover:border-[#d9aa62] hover:bg-[#fff8ed] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35 motion-reduce:transition-none"><ChevronRight aria-hidden="true" className="size-4" /></button>
           </div>
@@ -152,18 +138,16 @@ export function ContactUnitSelector({ units, error = false }: ContactUnitSelecto
             ref={viewportRef}
             role="tablist"
             aria-label="انتخاب واحد آموزشی برای تماس مستقیم"
-            dir="ltr"
+            dir="rtl"
             tabIndex={0}
             onKeyDown={handleKeyDown}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
+            onClick={handleViewportClick}
+            {...gestureHandlers}
             className="relative mt-4 h-[14.2rem] min-w-0 overflow-hidden rounded-2xl border border-[#e0e4e6] bg-white outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35"
           >
             <div
               className="absolute inset-0"
-              style={{ "--drag-offset": `${dragOffset}px` } as CSSProperties}
+              style={{ "--drag-offset": `${boundedDragOffset}px` } as CSSProperties}
             >
               {visibleUnits.map((unit, index) => {
                 let relative = index - selectedIndex;
@@ -173,67 +157,71 @@ export function ContactUnitSelector({ units, error = false }: ContactUnitSelecto
                 const distance = Math.abs(relative);
                 const title = getOfficialUnitShortTitle(unit);
                 const width = Math.max(184, Math.min(250, step - 4));
-                const positionStyle = {
+                const positionStyle: CSSProperties = {
                   width: `${width}px`,
                   transform: `translate(calc(-50% + ${relative * step}px + var(--drag-offset, 0px)), -50%) scale(${active ? 1 : distance === 1 ? 0.88 : 0.74})`,
                   opacity: active ? 1 : distance === 1 ? 0.7 : 0.22,
                   zIndex: active ? 3 : 2 - Math.min(distance, 2),
+                  pointerEvents: distance <= 1 ? "auto" : "none",
                 };
 
-                if (!active) {
-                  return (
-                    <button
-                      key={unit.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={false}
-                      aria-controls="selected-unit-contact-details"
-                      tabIndex={-1}
-                      onClick={() => { if (!suppressClickRef.current) selectIndex(index); }}
-                      dir="rtl"
-                      className="absolute left-1/2 top-1/2 flex h-[5.9rem] flex-col justify-center rounded-2xl border border-[#e0e4e6] bg-[#f8fafc] px-3 text-right text-[#0f2f4a] transition-[opacity,transform,box-shadow,background-color] duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35 motion-reduce:transition-none"
-                      style={positionStyle}
-                    >
-                      <span className="block break-words text-sm font-black leading-6">{title}</span>
-                      <span className="mt-1 block break-words text-[0.68rem] font-bold text-slate-500">{unitDescriptor(unit)}</span>
-                    </button>
-                  );
-                }
-
                 return (
-                  <article
+                  <div
                     key={unit.id}
-                    className="absolute left-1/2 top-1/2 flex h-[13.2rem] flex-col rounded-2xl border border-[#c88d3c] bg-[#fff8ed] text-[#774a12] shadow-[0_12px_24px_rgba(201,140,61,0.18)] transition-[opacity,transform,box-shadow,background-color] duration-300 motion-reduce:transition-none"
+                    data-contact-unit-card
+                    data-contact-unit-index={index}
+                    data-contact-unit-visible={distance <= 1 ? "true" : "false"}
+                    className="absolute left-1/2 top-1/2 transition-[opacity,transform,box-shadow,background-color] duration-300 motion-reduce:transition-none"
                     style={positionStyle}
-                    dir="rtl"
                   >
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected
-                      aria-controls="selected-unit-contact-details"
-                      tabIndex={0}
-                      onClick={() => { if (!suppressClickRef.current) selectIndex(index); }}
-                      className="flex w-full shrink-0 flex-col items-start rounded-t-2xl px-3 pt-3 text-right focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#e2ae5b]/35"
-                    >
-                      <span className="block w-full break-words text-sm font-black leading-6">{title}</span>
-                      <span className="mt-0.5 block w-full break-words text-[0.68rem] font-bold text-slate-600">{unitDescriptor(unit)}</span>
-                    </button>
+                    {active ? (
+                      <article
+                        className="flex h-[13.2rem] w-full flex-col rounded-2xl border border-[#c88d3c] bg-[#fff8ed] text-[#774a12] shadow-[0_12px_24px_rgba(201,140,61,0.18)]"
+                        dir="rtl"
+                      >
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected
+                          aria-controls="selected-unit-contact-details"
+                          tabIndex={0}
+                          onClick={() => selectIndex(index)}
+                          className="flex w-full shrink-0 flex-col items-start rounded-t-2xl px-3 pt-3 text-right focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#e2ae5b]/35"
+                        >
+                          <span className="block w-full break-words text-sm font-black leading-6">{title}</span>
+                          <span className="mt-0.5 block w-full break-words text-[0.68rem] font-bold text-slate-600">{unitDescriptor(unit)}</span>
+                        </button>
 
-                    <div id="selected-unit-contact-details" role="tabpanel" className="mt-2 flex min-h-0 flex-1 flex-col px-3 pb-3 text-[0.68rem] font-bold text-slate-600">
-                      {hasContact(unit) ? (
-                        <div className="grid min-h-0 gap-1.5 overflow-y-auto pr-0.5">
-                          {unit.address ? <div className="flex items-start gap-1.5"><MapPin aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-[#b97827]" /><span className="break-words leading-5">{unit.address}</span></div> : null}
-                          {unit.phone ? <a href={telHref(unit.phone)} dir="ltr" aria-label={`تماس با ${title}`} className="inline-flex items-center gap-1.5 text-left font-black text-[#0f2f4a] underline decoration-[#d9aa62] underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35"><Phone aria-hidden="true" className="size-3.5 shrink-0 text-[#b97827]" />{unit.phone}</a> : null}
-                          {unit.phone_secondary ? <a href={telHref(unit.phone_secondary)} dir="ltr" aria-label={`تماس دوم با ${title}`} className="inline-flex items-center gap-1.5 text-left font-black text-[#0f2f4a] underline decoration-[#d9aa62] underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35"><Phone aria-hidden="true" className="size-3.5 shrink-0 text-[#b97827]" />{unit.phone_secondary}</a> : null}
-                          {unit.email ? <a href={`mailto:${unit.email}`} dir="ltr" className="inline-flex items-center gap-1.5 break-all text-left font-black text-[#0f2f4a] underline decoration-[#d9aa62] underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35"><Mail aria-hidden="true" className="size-3.5 shrink-0 text-[#b97827]" />{unit.email}</a> : null}
+                        <div id="selected-unit-contact-details" role="tabpanel" className="mt-2 flex min-h-0 flex-1 flex-col px-3 pb-3 text-[0.68rem] font-bold text-slate-600">
+                          {hasContact(unit) ? (
+                            <div className="grid min-h-0 gap-1.5 overflow-y-auto pr-0.5">
+                              {unit.address ? <div className="flex items-start gap-1.5"><MapPin aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-[#b97827]" /><span className="break-words leading-5">{unit.address}</span></div> : null}
+                              {unit.phone ? <a href={telHref(unit.phone)} dir="ltr" aria-label={`تماس با ${title}`} className="inline-flex items-center gap-1.5 text-left font-black text-[#0f2f4a] underline decoration-[#d9aa62] underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35"><Phone aria-hidden="true" className="size-3.5 shrink-0 text-[#b97827]" />{unit.phone}</a> : null}
+                              {unit.phone_secondary ? <a href={telHref(unit.phone_secondary)} dir="ltr" aria-label={`تماس دوم با ${title}`} className="inline-flex items-center gap-1.5 text-left font-black text-[#0f2f4a] underline decoration-[#d9aa62] underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35"><Phone aria-hidden="true" className="size-3.5 shrink-0 text-[#b97827]" />{unit.phone_secondary}</a> : null}
+                              {unit.email ? <a href={`mailto:${unit.email}`} dir="ltr" className="inline-flex items-center gap-1.5 break-all text-left font-black text-[#0f2f4a] underline decoration-[#d9aa62] underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35"><Mail aria-hidden="true" className="size-3.5 shrink-0 text-[#b97827]" />{unit.email}</a> : null}
+                            </div>
+                          ) : <p className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-2 py-2 text-[0.66rem] font-bold leading-5 text-slate-600">اطلاعات تماس این واحد هنوز ثبت نشده است.</p>}
+                          <Link href={`/units?unit=${encodeURIComponent(unit.slug)}`} className="mt-auto inline-flex min-h-7 items-center gap-1 self-start pt-1 text-[0.68rem] font-black text-[#0a2848] underline decoration-[#d9aa62] underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35">
+                            مشاهده واحد <ArrowLeft aria-hidden="true" className="size-3" />
+                          </Link>
                         </div>
-                      ) : <p className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-2 py-2 text-[0.66rem] font-bold leading-5 text-slate-600">اطلاعات تماس این واحد هنوز ثبت نشده است.</p>}
-                      <Link href={`/units?unit=${encodeURIComponent(unit.slug)}`} className="mt-auto inline-flex min-h-7 items-center gap-1 self-start pt-1 text-[0.68rem] font-black text-[#0a2848] underline decoration-[#d9aa62] underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35">
-                        مشاهده واحد <ArrowLeft aria-hidden="true" className="size-3" />
-                      </Link>
-                    </div>
-                  </article>
+                      </article>
+                    ) : (
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={false}
+                        aria-controls="selected-unit-contact-details"
+                        tabIndex={-1}
+                        onClick={() => selectIndex(index)}
+                        dir="rtl"
+                        className="flex h-[5.9rem] w-full flex-col justify-center rounded-2xl border border-[#e0e4e6] bg-[#f8fafc] px-3 text-right text-[#0f2f4a] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35"
+                      >
+                        <span className="block break-words text-sm font-black leading-6">{title}</span>
+                        <span className="mt-1 block break-words text-[0.68rem] font-bold text-slate-500">{unitDescriptor(unit)}</span>
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>

@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 type UnitsPageProps = {
   searchParams?: Promise<{
     unit?: string | string[];
+    tab?: string | string[];
   }>;
 };
 
@@ -24,6 +25,7 @@ function readSingleParam(value: string | string[] | undefined) {
 export default async function UnitsPage({ searchParams }: UnitsPageProps) {
   const params = searchParams ? await searchParams : undefined;
   const initialUnitSlug = readSingleParam(params?.unit);
+  const initialTab = readSingleParam(params?.tab);
 
   return (
     <PublicPageLayout>
@@ -32,7 +34,7 @@ export default async function UnitsPage({ searchParams }: UnitsPageProps) {
         title="واحدهای آموزشی"
         description="واحدهای آموزشی را بر اساس جنسیت و مقطع ببینید و برای معرفی کامل انتخاب کنید."
       />
-      <UnitsExplorerSection variant="unit" initialSlug={initialUnitSlug} />
+      <UnitsExplorerSection variant="unit" initialSlug={initialUnitSlug} initialTab={initialTab} />
     </PublicPageLayout>
   );
 }

@@ -4,7 +4,6 @@ import { getShopCategories, getShopProducts } from "@/services/shop-service";
 import {
   getPublicAchievements,
   getPublicNews,
-  getPublicUnits,
 } from "@/services/public-content-service";
 
 // FE-SEO-PROD-ORIGIN-001: see the identical reasoning in robots.ts -- this
@@ -16,9 +15,9 @@ import {
 // fails this specific request rather than at import time.
 export const dynamic = "force-dynamic";
 
-// Static hubs are supplemented below with the published detail families. The
-// API remains the source of truth for publication state, so unpublished,
-// inactive, and internal fixture records never become crawlable URLs.
+// Static hubs are supplemented below with the published detail families. Units
+// intentionally remain a single hub: `/units?unit=...` is client URL state and
+// the old `/units/<slug>` family now permanently redirects to it.
 const STATIC_ROUTES = [
   "",
   "/about",
@@ -39,14 +38,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: path === "" ? 1 : path === "/shop" ? 0.9 : 0.6,
   }));
 
-  const [categories, products, news, achievements, units] = await Promise.all([
+  const [categories, products, news, achievements] = await Promise.all([
     getShopCategories().catch(() => []),
     getShopProducts({ page_size: 100 })
       .then((response) => response.results)
       .catch(() => []),
     getPublicNews({ page_size: 100 }).then((response) => response.results).catch(() => []),
     getPublicAchievements({ page_size: 100 }).then((response) => response.results).catch(() => []),
-    getPublicUnits().catch(() => []),
   ]);
 
   const categoryEntries: MetadataRoute.Sitemap = categories.map((category) => ({
@@ -73,17 +71,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.65,
     lastModified: item.achievement_date || item.achieved_at || undefined,
   }));
-  const unitEntries = units.map((unit) => ({
-    url: `${siteUrl}/units/${encodeURIComponent(unit.slug)}`,
-    changeFrequency: "weekly" as const,
-    priority: 0.7,
-  }));
   return [
     ...staticEntries,
     ...categoryEntries,
     ...productEntries,
     ...newsEntries,
     ...achievementEntries,
-    ...unitEntries,
   ];
 }

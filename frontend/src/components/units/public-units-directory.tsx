@@ -84,7 +84,7 @@ export function PublicUnitsDirectory({ units, initialSlug }: PublicUnitsDirector
                 <Link
                   key={unit.id}
                   id={`unit-${unit.slug}`}
-                  href={`/units/${encodeURIComponent(unit.slug)}`}
+                  href={`/units?unit=${encodeURIComponent(unit.slug)}`}
                   data-highlighted={highlighted || undefined}
                   className={`group flex min-h-36 flex-col justify-between rounded-2xl border bg-white p-5 text-right transition duration-300 motion-reduce:transition-none ${
                     highlighted

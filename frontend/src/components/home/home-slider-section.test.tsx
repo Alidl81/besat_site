@@ -174,7 +174,7 @@ describe("HomeSliderSection CMS href boundary", () => {
     await waitFor(() => expect(screen.getByRole("region")).toBeInTheDocument());
     expect(screen.getByRole("link", { name: "مشاهده واحد" })).toHaveAttribute(
       "href",
-      "/units/girls-one",
+      "/units?unit=girls-one",
     );
   });
 });

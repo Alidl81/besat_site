@@ -59,7 +59,7 @@ describe("PublicUnitsDirectory", () => {
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /واحد ۱ و ۲/ })).toHaveAttribute(
       "href",
-      "/units/girls-long-name",
+      "/units?unit=girls-long-name",
     );
     expect(screen.getByText("واحد پسرانه")).toBeInTheDocument();
 

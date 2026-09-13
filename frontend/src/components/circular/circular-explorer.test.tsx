@@ -45,6 +45,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  window.history.replaceState({}, "", "/");
   document.body.style.overflow = "";
   vi.runOnlyPendingTimers();
   vi.useRealTimers();
@@ -65,6 +66,54 @@ async function renderExplorer() {
     await Promise.resolve();
   });
 }
+
+describe("CircularExplorer URL state", () => {
+  it("restores the selected unit and tab, then writes compact deep links", async () => {
+    window.history.replaceState({}, "", "/units?unit=unit-2&tab=news");
+    const { CircularExplorer } = await import("@/components/circular/circular-explorer");
+    render(
+      <CircularExplorer
+        items={[
+          { id: "unit-1", title: "واحد اول", slug: "unit-1" },
+          { id: "unit-2", title: "واحد دوم", slug: "unit-2" },
+        ]}
+        descriptions={{ "unit-1": "یک", "unit-2": "دو" }}
+        variant="unit"
+        initialSlug="unit-2"
+        initialTab="news"
+      />,
+    );
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole("tab", { name: /اخبار/ })).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(screen.getByRole("tab", { name: /گالری/ }));
+    expect(window.location.pathname).toBe("/units");
+    expect(window.location.search).toBe("?unit=unit-2&tab=gallery");
+
+    fireEvent.click(screen.getByRole("button", { name: "واحد اول" }));
+    expect(window.location.search).toBe("?unit=unit-1");
+  });
+
+  it("falls back to the first public item for an invalid slug", async () => {
+    const { CircularExplorer } = await import("@/components/circular/circular-explorer");
+    render(
+      <CircularExplorer
+        items={[{ id: "unit-1", title: "واحد اول", slug: "unit-1" }]}
+        descriptions={{ "unit-1": "یک" }}
+        variant="unit"
+        initialSlug="missing-unit"
+      />,
+    );
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+      await Promise.resolve();
+    });
+    expect(screen.getAllByText("واحد اول").length).toBeGreaterThan(0);
+  });
+});
 
 async function flushTabContent() {
   await act(async () => {

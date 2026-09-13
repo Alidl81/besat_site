@@ -54,12 +54,11 @@ export function ContactUnitSelector({ units, error = false }: ContactUnitSelecto
     [units],
   );
   const selectedIndex = Math.max(0, visibleUnits.findIndex((unit) => String(unit.id) === selectedId));
-  const selectedUnit = visibleUnits[selectedIndex] ?? null;
 
   useEffect(() => {
     const element = viewportRef.current;
     if (!element) return;
-    const update = () => setStep(Math.max(126, Math.min(170, element.clientWidth * 0.43)));
+    const update = () => setStep(Math.max(174, Math.min(236, element.clientWidth * 0.66)));
     update();
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(update);
@@ -160,7 +159,7 @@ export function ContactUnitSelector({ units, error = false }: ContactUnitSelecto
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
-            className="relative mt-4 h-[7.6rem] min-w-0 overflow-hidden rounded-2xl border border-[#e0e4e6] bg-white outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35"
+            className="relative mt-4 h-[14.2rem] min-w-0 overflow-hidden rounded-2xl border border-[#e0e4e6] bg-white outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35"
           >
             <div
               className="absolute inset-0"
@@ -172,54 +171,73 @@ export function ContactUnitSelector({ units, error = false }: ContactUnitSelecto
                 if (relative < -visibleUnits.length / 2) relative += visibleUnits.length;
                 const active = relative === 0;
                 const distance = Math.abs(relative);
+                const title = getOfficialUnitShortTitle(unit);
+                const width = Math.max(184, Math.min(250, step - 4));
+                const positionStyle = {
+                  width: `${width}px`,
+                  transform: `translate(calc(-50% + ${relative * step}px + var(--drag-offset, 0px)), -50%) scale(${active ? 1 : distance === 1 ? 0.88 : 0.74})`,
+                  opacity: active ? 1 : distance === 1 ? 0.7 : 0.22,
+                  zIndex: active ? 3 : 2 - Math.min(distance, 2),
+                };
+
+                if (!active) {
+                  return (
+                    <button
+                      key={unit.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={false}
+                      aria-controls="selected-unit-contact-details"
+                      tabIndex={-1}
+                      onClick={() => { if (!suppressClickRef.current) selectIndex(index); }}
+                      dir="rtl"
+                      className="absolute left-1/2 top-1/2 flex h-[5.9rem] flex-col justify-center rounded-2xl border border-[#e0e4e6] bg-[#f8fafc] px-3 text-right text-[#0f2f4a] transition-[opacity,transform,box-shadow,background-color] duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35 motion-reduce:transition-none"
+                      style={positionStyle}
+                    >
+                      <span className="block break-words text-sm font-black leading-6">{title}</span>
+                      <span className="mt-1 block break-words text-[0.68rem] font-bold text-slate-500">{unitDescriptor(unit)}</span>
+                    </button>
+                  );
+                }
+
                 return (
-                  <button
+                  <article
                     key={unit.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    aria-controls="selected-unit-contact-details"
-                    tabIndex={active ? 0 : -1}
-                    onClick={() => { if (!suppressClickRef.current) selectIndex(index); }}
+                    className="absolute left-1/2 top-1/2 flex h-[13.2rem] flex-col rounded-2xl border border-[#c88d3c] bg-[#fff8ed] text-[#774a12] shadow-[0_12px_24px_rgba(201,140,61,0.18)] transition-[opacity,transform,box-shadow,background-color] duration-300 motion-reduce:transition-none"
+                    style={positionStyle}
                     dir="rtl"
-                    className={`absolute left-1/2 top-1/2 flex h-[5.9rem] -translate-y-1/2 flex-col justify-center rounded-2xl border px-3 text-right transition-[opacity,transform,box-shadow,background-color] duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35 motion-reduce:transition-none ${active ? "border-[#c88d3c] bg-[#fff8ed] text-[#774a12] shadow-[0_12px_24px_rgba(201,140,61,0.18)]" : "border-[#e0e4e6] bg-[#f8fafc] text-[#0f2f4a]"}`}
-                    style={{
-                      width: `${Math.max(112, step - 16)}px`,
-                      transform: `translate(calc(-50% + ${relative * step}px + var(--drag-offset, 0px)), -50%) scale(${active ? 1 : distance === 1 ? 0.88 : 0.74})`,
-                      opacity: active ? 1 : distance === 1 ? 0.7 : 0.22,
-                      zIndex: active ? 3 : 2 - Math.min(distance, 2),
-                    }}
                   >
-                    <span className="block break-words text-sm font-black leading-6">{getOfficialUnitShortTitle(unit)}</span>
-                    {active ? <span className="mt-1 block text-[0.68rem] font-bold text-slate-500">{unitDescriptor(unit)}</span> : null}
-                  </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected
+                      aria-controls="selected-unit-contact-details"
+                      tabIndex={0}
+                      onClick={() => { if (!suppressClickRef.current) selectIndex(index); }}
+                      className="flex w-full shrink-0 flex-col items-start rounded-t-2xl px-3 pt-3 text-right focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#e2ae5b]/35"
+                    >
+                      <span className="block w-full break-words text-sm font-black leading-6">{title}</span>
+                      <span className="mt-0.5 block w-full break-words text-[0.68rem] font-bold text-slate-600">{unitDescriptor(unit)}</span>
+                    </button>
+
+                    <div id="selected-unit-contact-details" role="tabpanel" className="mt-2 flex min-h-0 flex-1 flex-col px-3 pb-3 text-[0.68rem] font-bold text-slate-600">
+                      {hasContact(unit) ? (
+                        <div className="grid min-h-0 gap-1.5 overflow-y-auto pr-0.5">
+                          {unit.address ? <div className="flex items-start gap-1.5"><MapPin aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-[#b97827]" /><span className="break-words leading-5">{unit.address}</span></div> : null}
+                          {unit.phone ? <a href={telHref(unit.phone)} dir="ltr" aria-label={`تماس با ${title}`} className="inline-flex items-center gap-1.5 text-left font-black text-[#0f2f4a] underline decoration-[#d9aa62] underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35"><Phone aria-hidden="true" className="size-3.5 shrink-0 text-[#b97827]" />{unit.phone}</a> : null}
+                          {unit.phone_secondary ? <a href={telHref(unit.phone_secondary)} dir="ltr" aria-label={`تماس دوم با ${title}`} className="inline-flex items-center gap-1.5 text-left font-black text-[#0f2f4a] underline decoration-[#d9aa62] underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35"><Phone aria-hidden="true" className="size-3.5 shrink-0 text-[#b97827]" />{unit.phone_secondary}</a> : null}
+                          {unit.email ? <a href={`mailto:${unit.email}`} dir="ltr" className="inline-flex items-center gap-1.5 break-all text-left font-black text-[#0f2f4a] underline decoration-[#d9aa62] underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35"><Mail aria-hidden="true" className="size-3.5 shrink-0 text-[#b97827]" />{unit.email}</a> : null}
+                        </div>
+                      ) : <p className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-2 py-2 text-[0.66rem] font-bold leading-5 text-slate-600">اطلاعات تماس این واحد هنوز ثبت نشده است.</p>}
+                      <Link href={`/units?unit=${encodeURIComponent(unit.slug)}`} className="mt-auto inline-flex min-h-7 items-center gap-1 self-start pt-1 text-[0.68rem] font-black text-[#0a2848] underline decoration-[#d9aa62] underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35">
+                        مشاهده واحد <ArrowLeft aria-hidden="true" className="size-3" />
+                      </Link>
+                    </div>
+                  </article>
                 );
               })}
             </div>
           </div>
-
-          {selectedUnit ? (
-            <div id="selected-unit-contact-details" role="tabpanel" className="mt-4 min-h-[9.4rem] rounded-2xl border border-[#e0e4e6] bg-white p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="break-words text-base font-black leading-7 text-[#0f2f4a]">{getOfficialUnitShortTitle(selectedUnit)}</h3>
-                  <p className="mt-1 text-xs font-bold text-slate-500">{unitDescriptor(selectedUnit)}</p>
-                </div>
-                <Link href={`/units/${encodeURIComponent(selectedUnit.slug)}`} className="inline-flex shrink-0 items-center gap-1 text-xs font-black text-[#0a2848] underline decoration-[#d9aa62] underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35">
-                  مشاهده واحد <ArrowLeft aria-hidden="true" className="size-3.5" />
-                </Link>
-              </div>
-
-              {hasContact(selectedUnit) ? (
-                <div className="mt-3 grid gap-2 text-xs font-bold text-slate-600">
-                  {selectedUnit.address ? <div className="flex items-start gap-2"><MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-[#b97827]" /><span className="break-words">{selectedUnit.address}</span></div> : null}
-                  {selectedUnit.phone ? <a href={telHref(selectedUnit.phone)} dir="ltr" aria-label={`تماس با ${getOfficialUnitShortTitle(selectedUnit)}`} className="inline-flex items-center gap-2 text-left font-black text-[#0f2f4a] underline decoration-[#d9aa62] underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35"><Phone aria-hidden="true" className="size-4 shrink-0 text-[#b97827]" />{selectedUnit.phone}</a> : null}
-                  {selectedUnit.phone_secondary ? <a href={telHref(selectedUnit.phone_secondary)} dir="ltr" aria-label={`تماس دوم با ${getOfficialUnitShortTitle(selectedUnit)}`} className="inline-flex items-center gap-2 text-left font-black text-[#0f2f4a] underline decoration-[#d9aa62] underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35"><Phone aria-hidden="true" className="size-4 shrink-0 text-[#b97827]" />{selectedUnit.phone_secondary}</a> : null}
-                  {selectedUnit.email ? <a href={`mailto:${selectedUnit.email}`} dir="ltr" className="inline-flex items-center gap-2 text-left font-black text-[#0f2f4a] underline decoration-[#d9aa62] underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/35"><Mail aria-hidden="true" className="size-4 shrink-0 text-[#b97827]" />{selectedUnit.email}</a> : null}
-                </div>
-              ) : <p className="mt-3 rounded-xl border border-dashed border-slate-200 bg-[#f8fafc] px-3 py-3 text-xs font-bold leading-6 text-slate-600">اطلاعات تماس این واحد هنوز ثبت نشده است.</p>}
-            </div>
-          ) : null}
         </>
       )}
     </section>

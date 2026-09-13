@@ -32,14 +32,14 @@ export function UnitCard({ unit }: UnitCardProps) {
           </Link>
 
           <Link
-            href={`/units?unit=${encodeURIComponent(unit.slug)}&section=news`}
+            href={`/units?unit=${encodeURIComponent(unit.slug)}&tab=news`}
             className="besat-tab-link rounded-2xl px-4 py-3 text-center text-sm font-black"
           >
             اخبار
           </Link>
 
           <Link
-            href={`/units?unit=${encodeURIComponent(unit.slug)}&section=gallery`}
+            href={`/units?unit=${encodeURIComponent(unit.slug)}&tab=gallery`}
             className="besat-tab-link rounded-2xl px-4 py-3 text-center text-sm font-black"
           >
             گالری
@@ -49,4 +49,3 @@ export function UnitCard({ unit }: UnitCardProps) {
     </article>
   );
 }
-

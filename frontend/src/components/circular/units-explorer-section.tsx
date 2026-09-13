@@ -12,9 +12,10 @@ import {
 type ExplorerSectionProps = {
   variant: "unit" | "department";
   initialSlug?: string | null;
+  initialTab?: string | null;
 };
 
-export function UnitsExplorerSection({ variant, initialSlug }: ExplorerSectionProps) {
+export function UnitsExplorerSection({ variant, initialSlug, initialTab }: ExplorerSectionProps) {
   const [items, setItems] = useState<CircularItem[] | null>(null);
   const [descriptions, setDescriptions] = useState<Record<string, string | null>>({});
   // FE-UNITS-EXPLORER-LOAD-ERROR-001: `.catch(() => setItems([]))`
@@ -49,13 +50,15 @@ export function UnitsExplorerSection({ variant, initialSlug }: ExplorerSectionPr
       if (!active) return;
       const descs: Record<string, string | null> = {};
 
-      items.forEach((x) => {
+      const publicItems = items.filter((x) => !(x as { is_internal?: boolean }).is_internal);
+
+      publicItems.forEach((x) => {
         descs[String(x.id)] = x.description;
       });
 
       setDescriptions(descs);
       setItems(
-        items.map((x) => ({
+        publicItems.map((x) => ({
           id: String(x.id),
           title: variant === "unit" ? getOfficialUnitShortTitle(x) : x.title,
           slug: x.slug,
@@ -124,6 +127,7 @@ export function UnitsExplorerSection({ variant, initialSlug }: ExplorerSectionPr
       descriptions={descriptions}
       variant={variant}
       initialSlug={initialSlug}
+      initialTab={initialTab}
     />
   );
 }

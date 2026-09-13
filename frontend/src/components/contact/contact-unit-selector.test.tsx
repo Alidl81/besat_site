@@ -96,7 +96,7 @@ describe("ContactUnitSelector", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "واحد بعدی" }));
     await waitFor(() => expect(screen.getByRole("tab", { name: /واحد ۶/ })).toHaveAttribute("aria-selected", "true"));
-    expect(screen.getByRole("link", { name: "مشاهده واحد" })).toHaveAttribute("href", "/units/unit-6");
+    expect(screen.getByRole("link", { name: "مشاهده واحد" })).toHaveAttribute("href", "/units?unit=unit-6");
 
     fireEvent.click(screen.getByRole("button", { name: "واحد قبلی" }));
     await waitFor(() => expect(screen.getByRole("tab", { name: /واحد ۳/ })).toHaveAttribute("aria-selected", "true"));

@@ -53,8 +53,16 @@ function classifySlideTarget(value: string | null | undefined): Slide["target"] 
     return { href, label: "مطالعه کامل خبر" };
   }
 
-  if (href === "/units" || href.startsWith("/units/")) {
-    return { href, label: href === "/units" ? "مشاهده واحدها" : "مشاهده واحد" };
+  if (href === "/units") {
+    return { href, label: "مشاهده واحدها" };
+  }
+
+  if (href.startsWith("/units/")) {
+    const slug = href.slice("/units/".length).split(/[?#]/, 1)[0];
+    return {
+      href: slug ? `/units?unit=${encodeURIComponent(decodeURIComponent(slug))}` : "/units",
+      label: "مشاهده واحد",
+    };
   }
 
   return {

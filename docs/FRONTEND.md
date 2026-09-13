@@ -12,7 +12,7 @@ checks are:
 
 | Check | Result |
 | --- | --- |
-| Vitest | 129 test files, 487 tests passed |
+| Vitest | 131 test files, 493 tests passed |
 | ESLint | passed |
 | TypeScript | passed |
 | Next production build | passed; 32 static pages generated |
@@ -43,8 +43,14 @@ The public site routes are:
 `/departments`, `/gallery`, `/news`, `/news/[slug]`, `/registration`,
 `/shop`, `/shop/[slug]`, `/shop/cart`, `/shop/checkout`,
 `/shop/orders/[orderNumber]`, `/shop/payment/mock/[attemptId]`,
-`/shop/register`, `/units`, `/units/[slug]`, `/units/[slug]/gallery`,
-`/units/[slug]/news`, and `/virtual-tour`.
+`/shop/register`, `/units`, and `/virtual-tour`.
+
+The public unit experience is intentionally a single page. `/units` owns the
+wheel, selected-unit content, and the `معرفی`, `اخبار`, `افتخارات`, and `گالری`
+tabs. Query state is `?unit=<slug>&tab=<key>` and survives refresh/deep links.
+The legacy `/units/<slug>`, `/units/<slug>/news`, and
+`/units/<slug>/gallery` routes remain as permanent redirects so old bookmarks
+and external links resolve without creating a second public page family.
 
 Authentication and account routes are `/login` and `/set-password`. The
 server route handlers also expose `/api/session`, `/api/auth-session-empty-tokens`,
@@ -79,36 +85,46 @@ The authenticated UI is grouped by role:
   legible.
 - Data comes from the public API. The internal development unit is excluded
   before rendering.
-- Idle rotation pauses on interaction. Pointer drag works with mouse, touch,
-  and pen events; movement has an 8 px threshold, inertia decays, then the
-  nearest item settles and becomes selected.
+- The historical Besat motion is preserved: pointer drag uses the direct
+  start-angle delta, mouse/touch/pen input is supported, and release snaps to
+  the nearest item with the original shortest-path 900ms cubic easing. There
+  is no idle spin or synthetic inertia.
 - Wheel scrolling over the center selects the adjacent item. Arrow keys,
   Home, and End provide a keyboard path.
 - Labels counter-rotate so they remain upright while the orbit rotates.
-- `prefers-reduced-motion: reduce` disables idle rotation and inertia while
+- `prefers-reduced-motion: reduce` removes the orbit transition while
   preserving selection and keyboard behavior.
 - The active node is a real button with `aria-pressed`; the wheel container is
   labelled `گردونه انتخاب حوزه` or `گردونه انتخاب واحد آموزشی`.
 - The detail card below the wheel exposes the selected department/unit action;
   selection is not dependent on hover.
 
-### Contact unit mini-coverflow
+### Contact unit mini-carousel
 
 `ContactUnitSelector` is rendered directly beneath the central contact card in
 the right column. It is intentionally separate from the contact form.
 
 - It is a compact image-free coverflow: the selected unit is centered and
-  strongest; immediate neighbors peek at the sides and fade back.
-- Only the selected unit's phone, email, address, and short descriptor are
-  shown. Missing fields are represented as truthful unavailable text, never
-  invented placeholders.
+  fully visible; immediate neighbors peek at the sides and fade back.
+- The active card itself contains the selected unit's phone, email, short
+  address/descriptor, and `/units?unit=<slug>` CTA. Details are never repeated
+  in a second lower panel, so the card has no clipped or empty lower region.
 - Previous/next buttons have the accessible labels `واحد قبلی` and `واحد بعدی`.
 - The tablist supports click, pointer/touch drag, ArrowLeft/ArrowRight,
   Home, and End. Dragging beyond the threshold suppresses the accidental
   button click.
 - On narrow screens the order is central contact card, mini carousel, then
-  the unchanged contact form. On desktop the form remains in the left column
-  and the card/carousel remain together in the right column.
+  the unchanged contact form. On desktop the form remains in its existing
+  column and the card/carousel remain together in the other column.
+
+### Footer and public links
+
+- The footer contains only the current CMS-provided social links and internal
+  quick links. The legacy `besat-r.com`, `besat-hs.ir`, and `besatkids.com`
+  destinations are not rendered.
+- Telegram and Eitaa use the existing local assets at
+  `public/icons/social/telegram.svg` and `public/icons/social/eitaa.svg`, with
+  accessible service labels and responsive wrapping at phone widths.
 
 ### Shared mobile navigation
 
@@ -126,17 +142,19 @@ the desktop header, preserves the active route, and supports:
 ## Responsive acceptance evidence
 
 Real screenshots captured from the local running site are retained under
-`.audit/final-engineering-pass/screens/`:
+`.audit/final-public-ui-correction/screens/`:
 
 - `departments-{360,390,768,1024,1366,1440}.png`
 - `units-{360,390,768,1024,1366,1440}.png`
 - `contact-{360,390,768,1024,1366,1440}.png`
 - `mobile-menu-{360,390}.png`
 
-The 360 and 390 captures show the orbital wheels rather than a list, no
-horizontal overflow, readable labels, the compact contact hierarchy, and the
+The 360 and 390 captures show the same orbital wheels rather than a list, no
+horizontal overflow, readable labels, the compact active contact card, and the
 mobile drawer branches. Desktop captures show the two-column contact layout
-and the mini coverflow directly under the contact card.
+and the selected card with side neighbors directly under the central contact
+card. Unit deep-link and legacy-route redirect evidence is kept beside the
+screenshots in the same ignored audit folder.
 
 The browser interaction smoke additionally performed real pointer drags on a
 department wheel and a unit wheel, performed a contact coverflow swipe after

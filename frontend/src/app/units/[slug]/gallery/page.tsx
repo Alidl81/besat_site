@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { UnitContentPage } from "@/components/units/unit-content-page";
+import { permanentRedirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "گالری واحد | مجتمع آموزشی بعثت",
+  title: "واحدها | مجتمع آموزشی بعثت",
+  alternates: { canonical: "/units" },
+  robots: { index: false, follow: true },
 };
 
 export default async function UnitGalleryPage({
@@ -11,5 +13,5 @@ export default async function UnitGalleryPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  return <UnitContentPage slug={slug} type="gallery" />;
+  permanentRedirect(`/units?unit=${encodeURIComponent(decodeURIComponent(slug))}&tab=gallery`);
 }

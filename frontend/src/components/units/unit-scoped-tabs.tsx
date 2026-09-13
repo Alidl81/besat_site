@@ -2,13 +2,14 @@ import Link from "next/link";
 
 type UnitScopedTabsProps = {
   slug: string;
-  active: "overview" | "news" | "gallery";
+  active: "overview" | "news" | "achievements" | "gallery";
 };
 
 const tabs = [
-  { key: "overview", label: "معرفی واحد", href: "" },
-  { key: "news", label: "اخبار واحد", href: "/news" },
-  { key: "gallery", label: "گالری واحد", href: "/gallery" },
+  { key: "overview", label: "معرفی واحد", tab: "overview" },
+  { key: "news", label: "اخبار واحد", tab: "news" },
+  { key: "achievements", label: "افتخارات واحد", tab: "achievements" },
+  { key: "gallery", label: "گالری واحد", tab: "gallery" },
 ] as const;
 
 export function UnitScopedTabs({ slug, active }: UnitScopedTabsProps) {
@@ -21,7 +22,7 @@ export function UnitScopedTabs({ slug, active }: UnitScopedTabsProps) {
           return (
             <Link
               key={tab.key}
-              href={`/units/${slug}${tab.href}`}
+              href={`/units?unit=${encodeURIComponent(slug)}${tab.tab === "overview" ? "" : `&tab=${tab.tab}`}`}
               className={`besat-tab-link rounded-2xl px-4 py-3 text-center text-sm font-black ${
                 isActive ? "besat-tab-link-active" : ""
               }`}

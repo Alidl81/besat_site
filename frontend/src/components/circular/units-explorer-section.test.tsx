@@ -21,6 +21,36 @@ afterEach(() => {
 // legitimately-empty catalog renders -- a live outage probe found no
 // alert and no retry button, just the normal "nothing to show" text.
 describe("UnitsExplorerSection load-error handling", () => {
+  it("excludes internal development units before rendering the public wheel", async () => {
+    getPublicUnits.mockResolvedValueOnce([
+      {
+        id: 1,
+        title: "واحد عمومی",
+        slug: "public-unit",
+        kind: "elementary",
+        gender: "mixed",
+        subtitle: null,
+        description: null,
+        is_internal: false,
+      },
+      {
+        id: 99,
+        title: "واحد توسعه داخلی",
+        slug: "dev-unit",
+        kind: "elementary",
+        gender: "mixed",
+        subtitle: null,
+        description: null,
+        is_internal: true,
+      },
+    ]);
+
+    render(<UnitsExplorerSection variant="unit" />);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "واحد عمومی" })).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "واحد توسعه داخلی" })).not.toBeInTheDocument();
+  });
+
   it("shows a named error alert with a retry action when the load fails, not the empty-catalog state", async () => {
     getPublicUnits.mockRejectedValueOnce(new Error("network down"));
 

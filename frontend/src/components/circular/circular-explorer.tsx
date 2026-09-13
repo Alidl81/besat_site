@@ -24,6 +24,7 @@ type CircularExplorerProps = {
   descriptions: Record<string, string | null>;
   variant: "unit" | "department";
   initialSlug?: string | null;
+  initialTab?: string | null;
 };
 
 const tabs: ScopedTab[] = [
@@ -33,7 +34,24 @@ const tabs: ScopedTab[] = [
   { key: "gallery", label: "گالری", icon: "▧" },
 ];
 
-export function CircularExplorer({ items, descriptions, variant, initialSlug }: CircularExplorerProps) {
+const unitTabKeys = new Set(tabs.map((tab) => tab.key));
+
+function normalizeTab(value: string | null | undefined, variant: "unit" | "department") {
+  if (variant !== "unit" || !value || !unitTabKeys.has(value)) return "overview";
+  return value;
+}
+
+function updateUnitUrl(slug: string, tab: string) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  url.pathname = "/units";
+  url.searchParams.set("unit", slug);
+  if (tab === "overview") url.searchParams.delete("tab");
+  else url.searchParams.set("tab", tab);
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+export function CircularExplorer({ items, descriptions, variant, initialSlug, initialTab }: CircularExplorerProps) {
   const [activeId, setActiveId] = useState<string>(() => {
     const matchedInitialItem = initialSlug
       ? items.find((item) => item.slug === initialSlug)
@@ -41,22 +59,30 @@ export function CircularExplorer({ items, descriptions, variant, initialSlug }: 
 
     return matchedInitialItem?.id ?? items[0]?.id ?? "";
   });
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => normalizeTab(initialTab, variant));
 
   useEffect(() => {
-    if (!initialSlug) {
-      return;
-    }
-
     const matchedInitialItemOnChange = items.find((item) => item.slug === initialSlug);
-
-    if (matchedInitialItemOnChange) {
-      const frame = window.requestAnimationFrame(() => {
+    const frame = window.requestAnimationFrame(() => {
+      if (matchedInitialItemOnChange) {
         setActiveId(matchedInitialItemOnChange.id);
-      });
-      return () => window.cancelAnimationFrame(frame);
-    }
-  }, [initialSlug, items]);
+      }
+      setActiveTab(normalizeTab(initialTab, variant));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [initialSlug, initialTab, items, variant]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const url = new URL(window.location.href);
+      const slug = url.searchParams.get("unit");
+      const match = items.find((item) => item.slug === slug);
+      if (match) setActiveId(match.id);
+      setActiveTab(normalizeTab(url.searchParams.get("tab"), variant));
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [items, variant]);
 
   const activeItem = items.find((i) => i.id === activeId) ?? items[0];
 
@@ -64,7 +90,16 @@ export function CircularExplorer({ items, descriptions, variant, initialSlug }: 
 
   function handleSelect(id: string) {
     setActiveId(id);
-    setActiveTab("overview");
+    const selected = items.find((item) => item.id === id);
+    const nextTab = "overview";
+    setActiveTab(nextTab);
+    if (variant === "unit" && selected) updateUnitUrl(selected.slug, nextTab);
+  }
+
+  function handleTabChange(key: string) {
+    const nextTab = normalizeTab(key, variant);
+    setActiveTab(nextTab);
+    if (variant === "unit" && activeItem) updateUnitUrl(activeItem.slug, nextTab);
   }
 
   const tabContent = (
@@ -105,7 +140,7 @@ export function CircularExplorer({ items, descriptions, variant, initialSlug }: 
             <ScopedTabs
               tabs={variant === "unit" ? tabs : tabs.slice(0, 1)}
               activeKey={activeTab}
-              onChange={setActiveTab}
+              onChange={handleTabChange}
               label={`بخش‌های محتوای ${activeItem?.title ?? (variant === "unit" ? "واحد" : "دپارتمان")}`}
             >
               {tabContent}

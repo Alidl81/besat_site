@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- local social SVGs are stable public assets. */
 
 import Link from "next/link";
 import {
@@ -27,14 +28,6 @@ const quickLinks = [
   ["افتخارات", "/achievements"],
   ["گالری", "/gallery"],
   ["درباره ما", "/about"],
-] as const;
-
-// Curated, previously-approved set of external Besat-affiliated sites only —
-// not an unfiltered link farm.
-const relatedSites = [
-  ["روابط عمومی مدارس بعثت", "https://besat-r.com"],
-  ["دبیرستان بعثت", "https://www.besat-hs.ir"],
-  ["کانون زبان بعثت", "https://besatkids.com"],
 ] as const;
 
 type SiteSettingsWithLegacyPhone = PublicSiteSettings & {
@@ -83,6 +76,10 @@ export function SiteFooter() {
     ["تلگرام", settings?.telegram_url],
     ["اینستاگرام", settings?.instagram_url],
   ].filter((item): item is [string, string] => Boolean(item[1]));
+  const socialIconPaths: Record<string, string> = {
+    "ایتا": "/icons/social/eitaa.svg",
+    "تلگرام": "/icons/social/telegram.svg",
+  };
 
   return (
     <footer dir="rtl" className="relative mt-auto overflow-hidden bg-[#071524] text-white">
@@ -118,30 +115,19 @@ export function SiteFooter() {
                     key={href}
                     href={href}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
+                    aria-label={`${label} رسمی مجتمع آموزشی بعثت`}
                     className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.06] px-4 text-xs font-black text-white/85 transition hover:border-[#e2ae5b]/50 hover:bg-[#e2ae5b]/10 hover:text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/30 motion-reduce:transition-none"
                   >
+                    {socialIconPaths[label] ? (
+                      <img src={socialIconPaths[label]} alt="" aria-hidden="true" className="size-5 shrink-0 rounded-md object-contain" />
+                    ) : null}
                     {label}
-                    <ExternalLink aria-hidden="true" className="size-3.5" />
+                    {!socialIconPaths[label] ? <ExternalLink aria-hidden="true" className="size-3.5" /> : null}
                   </a>
                 ))}
               </div>
             ) : null}
-
-            <div className="mt-5 flex flex-wrap justify-center gap-x-4 gap-y-1 lg:justify-start">
-              {relatedSites.map(([label, href]) => (
-                <a
-                  key={href}
-                  href={href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex min-h-8 items-center gap-1.5 text-xs font-bold text-white/55 underline-offset-4 transition hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#e2ae5b]/30 motion-reduce:transition-none"
-                >
-                  {label}
-                  <ExternalLink aria-hidden="true" className="size-3" />
-                </a>
-              ))}
-            </div>
           </section>
 
           <nav

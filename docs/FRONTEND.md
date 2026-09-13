@@ -12,7 +12,7 @@ checks are:
 
 | Check | Result |
 | --- | --- |
-| Vitest | 131 test files, 493 tests passed |
+| Vitest | 131 test files, 499 tests passed |
 | ESLint | passed |
 | TypeScript | passed |
 | Next production build | passed; 32 static pages generated |
@@ -104,15 +104,16 @@ The authenticated UI is grouped by role:
 `ContactUnitSelector` is rendered directly beneath the central contact card in
 the right column. It is intentionally separate from the contact form.
 
-- It is a compact image-free coverflow: the selected unit is centered and
-  fully visible; immediate neighbors peek at the sides and fade back.
+- It is a compact image-free selector: the selected unit is a rounded
+  rectangle in the center, with exactly one circular previous-unit control on
+  the left and one circular next-unit control on the right.
 - The active card itself contains the selected unit's phone, email, short
   address/descriptor, and `/units?unit=<slug>` CTA. Details are never repeated
   in a second lower panel, so the card has no clipped or empty lower region.
 - Previous/next buttons have the accessible labels `واحد قبلی` and `واحد بعدی`.
-- The tablist supports click, pointer/touch drag, ArrowLeft/ArrowRight,
-  Home, and End. Dragging beyond the threshold suppresses the accidental
-  button click.
+- The tablist supports clicking either circular neighbor, pointer/touch drag,
+  ArrowLeft/ArrowRight, Home, and End. Dragging beyond the threshold suppresses
+  only the accidental click caused by that drag.
 - On narrow screens the order is central contact card, mini carousel, then
   the unchanged contact form. On desktop the form remains in its existing
   column and the card/carousel remain together in the other column.
@@ -157,7 +158,7 @@ card. Unit deep-link and legacy-route redirect evidence is kept beside the
 screenshots in the same ignored audit folder.
 
 The browser interaction smoke additionally performed real pointer drags on a
-department wheel and a unit wheel, performed a contact coverflow swipe after
+department wheel and a unit wheel, performed a Contact selector swipe after
 scrolling the carousel into view, verified selected-node changes, opened the
 mobile drawer, and verified both requested navigation branches. It used only
 the local Next server and seeded local data.

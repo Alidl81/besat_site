@@ -91,7 +91,10 @@ export function CircularExplorer({ items, descriptions, variant, initialSlug, in
   function handleSelect(id: string) {
     setActiveId(id);
     const selected = items.find((item) => item.id === id);
-    const nextTab = "overview";
+    // Selection is shared by click, scroll, and drag. Keep the current unit
+    // tab while changing the unit so every input path updates the same
+    // content context instead of silently jumping back to معرفی.
+    const nextTab = variant === "unit" ? activeTab : "overview";
     setActiveTab(nextTab);
     if (variant === "unit" && selected) updateUnitUrl(selected.slug, nextTab);
   }

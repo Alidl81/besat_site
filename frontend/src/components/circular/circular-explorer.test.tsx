@@ -94,7 +94,7 @@ describe("CircularExplorer URL state", () => {
     expect(window.location.search).toBe("?unit=unit-2&tab=gallery");
 
     fireEvent.click(screen.getByRole("button", { name: "واحد اول" }));
-    expect(window.location.search).toBe("?unit=unit-1");
+    expect(window.location.search).toBe("?unit=unit-1&tab=gallery");
   });
 
   it("falls back to the first public item for an invalid slug", async () => {

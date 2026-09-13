@@ -284,6 +284,12 @@ export function CircularSelector({
         }}
         onPointerDown={(event) => {
           if (event.pointerType === "mouse" && event.button !== 0) return;
+          // The historical wheel deliberately let pointer taps on nodes reach
+          // the node button. Capturing those pointers at the orbit container
+          // retargets the browser's click to the container, so the visible
+          // node can no longer activate. Start orbit drags from the wheel
+          // surface instead; a tap on a node remains a real click-to-focus.
+          if ((event.target as HTMLElement).closest("button")) return;
           beginDrag(event.pointerId, event.clientX, event.clientY);
           event.currentTarget.setPointerCapture?.(event.pointerId);
         }}
@@ -292,6 +298,7 @@ export function CircularSelector({
         onPointerCancel={(event) => finishDrag(event.pointerId, event.currentTarget)}
         onMouseDown={(event) => {
           if (typeof window !== "undefined" && "PointerEvent" in window) return;
+          if ((event.target as HTMLElement).closest("button")) return;
           if (event.button === 0) beginDrag(0, event.clientX, event.clientY);
         }}
         onMouseMove={(event) => {
@@ -308,6 +315,7 @@ export function CircularSelector({
         }}
         onTouchStart={(event) => {
           if (typeof window !== "undefined" && "PointerEvent" in window) return;
+          if ((event.target as HTMLElement).closest("button")) return;
           const touch = event.touches[0];
           if (touch) beginDrag(0, touch.clientX, touch.clientY);
         }}

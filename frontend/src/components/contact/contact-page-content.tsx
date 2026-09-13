@@ -11,7 +11,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ContactForm } from "@/components/contact/contact-form";
 import { ContactUnitSelector } from "@/components/contact/contact-unit-selector";
 import { getApiErrorMessage } from "@/lib/api/client";
-import { getContactInfo, getPublicUnits } from "@/services/public-content-service";
+import { getContactInfo, getPublicUnits, getRegistrationInfo } from "@/services/public-content-service";
 import type { ContactInfo, PublicSchoolUnit } from "@/types/public-content";
 
 function telHref(value: string) {
@@ -74,6 +74,8 @@ export function ContactPageContent() {
   const [contact, setContact] = useState<ContactInfo | null>(null);
   const [units, setUnits] = useState<PublicSchoolUnit[] | null>(null);
   const [unitsError, setUnitsError] = useState(false);
+  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
+  const [registrationMessage, setRegistrationMessage] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [version, setVersion] = useState(0);
 
@@ -102,6 +104,18 @@ export function ContactPageContent() {
         setUnits([]);
       });
 
+    getRegistrationInfo()
+      .then((registration) => {
+        if (cancelled) return;
+        setRegistrationOpen(registration.is_open);
+        setRegistrationMessage(registration.closed_message);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setRegistrationOpen(false);
+        setRegistrationMessage("وضعیت پیش‌ثبت‌نام در دسترس نیست؛ صفحه ثبت‌نام را بررسی کنید.");
+      });
+
     return () => {
       cancelled = true;
     };
@@ -118,6 +132,8 @@ export function ContactPageContent() {
             setContact(null);
             setUnits(null);
             setUnitsError(false);
+            setRegistrationOpen(null);
+            setRegistrationMessage(null);
             setError("");
             setVersion((value) => value + 1);
           }}
@@ -173,7 +189,12 @@ export function ContactPageContent() {
           )}
         </section>
 
-        <ContactUnitSelector units={units} error={unitsError} />
+        <ContactUnitSelector
+          units={units}
+          error={unitsError}
+          registrationOpen={registrationOpen}
+          registrationMessage={registrationMessage}
+        />
       </div>
 
       <ContactForm />

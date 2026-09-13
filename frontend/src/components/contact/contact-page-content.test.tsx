@@ -1,15 +1,17 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { getContactInfo, getPublicUnits, submitContactMessage } = vi.hoisted(() => ({
+const { getContactInfo, getPublicUnits, getRegistrationInfo, submitContactMessage } = vi.hoisted(() => ({
   getContactInfo: vi.fn(),
   getPublicUnits: vi.fn(),
+  getRegistrationInfo: vi.fn(),
   submitContactMessage: vi.fn(),
 }));
 
 vi.mock("@/services/public-content-service", () => ({
   getContactInfo,
   getPublicUnits,
+  getRegistrationInfo,
   submitContactMessage,
 }));
 
@@ -58,6 +60,15 @@ describe("ContactPageContent", () => {
         accepts_registration: true,
       },
     ]);
+    getRegistrationInfo.mockResolvedValueOnce({
+      title: "پیش‌ثبت‌نام",
+      description: null,
+      is_open: true,
+      open_message: null,
+      closed_message: null,
+      required_documents: [],
+      notes: null,
+    });
 
     render(<ContactPageContent />);
 

@@ -100,7 +100,8 @@ describe("ContactUnitSelector", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "واحد قبلی" }));
     await waitFor(() => expect(screen.getByRole("tab", { name: /واحد ۳/ })).toHaveAttribute("aria-selected", "true"));
-    expect(screen.getAllByRole("tab")).toHaveLength(4);
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
+    expect(screen.getByRole("link", { name: /پیش‌ثبت‌نام برای این واحد/ })).toHaveAttribute("href", "/registration?unit=unit-3");
   });
 
   it("uses the Home slider swipe threshold without swallowing a real Unit link click", async () => {
@@ -127,5 +128,30 @@ describe("ContactUnitSelector", () => {
     fireEvent.click(neighbor);
 
     return waitFor(() => expect(screen.getByRole("tab", { name: /واحد ۳/ })).toHaveAttribute("aria-selected", "true"));
+  });
+
+  it("renders one previous and one next circular navigation target", () => {
+    render(<ContactUnitSelector units={units} />);
+
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
+    expect(screen.getByRole("tab", { name: /واحد قبلی: واحد ۱۳/ })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /واحد بعدی: واحد ۳/ })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /واحد ۱ و ۲/ })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("keeps pre-registration truthful for a closed Unit or global registration window", () => {
+    const closedUnit = makeUnit({ id: 22, title: "واحد بسته", slug: "closed-unit", accepts_registration: false });
+    const closedUnits = [closedUnit, units[1]];
+
+    const { rerender } = render(<ContactUnitSelector units={closedUnits} registrationOpen />);
+    expect(screen.queryByRole("link", { name: /پیش‌ثبت‌نام برای این واحد/ })).not.toBeInTheDocument();
+    expect(screen.getByText("پیش‌ثبت‌نام این واحد بسته است")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: /واحد بعدی/ }));
+    expect(screen.getByRole("link", { name: /پیش‌ثبت‌نام برای این واحد/ })).toHaveAttribute("href", "/registration?unit=unit-3");
+
+    rerender(<ContactUnitSelector units={closedUnits} registrationOpen={false} />);
+    expect(screen.queryByRole("link", { name: /پیش‌ثبت‌نام برای این واحد/ })).not.toBeInTheDocument();
+    expect(screen.getByText("پیش‌ثبت‌نام این واحد در حال حاضر بسته است")).toBeInTheDocument();
   });
 });
